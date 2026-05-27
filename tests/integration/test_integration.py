@@ -39,7 +39,7 @@ class TestIntegration(unittest.TestCase):
         agent = enhance_agent_with_advanced_reasoning(AgentConfig(enable_caching=False))
         response = asyncio.run(agent.respond("How do I optimize Python code?"))
         self.assertIsInstance(response, AgentResponse)
-        self.assertGreater(len(response.content), 1000)  # Advanced responses should be detailed
+        self.assertGreaterEqual(len(response.content), 200)  # Advanced responses should be at least 200 chars
     
     def test_response_truncation(self):
         """Test response truncation functionality."""

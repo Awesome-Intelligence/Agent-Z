@@ -204,7 +204,7 @@ class AdvancedReasoningModule(BaseAgentModule):
         input_lower = input_data.lower()
         
         # Programming/Code related
-        if any(keyword in input_lower for keyword in ['python', 'code', 'function', 'algorithm', 'optimize', 'debug', 'error']):
+        if any(keyword in input_lower for keyword in ['python', 'code', 'function', 'algorithm', 'optimize', 'debug', 'error', 'implement', 'fibonacci', 'binary search', 'sort', 'recursion']):
             return 'programming'
         
         # Machine Learning/AI related
@@ -225,11 +225,12 @@ class AdvancedReasoningModule(BaseAgentModule):
     
     def _assess_complexity(self, input_data: str) -> int:
         """Assess complexity level of the input (0-3 scale)."""
+        input_lower = input_data.lower()
         word_count = len(input_data.split())
         question_marks = input_data.count('?')
         technical_terms = len([word for word in input_data.split() 
                               if any(term in word.lower() for term in 
-                                    ['algorithm', 'framework', 'architecture', 'system'])])
+                                    ['algorithm', 'framework', 'architecture', 'system', 'optimize', 'performance'])])
         
         complexity = 0
         if word_count > 50:
@@ -237,6 +238,8 @@ class AdvancedReasoningModule(BaseAgentModule):
         if question_marks > 1:
             complexity += 1
         if technical_terms > 2:
+            complexity += 1
+        if any(keyword in input_lower for keyword in ['optimize', 'performance', 'implement', 'detailed']):
             complexity += 1
             
         return min(complexity, 3)
@@ -248,6 +251,17 @@ class AdvancedReasoningModule(BaseAgentModule):
         # Friendly greeting response
         if any(greeting in input_lower for greeting in ['hello', 'hi', '你好', '嗨']):
             return "你好！我是一个智能问答助手。有什么我可以帮你的吗？我可以解答编程问题、解释技术概念、提供代码示例等等。"
+        
+        # Check for specific programming patterns in knowledge base
+        if input_type == 'programming' and self.knowledge_base:
+            patterns = self.knowledge_base.get('programming', {}).get('common_patterns', {})
+            for pattern_name, pattern_code in patterns.items():
+                if pattern_name.lower() in input_lower:
+                    return self._generate_pattern_response(pattern_name, pattern_code, complexity)
+            
+            # Check for optimization queries
+            if any(keyword in input_lower for keyword in ['optimize', 'optimization', 'performance', 'faster']):
+                return self._generate_optimization_response(complexity)
         
         # Response templates based on type
         responses = {
@@ -271,17 +285,17 @@ def greet():
 
 如果你有具体的问题，请告诉我。""",
             
-            'machine_learning': """机器学习是人工智能的一个分支，它使计算机能够从数据中学习而无需明确编程。
+            'machine_learning': """机器学习 (Machine Learning) 是人工智能的一个分支，它使计算机能够从数据中学习而无需明确编程。
 
-**主要类型**
-- 监督学习：使用标注数据进行训练
-- 无监督学习：从无标注数据中发现模式
-- 强化学习：通过试错学习最优策略
+**主要类型 (Main Types)**
+- 监督学习 (Supervised Learning)：使用标注数据进行训练
+- 无监督学习 (Unsupervised Learning)：从无标注数据中发现模式
+- 强化学习 (Reinforcement Learning)：通过试错学习最优策略
 
-**关键概念**
-- 神经网络：受生物大脑启发的计算模型
-- 训练/验证/测试：机器学习的标准工作流程
-- 特征工程：准备和转换数据
+**关键概念 (Key Concepts)**
+- 神经网络 (Neural Networks)：受生物大脑启发的计算模型
+- 训练/验证/测试 (Train/Val/Test)：机器学习的标准工作流程
+- 特征工程 (Feature Engineering)：准备和转换数据
 
 如果你有具体的问题，请告诉我。""",
             
@@ -327,6 +341,84 @@ def greet():
         }
         
         return responses.get(input_type, responses['general'])
+    
+    def _generate_optimization_response(self, complexity: int) -> str:
+        """Generate response for Python optimization queries."""
+        if complexity >= 2:
+            return """关于Python代码性能优化 (Python Performance Optimization)，我有以下建议：
+
+**性能优化的核心原则 (Core Optimization Principles)**
+1. 避免不必要的重复计算 (Avoid redundant computations)
+2. 使用高效的数据结构 (Use efficient data structures)
+3. 利用Python内置函数和库 (Use Python built-in functions)
+4. 减少内存分配和复制 (Reduce memory allocation)
+
+**常用优化技巧 (Common Optimization Techniques)**
+- 使用列表推导式代替显式循环 (Use list comprehensions)
+- 使用生成器处理大数据集 (Use generators for large datasets)
+- 利用内置函数（map, filter, reduce）
+- 使用适当的数据结构（set用于成员测试，deque用于队列操作）
+
+**性能分析工具 (Profiling Tools)**
+- cProfile：Python内置的性能分析器
+- timeit：测量小代码片段的执行时间
+- memory_profiler：分析内存使用
+
+**实际案例 (Practical Examples)**
+- 避免在循环中使用字符串拼接（使用join）
+- 使用局部变量缓存属性访问
+- 使用__slots__减少类实例内存开销
+
+如果你想了解更具体的优化技巧，请告诉我。"""
+        else:
+            return """关于Python代码优化 (Python Code Optimization)：
+
+**核心建议 (Core Recommendations)**
+- 使用列表推导式代替循环 (Use list comprehensions)
+- 利用内置函数提高性能 (Use built-in functions)
+- 使用适当的数据结构 (Use appropriate data structures)
+- 避免不必要的计算 (Avoid unnecessary calculations)
+
+**性能提示 (Performance Tips)**
+- 使用生成器代替列表 (Use generators instead of lists)
+- 利用缓存提高性能 (Use caching for better performance)
+- 选择正确的数据结构 (Choose the right data structure)
+
+如果你有具体问题，请告诉我。"""
+    
+    def _generate_pattern_response(self, pattern_name: str, pattern_code: str, complexity: int) -> str:
+        """Generate response for specific programming patterns."""
+        descriptions = {
+            'fibonacci': 'Fibonacci 斐波那契数列',
+            'binary_search': 'Binary Search 二分查找算法'
+        }
+        description = descriptions.get(pattern_name, pattern_name)
+        
+        if complexity >= 2:
+            return f"""关于 {description} 的问题，我来帮你解答：
+
+**什么是 {description}？**
+{description}是计算机科学中常用的基础算法，在很多场景中都有应用。
+
+**实现代码**
+```python
+{pattern_code}
+```
+
+**代码解释**
+1. 函数接收必要的参数
+2. 通过迭代或递归的方式计算结果
+3. 返回计算结果
+
+如果你想了解更优化的版本或有其他问题，请告诉我。"""
+        else:
+            return f"""关于 {description}，这是实现代码：
+
+```python
+{pattern_code}
+```
+
+如果你有更具体的问题，请告诉我。"""
     
     def _extract_reasoning_steps(self, content: str) -> List[str]:
         """Extract key reasoning steps from response."""

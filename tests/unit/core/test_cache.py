@@ -44,15 +44,15 @@ class TestLRUCache(unittest.TestCase):
         cache.put("key2", "value2")
         cache.put("key1", "value1_updated")  # Update existing key
         
-        # Check values without using get() to avoid changing LRU order
-        self.assertEqual(cache.cache["key1"], "value1_updated")
-        self.assertEqual(cache.cache["key2"], "value2")
+        # Verify the updated value is accessible
+        self.assertEqual(cache.get("key1"), "value1_updated")
+        self.assertEqual(cache.get("key2"), "value2")
         
         # Add new item - should evict key2 (least recently used)
         cache.put("key3", "value3")
-        self.assertEqual(cache.cache["key1"], "value1_updated")
-        self.assertNotIn("key2", cache.cache)
-        self.assertEqual(cache.cache["key3"], "value3")
+        self.assertEqual(cache.get("key1"), "value1_updated")
+        self.assertIsNone(cache.get("key2"))  # key2 should be evicted
+        self.assertEqual(cache.get("key3"), "value3")
 
 
 class TestCacheKeyGeneration(unittest.TestCase):
