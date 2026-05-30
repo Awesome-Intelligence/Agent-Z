@@ -19,7 +19,7 @@
 │  1. Interface Layer                                        │
 │     CLI │ Gateway                                         │
 ├─────────────────────────────────────────────────────────────┤
-│  2. ✨ Intent Recognition Layer (LLM-powered)              │
+│  2. 🏷️ Intent Recognition Layer (LLM-powered)              │
 │     llm_intent_service.py (NEW!)                          │
 ├─────────────────────────────────────────────────────────────┤
 │  3. Core Layer ← YOU ARE HERE                            │
@@ -33,7 +33,7 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 🎯 纯 LLM Intent Recognition
+## 🏷️ 纯 LLM Intent Recognition
 
 ### 不再使用的（已废弃）
 
@@ -399,3 +399,403 @@ agent = initialize_agent(tools, llm, AgentType.CHAT_ZERO_SHOT_REACT_DESCRIPTION)
 - [LlamaIndex Documentation](https://gpt-index.readthedocs.io)
 - [AutoGen Documentation](https://microsoft.github.io/autogen)
 - [CrewAI Documentation](https://docs.crewai.com)
+
+---
+
+## 🎯 智能任务规划系统
+
+> **核心特性**: 自动检测复杂任务，LLM 驱动的任务拆解与追踪
+
+### 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         用户请求                                         │
+│              "帮我开发一个用户注册功能，包括前端、后端、数据库"             │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     ResponseStrategyRouter                               │
+│                          策略路由器                                       │
+│                                                                          │
+│  分析特征:                                                              │
+│  • 包含"开发"、"包括"、"前端"、"后端" → TASK_PLANNING                  │
+│  • 包含"什么是"、"为什么"、"解释" → ADVANCED_REASONING                 │
+│  • 包含"打开"、"运行"、"执行" → SKILL_EXECUTION                        │
+│  • 包含"你好"、"天气" → SIMPLE_RESPONSE                                │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+┌───────────────────────────────┐   ┌───────────────────────────────────┐
+│       TaskPlanning            │   │     AdvancedReasoning            │
+│        (任务规划)              │   │       (高级推理)                  │
+├───────────────────────────────┤   ├───────────────────────────────────┤
+│ • 复杂度检测                  │   │ • 知识问答                       │
+│ • 任务拆解                    │   │ • 解释"是什么"、"为什么"         │
+│ • 依赖分析                    │   │ • 技术选型建议                   │
+│ • 进度追踪                    │   │ • 对比分析                      │
+└───────────────────────────────┘   └───────────────────────────────────┘
+                    │                               │
+                    └───────────────┬───────────────┘
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    协作式任务规划 (CollaborativePlanning)                   │
+│                                                                          │
+│  TaskPlanning + AdvancedReasoning 协同工作:                               │
+│  • 拆解任务时获取技术选型建议                                             │
+│  • 生成带推理注释的执行计划                                               │
+│  • 子任务执行时可调用推理能力                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 核心组件
+
+| 组件 | 文件 | 职责 |
+|------|------|------|
+| `ResponseStrategyRouter` | response_router.py | 智能策略路由选择 |
+| `TaskPlanningMiddleware` | task_middleware.py | 任务规划中间件 |
+| `TaskPlanner` | task_planner.py | LLM 驱动的任务规划器 |
+| `CollaborativeTaskPlanner` | collaborative_planning.py | 协作式任务规划 |
+| `SubTaskExecutor` | task_executor.py | 子任务执行引擎 |
+| `TaskLogger` | task_logger.py | 可视化日志输出 |
+
+---
+
+### 1. ResponseStrategyRouter (策略路由器)
+
+**职责**: 智能选择最佳响应策略
+
+**策略类型**:
+
+| 策略 | 触发条件 | 场景 |
+|------|---------|------|
+| `TASK_PLANNING` | 复杂多步骤任务 | "帮我开发一个系统" |
+| `ADVANCED_REASONING` | 知识问答/解释 | "什么是 REST API？" |
+| `SKILL_EXECUTION` | 工具操作 | "打开终端，运行 npm" |
+| `SIMPLE_RESPONSE` | 简单对话 | "你好" |
+
+**使用示例**:
+
+```python
+from core.response_router import ResponseStrategyRouter, ResponseStrategy
+
+router = ResponseStrategyRouter(
+    enable_task_planning=True,
+    enable_skills=True,
+    enable_advanced_reasoning=True
+)
+
+# 分析请求类型
+strategy = router.analyze("什么是 RESTful API？")
+print(strategy.value)  # "advanced_reasoning"
+```
+
+**智能判断逻辑**:
+
+```python
+def analyze(self, user_input: str) -> ResponseStrategy:
+    # 1. 复杂任务 → TaskPlanning
+    if self._is_complex_task(input_lower):
+        return ResponseStrategy.TASK_PLANNING
+    
+    # 2. 知识问答 → AdvancedReasoning
+    if self._needs_reasoning(input_lower):
+        return ResponseStrategy.ADVANCED_REASONING
+    
+    # 3. 工具操作 → SkillExecution
+    if self._is_skill_request(input_lower):
+        return ResponseStrategy.SKILL_EXECUTION
+    
+    # 4. 默认 → SimpleResponse
+    return ResponseStrategy.SIMPLE_RESPONSE
+```
+
+---
+
+### 2. TaskPlanningMiddleware (任务规划中间件)
+
+**职责**: 复杂任务的自动检测、拆解和规划
+
+**核心流程**:
+
+```
+用户请求
+    │
+    ▼
+┌─────────────────────────────────────────────────────────┐
+│  1. LLM 分析复杂度                                      │
+│     → complexity: "complex", needs_planning: true       │
+└─────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────┐
+│  2. LLM 拆解任务                                         │
+│     → 5 个子任务: 需求分析、数据库设计、API开发...      │
+└─────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────┐
+│  3. 创建任务列表                                        │
+│     → TodoToolkitAdapter 调用                           │
+└─────────────────────────────────────────────────────────┘
+    │
+    ▼
+返回格式化执行计划
+```
+
+**使用示例**:
+
+```python
+from core.task_middleware import TaskPlanningMiddleware
+
+middleware = TaskPlanningMiddleware(
+    llm_provider=llm,
+    session_id="user_session_123",
+    complexity_threshold=2,
+    enable_logging=True
+)
+
+# 处理复杂任务
+result = await middleware.process("帮我开发一个用户注册功能")
+print(result.is_complex)  # True
+print(result.subtasks)    # [{'id': 1, 'title': '需求分析'}, ...]
+```
+
+**特性**:
+
+- ✅ 自动检测复杂任务（无需用户说"创建任务"）
+- ✅ LLM 智能拆解子任务
+- ✅ 支持任务依赖关系
+- ✅ 自动创建任务列表
+- ✅ 支持与 AdvancedReasoning 协作
+
+---
+
+### 3. TaskPlanner (LLM驱动的任务规划器)
+
+**职责**: 核心任务规划逻辑，复杂度分析和任务拆解
+
+**核心功能**:
+
+```python
+class TaskPlanner:
+    """LLM驱动的任务规划器"""
+    
+    async def analyze_complexity(self, user_request: str) -> Dict[str, Any]:
+        """分析任务复杂度"""
+        # 返回: {complexity, estimated_steps, needs_decomposition, reasoning}
+        
+    async def decompose_task(self, user_request: str, complexity: str) -> TaskPlan:
+        """将任务拆解为子任务"""
+        # 返回 TaskPlan，包含多个 SubTask
+        
+    async def create_task_list(self, plan: TaskPlan) -> str:
+        """创建任务列表"""
+        # 调用 TodoToolkitAdapter
+```
+
+**复杂度等级**:
+
+| 等级 | 估计步骤 | 是否需要拆解 |
+|------|---------|------------|
+| `simple` | 1 步 | ❌ |
+| `moderate` | 2-3 步 | ⚠️ 可选 |
+| `complex` | 4-6 步 | ✅ 建议 |
+| `very_complex` | 7+ 步 | ✅ 必须 |
+
+---
+
+### 4. CollaborativeTaskPlanner (协作式任务规划)
+
+**职责**: TaskPlanning + AdvancedReasoning 协同工作
+
+**设计原理**:
+
+```
+TaskPlanning 负责 "做什么" (任务拆解)
+AdvancedReasoning 负责 "为什么" (技术选型解释)
+```
+
+**使用示例**:
+
+```python
+from core.collaborative_planning import create_collaborative_planner
+
+# 创建协作式规划器
+collaborative = create_collaborative_planner(
+    task_planner=task_planner,
+    advanced_reasoning=advanced_reasoning_module,  # 注入 AdvancedReasoning
+    enable_collaboration=True
+)
+
+# 协作式规划
+result = await collaborative.plan_with_collaboration(
+    "帮我开发一个用户注册功能"
+)
+
+# result 包含:
+# - subtasks: 拆解的子任务
+# - technical_reasoning: 技术选型建议
+# - plan: 带推理的执行计划
+```
+
+**输出示例**:
+
+```markdown
+🎯 **智能执行计划** (TaskPlanning + AdvancedReasoning)
+
+📋 主任务: 帮我开发一个用户注册功能
+
+💡 **技术选型建议:**
+AUTHENTICATION:
+  推荐方案: JWT
+  理由: 无状态，适合微服务架构，支持跨域
+
+DATABASE:
+  推荐方案: PostgreSQL
+  理由: 事务支持强，数据一致性好
+
+📋 **执行计划:**
+1. 需求分析
+2. 技术选型 [理由: JWT 无状态，PostgreSQL 事务强]
+3. 数据库设计
+4. 后端 API 开发
+5. 前端表单开发
+6. 测试验证
+```
+
+---
+
+### 5. TaskLogger (可视化日志)
+
+**职责**: 提供直观的树形任务列表和进度显示
+
+**特性**:
+
+- 🌲 树形结构显示任务依赖
+- 📊 实时进度条
+- 🎨 彩色状态标识
+- ⏱️ 时间统计
+
+**使用示例**:
+
+```python
+from core.task_logger import create_task_logger
+
+logger = create_task_logger("MyTask")
+
+# 任务规划
+print(logger.plan_start("开发注册功能"))
+print(logger.plan_complete("complex", subtasks, "开发流程"))
+
+# 执行跟踪
+print(logger.execute_start(1, 5, "需求分析"))
+print(logger.execute_complete(1, "需求分析", "完成"))
+
+# 最终汇总
+print(logger.final_summary())
+```
+
+**可视化效果**:
+
+```
+╔════════════════════════════════════════════════════════════╗
+║ 📊 任务规划与执行追踪                                        ║
+╚════════════════════════════════════════════════════════════╝
+
+📋 主任务: 开发用户注册功能
+
+  [████████████░░░░░░░░]  2/6 (33%)
+
+  ✅ 需求分析
+        ✅ 数据库设计
+            🔄 后端API开发
+              │ ⏳ 前端表单开发
+              │     ⏳ 集成测试
+                ⏳ 单元测试
+
+────────────────────────────────────────
+  📊 统计: 完成 2 | 失败 0 | 待处理 3
+  ⏱️  耗时: 12.5秒
+```
+
+---
+
+### 6. 与 Agent 主流程集成
+
+**完整流程图**:
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ CustomAgent.respond()                                          │
+│                                                                │
+│  1. ResponseStrategyRouter.analyze()                          │
+│     → 选择策略: TASK_PLANNING                                  │
+│                                                                │
+│  2. TaskPlanningMiddleware.process()                          │
+│     → 分析复杂度 → 拆解任务 → 创建任务列表                      │
+│                                                                │
+│  3. CollaborativeTaskPlanner (如果启用了 AdvancedReasoning)   │
+│     → 获取技术选型建议 → 生成带推理的计划                       │
+│                                                                │
+│  4. 返回格式化执行计划 + 任务列表                              │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**AgentConfig 配置**:
+
+```python
+from core.agent import AgentConfig
+
+config = AgentConfig(
+    # 任务规划
+    enable_task_planning=True,        # 启用任务规划
+    task_complexity_threshold=2,      # 复杂度阈值
+    
+    # 高级推理
+    enable_advanced_reasoning=True,  # 启用高级推理
+    
+    # 技能执行
+    enable_skills=True,               # 启用技能管理
+)
+```
+
+---
+
+### 7. 三者职责对比
+
+| 模块 | 解决什么问题 | 触发条件 |
+|------|------------|---------|
+| **TaskPlanning** | "这个复杂任务应该分几步做？" | 包含"开发"、"实现"、"项目"等 |
+| **AdvancedReasoning** | "这个概念是什么意思？" | 包含"什么是"、"为什么"、"解释" |
+| **SkillManager** | "执行这个命令/操作" | 包含"打开"、"运行"、"执行" |
+
+### 8. 递进式协作流程
+
+```
+用户: "帮我开发一个系统"
+    │
+    ▼
+TaskPlanning: 拆解为子任务
+    │
+    ▼
+子任务: "设计数据库"
+    │
+    ▼
+AdvancedReasoning: 解释为什么选择这个数据库方案
+    │
+    ▼
+用户可以看到:
+  • 要做什么 (TaskPlanning)
+  • 为什么这样做 (AdvancedReasoning)
+```
+
+---
+
+## 📚 相关文档
+
+- [Advanced Reasoning 模块](../advanced_reasoning/README.md) - 高级推理能力
+- [Tool Calling](../tools/README.md) - 工具调用系统
+- [Session Management](./session.py) - 会话管理

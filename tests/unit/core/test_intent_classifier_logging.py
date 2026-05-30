@@ -37,7 +37,7 @@ class TestIntentClassifierLogging(unittest.TestCase):
         
         # Result should still be returned
         self.assertIsInstance(result, str)
-        self.assertIn(result, ["file_operation", "file_operations", "conversation", "web_search"])
+        self.assertIn(result, ["operation", "conversation", "coding"])
     
     def test_intent_classifier_classify_when_disabled(self):
         """Test that IntentClassifier still works when enable_detailed_logs is False."""

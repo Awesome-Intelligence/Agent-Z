@@ -67,7 +67,7 @@ async def llm_web_search_handler(input_text: str, context: Dict[str, Any]) -> Tu
             execution_flow.append("🧠 [决策层] 意图分析完成")
             
             if intent == 'browser_search' and skill_manager:
-                execution_flow.append("⚡ [执行层] 执行浏览器搜索任务")
+                execution_flow.append("（WebSearch） 执行浏览器搜索任务")
                 
                 if open_url:
                     url = open_url
@@ -84,7 +84,7 @@ async def llm_web_search_handler(input_text: str, context: Dict[str, Any]) -> Tu
                                                           url=url)
                 
                 if result and result.success:
-                    execution_flow.append("⚡ [执行层] 打开浏览器成功")
+                    execution_flow.append("（WebSearch） 打开浏览器成功")
                     return result.output, execution_flow, True
                 
             elif search_query:

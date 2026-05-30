@@ -1,16 +1,9 @@
 # Handsome Agent 意图识别配置文件
 # 
-# 用途：配置意图识别的关键词，支持多语言
-# 位置：config/intents.yaml
-# 
-# 配置说明：
-# - 每个意图（intent）包含关键词列表
-# - 关键词可以是中英文，支持大小写不敏感匹配
-# - 可以添加新的意图或修改现有意图的关键词
-# - 修改后需要重启服务生效
+# 精简版：3种核心意图
 
 intents:
-  # 对话类：问候、寒暄、闲聊
+  # 对话类：问候、寒暄、问答、闲聊、分析
   conversation:
     keywords:
       - hello
@@ -26,16 +19,30 @@ intents:
       - see you
       - morning
       - evening
-      - 上一句
-      - 刚说的
-      - 最后说了什么
-      - 聊了些什么
-      - 聊什么
-      - 历史
-      - 刚才聊
-      - 之前聊
-      - 我们聊
-      # 闲聊关键词
+      - 什么是
+      - 如何
+      - 为什么
+      - 怎么
+      - 干嘛
+      - 什么意思
+      - what
+      - who
+      - when
+      - where
+      - why
+      - how
+      - explain
+      - difference
+      - compare
+      - define
+      - meaning
+      - is there
+      - tell me
+      - 分析
+      - 检查
+      - 优化
+      - analyze
+      - review
       - 故事
       - 讲一个
       - 说说
@@ -87,130 +94,44 @@ intents:
       - 可以吗
       - 行不行
       - 好吗
+      - 上一句
+      - 刚说的
+      - 最后说了什么
+      - 聊了些什么
+      - 聊什么
+      - 历史
+      - 刚才聊
+      - 之前聊
+      - 我们聊
+      - 任务
+      - todo
+      - task
+      - 待办
+      - 清单
+      - 列表
+      - 添加任务
+      - 完成
+      - 完成任务
+      - 新建任务
+      - 创建任务
+      - 任务列表
+      - 待办事项
+      - 添加待办
+      - complete
+      - finish
+      - done
+      - cancel
+      - 删除任务
+      - 列出任务
+      - 有哪些任务
+      - 还有几个
+      - 待办列表
+      - 任务管理
     priority: 1
-    description: "问候、寒暄、闲聊对话"
+    description: "对话、问答、闲聊、分析、任务管理"
 
-  # 问答类：提问、解释、定义
-  question:
-    keywords:
-      - what
-      - who
-      - when
-      - where
-      - why
-      - how
-      - explain
-      - difference
-      - compare
-      - define
-      - meaning
-      - is there
-      - tell me
-      - 什么是
-      - 如何
-      - 为什么
-      - 怎么
-      - 干嘛
-      - 什么意思
-    priority: 2
-    description: "提问、解释、定义、比较"
-
-  # 天气查询类
-  weather:
-    keywords:
-      - 天气
-      - weather
-      - 温度
-      - temperature
-      - 下雨
-      - rain
-      - 晴天
-      - sunny
-      - 多云
-      - cloudy
-      - 风
-      - wind
-      - 气候
-      - climate
-      - forecast
-      - 预报
-      - 气温
-      # 更具体的天气查询短语
-      - 今天天气
-      - 明天天气
-      - 后天天气
-      - 天气怎么样
-      - 天气如何
-      - 天气预报
-      - 气温多少
-      - 多少度
-      - 冷不冷
-      - 热不热
-      - 穿什么
-      - 适合穿
-      - 紫外线
-      - 空气质量
-      - pm2.5
-    priority: 1
-    description: "天气、温度、气候查询"
-
-  # 时间查询类
-  time_query:
-    keywords:
-      - 时间
-      - 现在几点
-      - 几点了
-      - 什么时间
-      - 几点
-      - 几点钟
-      - date
-      - 日期
-      - 今天几号
-      - 星期几
-      - month
-      - year
-      - 年
-      - 月
-      - 日
-      - 现在时间
-      - 当前时间
-    priority: 1
-    description: "时间、日期、星期查询"
-
-  # 编程类：代码生成、调试、编程问题
-  coding:
-    keywords:
-      - code
-      - python
-      - function
-      - program
-      - debug
-      - error
-      - bug
-      - implement
-      - write
-      - fix
-      - compile
-      - syntax
-      - class
-      - method
-      - import
-      - variable
-      - loop
-      - def
-      - return
-      - print
-      - 写代码
-      - 帮我写
-      - 编程
-      - 代码
-      - 函数
-      - 程序
-    priority: 3
-    description: "编程、代码生成、调试"
-
-  # 文件操作类：读写文件、管理文件
-  file_operation:
+  # 操作类：命令执行、文件操作、工具调用、系统配置
+  operation:
     keywords:
       - file
       - read
@@ -247,12 +168,6 @@ intents:
       - 写入文件
       - 查看文件
       - 文件内容
-    priority: 4
-    description: "文件读取、写入、列表、目录操作"
-
-  # 网络搜索类
-  web_search:
-    keywords:
       - search
       - google
       - bing
@@ -269,12 +184,55 @@ intents:
       - 百度
       - 谷歌
       - 查询
-    priority: 3
-    description: "网络搜索、信息查询"
-
-  # 终端命令类：运行命令、打开应用
-  terminal:
-    keywords:
+      - 天气
+      - weather
+      - 温度
+      - temperature
+      - 下雨
+      - rain
+      - 晴天
+      - sunny
+      - 多云
+      - cloudy
+      - 风
+      - wind
+      - 气候
+      - climate
+      - forecast
+      - 预报
+      - 气温
+      - 今天天气
+      - 明天天气
+      - 后天天气
+      - 天气怎么样
+      - 天气如何
+      - 天气预报
+      - 气温多少
+      - 多少度
+      - 冷不冷
+      - 热不热
+      - 穿什么
+      - 适合穿
+      - 紫外线
+      - 空气质量
+      - pm2.5
+      - 时间
+      - 现在几点
+      - 几点了
+      - 什么时间
+      - 几点
+      - 几点钟
+      - date
+      - 日期
+      - 今天几号
+      - 星期几
+      - month
+      - year
+      - 年
+      - 月
+      - 日
+      - 现在时间
+      - 当前时间
       - run
       - execute
       - terminal
@@ -307,40 +265,6 @@ intents:
       - 计算器
       - explorer
       - 资源管理器
-    priority: 4
-    description: "终端命令、应用启动"
-
-  # 创作类：创建新内容
-  creation:
-    keywords:
-      - create
-      - build
-      - make
-      - generate
-      - design
-      - develop
-      - 新建
-      - 创建
-      - 生成
-    priority: 5
-    description: "创建、生成、设计"
-
-  # 分析类
-  analysis:
-    keywords:
-      - analyze
-      - explain this
-      - review
-      - optimize
-      - 检查
-      - 分析
-      - 优化
-    priority: 2
-    description: "分析、审查、优化"
-
-  # 配置类
-  configuration:
-    keywords:
       - setup
       - config
       - configure
@@ -350,38 +274,82 @@ intents:
       - 配置
       - 安装
     priority: 2
-    description: "设置、配置、安装"
+    description: "命令执行、文件操作、工具调用、系统配置、搜索查询"
+
+  # 编程类：代码生成、调试、编程问题、软件开发
+  coding:
+    keywords:
+      - code
+      - python
+      - function
+      - program
+      - debug
+      - error
+      - bug
+      - implement
+      - write
+      - fix
+      - compile
+      - syntax
+      - class
+      - method
+      - import
+      - variable
+      - loop
+      - def
+      - return
+      - print
+      - 写代码
+      - 帮我写
+      - 编程
+      - 代码
+      - 函数
+      - 程序
+      - create
+      - build
+      - make
+      - generate
+      - design
+      - develop
+      - 新建
+      - 创建
+      - 生成
+      - 开发
+      - 软件开发
+      - 做个软件
+      - 做个网站
+      - 写个程序
+      - 写个脚本
+      - 开发软件
+      - 开发网站
+      - app开发
+      - web开发
+      - 前端开发
+      - 后端开发
+      - 全栈开发
+      - 开发吧
+    priority: 2
+    description: "编程、代码生成、调试、软件开发"
 
 # 意图识别配置
 intent_classification:
-  # 模式选择:
-  # - "keyword": 仅使用关键词匹配（快速但不智能）
-  # - "llm": 优先使用大语言模型（智能），如果 LLM 不可用则 fallback 到关键词
-  # - "hybrid": 关键词优先，如果置信度低则调用 LLM（**推荐生产环境使用**）
-  # 
-  # ⚠️ 重要：无论选择哪种模式，当 LLM 不可用时，都会自动 fallback 到关键词
   mode: "llm"
-  
-  # 混合模式下的置信度阈值
-  # 当关键词匹配置信度 >= 此值时，直接使用关键词结果
-  # 否则调用 LLM 进行意图识别
   confidence_threshold: 0.3
-  
-  # 是否启用详细日志
   enable_detailed_logs: true
-  
-  # 默认语言（支持: zh, en, ja, ko）
   default_language: "zh"
-  
-  # LLM 提示词模板
   llm_prompt_template: |
-    分析以下用户输入，判断其意图类型。
+    你是一个专业的意图分类器。请分析用户输入，判断其意图类型。
 
-    可用的意图类型：
-    {intents_list}
+    意图类型定义：
+    - conversation: 日常对话、聊天、问答、闲聊、分析、任务管理、待办事项等纯语言交互场景
+    - operation: 执行命令、操作文件、打开应用、搜索查询、系统配置、工具调用等操作类场景
+    - coding: 编程开发、代码生成、写程序、写脚本、开发软件、开发网站、app开发等编程相关场景
 
     用户输入："{user_input}"
 
-    请返回最匹配的意图类型名称（只需返回意图名称，不需要其他内容）。
-    如果输入是命令（打开应用、运行程序等），优先分类为 "terminal"。
-    如果不确定，优先分类为 "conversation"。
+    请严格按照以下格式输出，只返回意图类型名称：
+    conversation
+    或
+    operation
+    或
+    coding

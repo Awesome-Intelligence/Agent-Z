@@ -15,7 +15,7 @@
 │  1. Intent Recognition (LLM-powered)                      │
 │     llm_intent_service.py                                  │
 ├─────────────────────────────────────────────────────────────┤
-│  2. ✨ Tool Abstraction Layer ← YOU ARE HERE             │
+│  2. 🛠️ Tool Abstraction Layer ← YOU ARE HERE             │
 │     ToolRegistry │ SkillManager │ Tools                   │
 ├─────────────────────────────────────────────────────────────┤
 │  3. LLM Provider Layer                                  │

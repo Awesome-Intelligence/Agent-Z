@@ -28,15 +28,16 @@ import threading
 LOG_LAYERS = {
     "access": {"emoji": "🚪", "name": "接入层"},
     "decision": {"emoji": "🧠", "name": "决策层"},
-    "execution": {"emoji": "⚡", "name": "执行层"},
+    "execution": {"emoji": "🏃", "name": "执行层"},
     "system": {"emoji": "🔧", "name": "系统层"},
     "llm": {"emoji": "🤖", "name": "LLM层"},
     "tool": {"emoji": "🛠️", "name": "工具层"},
     "postprocess": {"emoji": "📝", "name": "后处理层"},
     "memory": {"emoji": "💾", "name": "记忆检索层"},
-    "intent": {"emoji": "🎯", "name": "意图识别层"},
+    "intent": {"emoji": "🏷️", "name": "意图识别层"},
     "routing": {"emoji": "🔀", "name": "路由层"},
     "tool_select": {"emoji": "🔧", "name": "工具选择层"},
+    "task": {"emoji": "📋", "name": "任务层"},
 }
 
 # 控制台样式颜色（用于子系统）
@@ -496,6 +497,10 @@ def get_memory_logger(name: str = "memory") -> LayerLogger:
     """获取记忆检索层日志器"""
     return LayerLogger(name, "memory")
 
+def get_task_logger(name: str = "task") -> LayerLogger:
+    """获取任务层日志器"""
+    return LayerLogger(name, "task")
+
 
 def configure_logging(config: Optional[Dict[str, Any]] = None) -> None:
     """配置日志系统
@@ -561,6 +566,7 @@ __all__ = [
     "get_tool_logger",
     "get_postprocess_logger",
     "get_memory_logger",
+    "get_task_logger",
     "configure_logging",
     "set_log_level",
     "get_log_level",

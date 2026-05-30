@@ -85,14 +85,14 @@ async def llm_terminal_command_handler(input_text: str, context: Dict[str, Any])
                 
                 url = parameters.get('url')
                 
-                execution_flow.append("⚡ [执行层] 执行打开应用")
+                execution_flow.append("（TerminalCommand） 执行打开应用")
                 
                 result = await skill_manager.execute_skill('tool_open_browser', 
                                                           browser_name=browser_name, 
                                                           url=url)
                 
                 if result and result.success:
-                    execution_flow.append("⚡ [执行层] 打开应用成功")
+                    execution_flow.append("（TerminalCommand） 打开应用成功")
                     return result.output, execution_flow, True
                 
             elif action_type == 'open_folder' and target and skill_manager:
@@ -122,21 +122,21 @@ async def llm_terminal_command_handler(input_text: str, context: Dict[str, Any])
                         break
                 
                 if folder_cmd:
-                    execution_flow.append("⚡ [执行层] 执行打开文件夹")
+                    execution_flow.append("（TerminalCommand） 执行打开文件夹")
                     
                     result = await skill_manager.execute_skill('tool_terminal', command=folder_cmd)
                     
                     if result and result.success:
-                        execution_flow.append("⚡ [执行层] 打开文件夹成功")
+                        execution_flow.append("（TerminalCommand） 打开文件夹成功")
                         return result.output, execution_flow, True
                 
             elif action_type == 'execute_command' and command and skill_manager:
-                execution_flow.append("⚡ [执行层] 执行终端命令")
+                execution_flow.append("（TerminalCommand） 执行终端命令")
                 
                 result = await skill_manager.execute_skill('tool_terminal', command=command)
                 
                 if result and result.success:
-                    execution_flow.append("⚡ [执行层] 命令执行成功")
+                    execution_flow.append("（TerminalCommand） 命令执行成功")
                     return result.output, execution_flow, True
             
             return None, execution_flow, False

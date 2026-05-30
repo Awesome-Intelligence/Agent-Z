@@ -32,7 +32,7 @@ from .environment import env_detector
     'Time Query Handler',
     'Handles time and date queries',
     keywords=['时间', '现在几点', '几点了', '什么时间', '几点', 'date', '日期', '今天几号', '星期几'],
-    intent_types=['time_query'],
+    intent_types=['operation'],
     priority=2
 )
 async def time_query_handler(input_text: str, context: Dict[str, Any]) -> Tuple[str, List[str]]:
@@ -42,7 +42,7 @@ async def time_query_handler(input_text: str, context: Dict[str, Any]) -> Tuple[
     should_log = _should_log(context)
     
     if should_log:
-        tool.info(f"🛠️ [工具层] TimeQuery 收到时间查询请求: {input_text[:30]}...")
+        tool.info(f"（TimeQuery） 收到时间查询请求: {input_text[:30]}...")
     execution_flow.append("🧠 [决策层] TimeQuery 收到请求")
     
     now = datetime.now()
@@ -58,7 +58,7 @@ async def time_query_handler(input_text: str, context: Dict[str, Any]) -> Tuple[
         response += f"\n\n今天是{now.day}号"
     
     if should_log:
-        tool.info(f"🛠️ [工具层] TimeQuery 返回时间: {date_str} {time_str}")
+        tool.info(f"（TimeQuery） 返回时间: {date_str} {time_str}")
     execution_flow.append("🧠 [决策层] TimeQuery 返回结果")
     
     return response, execution_flow
@@ -69,7 +69,7 @@ async def time_query_handler(input_text: str, context: Dict[str, Any]) -> Tuple[
     'Weather Query Handler',
     'Handles weather and temperature queries',
     keywords=['天气', '温度', '下雨', '晴天', '多云', 'weather', 'sunny', 'rain'],
-    intent_types=['weather'],
+    intent_types=['operation'],
     priority=2
 )
 async def weather_query_handler(input_text: str, context: Dict[str, Any]) -> Tuple[str, List[str]]:
@@ -79,7 +79,7 @@ async def weather_query_handler(input_text: str, context: Dict[str, Any]) -> Tup
     should_log = _should_log(context)
     
     if should_log:
-        tool.info(f"🛠️ [工具层] WeatherQuery 收到天气查询请求: {input_text[:30]}...")
+        tool.info(f"（WeatherQuery） 收到天气查询请求: {input_text[:30]}...")
     execution_flow.append("🧠 [决策层] WeatherQuery 收到请求")
     
     skill_manager = context.get('skill_manager') if context else None
@@ -93,19 +93,19 @@ async def weather_query_handler(input_text: str, context: Dict[str, Any]) -> Tup
     
     if city and skill_manager:
         if should_log:
-            tool.info(f"🛠️ [工具层] WeatherQuery 使用 WeatherSkill 查询 {city}")
-        execution_flow.append(f"⚡ [执行层] WeatherQuery 调用 WeatherSkill")
+            tool.info(f"（WeatherQuery） 使用 WeatherSkill 查询 {city}")
+        execution_flow.append(f"（WeatherQuery） 调用 WeatherSkill")
         
         try:
             result = await skill_manager.execute_skill('weather', city=city)
             if result and result.success:
                 if should_log:
-                    tool.info(f"🛠️ [工具层] WeatherQuery 收到结果: {result.output[:50]}...")
-                execution_flow.append("⚡ [执行层] WeatherSkill 执行成功")
+                    tool.info(f"（WeatherQuery） 收到结果: {result.output[:50]}...")
+                execution_flow.append("（WeatherQuery） WeatherSkill 执行成功")
                 return result.output, execution_flow
         except Exception as e:
             if should_log:
-                tool.warning(f"🛠️ [工具层] WeatherQuery WeatherSkill 执行失败: {str(e)}")
+                tool.warning(f"（WeatherQuery） WeatherSkill 执行失败: {str(e)}")
     
     response = "🌤️ 天气查询功能\n\n抱歉，我目前无法获取实时天气信息。\n\n您可以通过以下方式查询天气：\n• 查看手机天气应用\n• 搜索「城市名+天气」\n• 使用语音助手说「今天天气怎么样」"
     
@@ -113,7 +113,7 @@ async def weather_query_handler(input_text: str, context: Dict[str, Any]) -> Tup
         response = f"📍 {city}天气查询\n\n抱歉，暂不支持查询 {city} 的实时天气。\n\n建议您通过天气预报网站或手机应用查看。"
     
     if should_log:
-        tool.info(f"🛠️ [工具层] WeatherQuery 返回: 无法获取实时天气")
+        tool.info(f"（WeatherQuery） 返回: 无法获取实时天气")
     execution_flow.append("🧠 [决策层] WeatherQuery 返回结果")
     
     return response, execution_flow
@@ -346,7 +346,7 @@ async def coding_assistant_handler(input_text: str, context: Dict[str, Any]) -> 
     execution_flow = []
     
     llm.info(f"🤖 [LLM层] CodingAssistant 收到编程请求: {input_text[:30]}...")
-    tool_logger.debug(f"🛠️ [工具层] CodingAssistant 准备生成代码")
+    tool_logger.debug(f"（CodeAnalyzer） 准备生成代码")
     execution_flow.append("🧠 [决策层] CodingAssistant 收到请求")
     
     llm_provider = context.get('llm_provider') if context else None
@@ -366,7 +366,7 @@ async def coding_assistant_handler(input_text: str, context: Dict[str, Any]) -> 
             llm_logger.summary(f"🤖 [LLM层] {provider_name} 代码生成成功")
             llm_logger.debug(f"🤖 [LLM层] ├─ 代码长度: {len(response)} 字符")
             llm_logger.debug(f"🤖 [LLM层] └─ 生成代码:\n{response[:300]}{'...' if len(response) > 300 else ''}")
-            tool_logger.debug(f"🛠️ [工具层] 代码生成完成")
+            tool_logger.debug(f"（CodeAnalyzer） 代码生成完成")
             
             return response, execution_flow
         except Exception as e:
@@ -390,7 +390,7 @@ async def coding_assistant_handler(input_text: str, context: Dict[str, Any]) -> 
     'File Operations Handler',
     'Handles file reading, writing, and management',
     keywords=['file', 'read', 'write', 'save', 'delete', 'create file', 'open file', 'list', '目录', '文件'],
-    intent_types=['file_operation'],
+    intent_types=['operation'],
     priority=4
 )
 async def file_operations_handler(input_text: str, context: Dict[str, Any]) -> Tuple[str, List[str]]:
@@ -401,13 +401,13 @@ async def file_operations_handler(input_text: str, context: Dict[str, Any]) -> T
     execution_flow = []
     should_log = _should_log(context)
     
-    tool.info(f"🛠️ [工具层] FileOperations 收到文件操作请求: {input_text[:30]}...")
-    tool_logger.debug(f"🛠️ [工具层] FileOperations 准备执行文件操作")
+    tool.info(f"（FileManager） 收到文件操作请求: {input_text[:30]}...")
+    tool_logger.debug(f"（FileManager） 准备执行文件操作")
     execution_flow.append("🧠 [决策层] FileOperations 收到请求")
     
     input_lower = input_text.lower()
-    tool_logger.debug(f"🛠️ [工具层] FileManager 准备执行文件操作...")
-    execution_flow.append("⚡ [执行层] FileManager 准备执行")
+    tool_logger.debug(f"（FileManager） 准备执行文件操作...")
+    execution_flow.append("（FileManager） 准备执行")
     
     # 先检查是否是特殊文件夹操作（桌面、文档、下载等）
     folder_name_mapping = {
@@ -435,7 +435,7 @@ async def file_operations_handler(input_text: str, context: Dict[str, Any]) -> T
             if target_path:
                 if should_log:
                     execution.info(f"FileManager 列出目录: {target_path}")
-                execution_flow.append(f"⚡ [执行层] FileManager 列出 {target_path}")
+                execution_flow.append(f"（FileManager） 列出 {target_path}")
                 
                 try:
                     files = os.listdir(target_path)
@@ -458,7 +458,7 @@ async def file_operations_handler(input_text: str, context: Dict[str, Any]) -> T
             if file_path:
                 if should_log:
                     execution.info(f"FileManager 读取文件: {file_path}")
-                execution_flow.append(f"⚡ [执行层] FileManager 读取 {file_path}")
+                execution_flow.append(f"（FileManager） 读取 {file_path}")
                 
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
@@ -505,7 +505,7 @@ async def file_operations_handler(input_text: str, context: Dict[str, Any]) -> T
     'Web Search Handler',
     'Handles web search and information lookup',
     keywords=['search', 'google', 'web', 'find', '查一下', '搜索', '帮我找', '搜一下', '帮我搜索'],
-    intent_types=['web_search'],
+    intent_types=['operation'],
     priority=3
 )
 async def web_search_handler(input_text: str, context: Dict[str, Any]) -> Tuple[str, List[str]]:
@@ -516,8 +516,8 @@ async def web_search_handler(input_text: str, context: Dict[str, Any]) -> Tuple[
     execution_flow = []
     should_log = _should_log(context)
     
-    tool.info(f"🛠️ [工具层] WebSearch 收到搜索请求: {input_text[:30]}...")
-    tool_logger.debug(f"🛠️ [工具层] WebSearch 准备执行搜索操作")
+    tool.info(f"（WebSearch） 收到搜索请求: {input_text[:30]}...")
+    tool_logger.debug(f"（WebSearch） 准备执行搜索操作")
     execution_flow.append("🧠 [决策层] WebSearch 收到请求")
     
     skill_manager = context.get('skill_manager') if context else None
@@ -552,7 +552,7 @@ async def web_search_handler(input_text: str, context: Dict[str, Any]) -> Tuple[
 只返回 JSON，不要有其他内容。"""
 
             if should_log:
-                tool.info(f"🛠️ [工具层] {provider_name} 发送分析请求...")
+                tool.info(f"（{provider_name}） 发送分析请求...")
             llm_response = await llm_provider.generate(prompt)
             
             if should_log:
@@ -576,7 +576,7 @@ async def web_search_handler(input_text: str, context: Dict[str, Any]) -> Tuple[
                 execution_flow.append(f"🧠 [决策层] {provider_name} 意图分析完成")
                 
                 if intent == 'browser_search' and skill_manager:
-                    tool_logger.info(f"🛠️ [工具层] WebTools 执行浏览器搜索任务")
+                    tool_logger.info(f"（WebTools） 执行浏览器搜索任务")
                     
                     if open_url:
                         url = open_url
@@ -597,12 +597,12 @@ async def web_search_handler(input_text: str, context: Dict[str, Any]) -> Tuple[
                     if result and result.success:
                         if should_log:
                             execution.info(f"WebTools open_browser 执行成功")
-                        execution_flow.append("⚡ [执行层] WebTools 打开浏览器成功")
+                        execution_flow.append("（WebTools） 打开浏览器成功")
                         return result.output, execution_flow
                     else:
                         if should_log:
-                            tool.warning(f"🛠️ [工具层] WebSearch open_browser 执行失败: {result.error if result else 'Unknown'}")
-                        execution_flow.append("⚡ [执行层] open_browser 执行失败，尝试 fallback")
+                            tool.warning(f"（WebSearch） open_browser 执行失败: {result.error if result else 'Unknown'}")
+                        execution_flow.append("（WebTools） open_browser 执行失败，尝试 fallback")
                 elif search_query:
                     if search_engine == 'google':
                         url = f"https://www.google.com/search?q={search_query}"
@@ -621,9 +621,9 @@ async def web_search_handler(input_text: str, context: Dict[str, Any]) -> Tuple[
                 
         except Exception as e:
             llm_logger.error(f"🤖 [LLM层] {provider_name} LLM 调用失败: {str(e)}")
-            tool.error(f"🛠️ [工具层] WebSearch LLM 调用失败: {str(e)}")
+            tool.error(f"（WebSearch） LLM 调用失败: {str(e)}")
     
-    tool_logger.info(f"🛠️ [工具层] SearchEngine 使用规则匹配")
+    tool_logger.info(f"（SearchEngine） 使用规则匹配")
     execution_flow.append("🧠 [决策层] SearchEngine 使用规则匹配")
     
     import re
@@ -641,7 +641,7 @@ async def web_search_handler(input_text: str, context: Dict[str, Any]) -> Tuple[
         try:
             if should_log:
                 execution.info(f"WebTools 检测到浏览器操作，尝试执行 tool_open_browser")
-            execution_flow.append("⚡ [执行层] WebTools 检测到浏览器请求")
+            execution_flow.append("（WebTools） 检测到浏览器请求")
             
             browser_name = None
             for browser in ['edge', 'chrome', 'firefox', 'brave', 'opera', 'vivaldi']:
@@ -683,10 +683,10 @@ async def web_search_handler(input_text: str, context: Dict[str, Any]) -> Tuple[
             result = await skill_manager.execute_skill('tool_open_browser', browser_name=browser_name, url=url)
             if result and result.success:
                 execution.info(f"WebTools open_browser 执行成功")
-                execution_flow.append("⚡ [执行层] WebTools 打开浏览器成功")
+                execution_flow.append("（） 打开浏览器成）功")
                 return result.output, execution_flow
         except Exception as e:
-            tool.warning(f"🛠️ [工具层] WebSearch open_browser 异常: {str(e)}")
+            tool.warning(f"（WebSearch） open_browser 异常: {str(e)}")
     
     execution_flow.append("🧠 [决策层] SearchEngine 使用模板")
     import re
@@ -703,7 +703,7 @@ async def web_search_handler(input_text: str, context: Dict[str, Any]) -> Tuple[
     'Terminal Command Handler',
     'Handles terminal and command execution, app launching',
     keywords=['run', 'execute', 'terminal', 'command', 'bash', 'npm', 'pip', 'git', '运行', '执行', '打开', 'open', '启动', 'launch', 'browser', 'chrome', '浏览器'],
-    intent_types=['terminal'],
+    intent_types=['operation'],
     priority=4
 )
 async def terminal_command_handler(input_text: str, context: Dict[str, Any]) -> Tuple[str, List[str]]:
@@ -714,7 +714,7 @@ async def terminal_command_handler(input_text: str, context: Dict[str, Any]) -> 
     should_log = _should_log(context)
     
     if should_log:
-        tool.info(f"🛠️ [工具层] TerminalCommand 收到命令请求: {input_text[:30]}...")
+        tool.info(f"（TerminalCommand） 收到命令请求: {input_text[:30]}...")
         
     execution_flow.append("🧠 [决策层] TerminalCommand 收到请求")
     
@@ -761,7 +761,7 @@ async def terminal_command_handler(input_text: str, context: Dict[str, Any]) -> 
         if key in input_lower:
             command = cmd
             if should_log:
-                tool.info(f"🛠️ [工具层] TerminalCommand 识别到命令: {cmd}")
+                tool.info(f"（TerminalCommand） 识别到命令: {cmd}")
             break
     
     if command == input_text:
@@ -769,7 +769,7 @@ async def terminal_command_handler(input_text: str, context: Dict[str, Any]) -> 
             if key in input_lower:
                 command = cmd
                 if should_log:
-                    tool.info(f"🛠️ [工具层] TerminalCommand 识别到文件夹: {cmd}")
+                    tool.info(f"（TerminalCommand） 识别到文件夹: {cmd}")
                 break
     
     skill_manager = context.get('skill_manager') if context else None
@@ -778,7 +778,7 @@ async def terminal_command_handler(input_text: str, context: Dict[str, Any]) -> 
         try:
             if should_log:
                 execution.info(f"TerminalTools 尝试执行 tool_open_browser 技能")
-            execution_flow.append("⚡ [执行层] TerminalTools 准备执行")
+            execution_flow.append("（TerminalTools） 准备执行")
             
             browser_name = None
             for browser in ['edge', 'chrome', 'firefox', 'brave', 'opera', 'vivaldi']:
@@ -804,26 +804,26 @@ async def terminal_command_handler(input_text: str, context: Dict[str, Any]) -> 
             if url:
                 if should_log:
                     execution.info(f"识别到 URL: {url}")
-                    tool.info(f"🛠️ [工具层] TerminalCommand 识别到网址: {url}")
+                    tool.info(f"（TerminalCommand） 识别到网址: {url}")
             
             result = await skill_manager.execute_skill('tool_open_browser', browser_name=browser_name, url=url)
             if result and result.success:
                 if should_log:
                     execution.info(f"TerminalTools open_browser 执行成功")
-                execution_flow.append("⚡ [执行层] TerminalTools 执行成功")
+                execution_flow.append("（TerminalTools） 执行成功")
                 return result.output, execution_flow
             else:
                 if should_log:
-                    tool.warning(f"🛠️ [工具层] TerminalCommand open_browser 执行失败，尝试 fallback")
-                execution_flow.append("⚡ [执行层] open_browser 执行失败，fallback")
+                    tool.warning(f"（TerminalCommand） open_browser 执行失败，尝试 fallback")
+                execution_flow.append("（WebTools） open_browser 执行失败，fallback")
         except Exception as e:
             if should_log:
-                tool.warning(f"🛠️ [工具层] TerminalCommand open_browser 异常: {str(e)}，尝试 fallback")
+                tool.warning(f"（TerminalCommand） open_browser 异常: {str(e)}，尝试 fallback")
     
     # 直接使用 subprocess 执行命令（参考 Hermes Agent）
     try:
         if should_log:
-            execution.info(f"🛠️ [工具层] TerminalCommand 直接执行命令: {command}")
+            execution.info(f"（TerminalCommand） 直接执行命令: {command}")
         
         # 使用 cmd /c 执行 Windows 命令
         process = await asyncio.create_subprocess_shell(
@@ -842,19 +842,19 @@ async def terminal_command_handler(input_text: str, context: Dict[str, Any]) -> 
         
         if process.returncode == 0:
             if should_log:
-                execution.summary(f"🛠️ [工具层] TerminalCommand 执行成功")
+                execution.summary(f"（TerminalCommand） 执行成功")
             result_msg = f"✅ 命令执行成功"
             if output:
                 result_msg += f"\n{output}"
             return result_msg, execution_flow
         else:
             if should_log:
-                execution.error(f"🛠️ [工具层] TerminalCommand 执行失败: {error or '未知错误'}")
+                execution.error(f"（TerminalCommand） 执行失败: {error or '未知错误'}")
             return f"❌ 命令执行失败: {error or '未知错误'}", execution_flow
             
     except asyncio.TimeoutError:
         if should_log:
-            execution.error(f"🛠️ [工具层] TerminalCommand 执行超时")
+            execution.error(f"（TerminalCommand） 执行超时")
         return "❌ 命令执行超时（超过30秒）", execution_flow
     except Exception as e:
         if should_log:
@@ -867,7 +867,7 @@ async def terminal_command_handler(input_text: str, context: Dict[str, Any]) -> 
     'General Question Handler',
     'Handles general knowledge questions',
     keywords=['what', 'who', 'how', 'why', 'explain', 'tell me', '什么是', '如何', '为什么'],
-    intent_types=['question'],
+    intent_types=['conversation'],
     priority=2
 )
 async def general_question_handler(input_text: str, context: Dict[str, Any]) -> Tuple[str, List[str]]:
@@ -937,3 +937,298 @@ async def general_question_handler(input_text: str, context: Dict[str, Any]) -> 
             return f"[知识库回答]\n\n{answer}", execution_flow
     
     return "[知识库] 抱歉，知识库中没有找到相关答案。请配置 LLM provider 获取更全面的回答。", execution_flow
+
+
+@route_handler(
+    'task_management',
+    'Task Management Handler',
+    'Handles task/todo list operations like create, add, complete, list tasks',
+    keywords=['任务', 'todo', 'task', '待办', '清单', '列表', '添加任务', '完成', '完成任务', 
+              '新建任务', '创建任务', '任务列表', '待办事项', '添加待办', 'complete', 
+              'finish', 'done', 'cancel', '删除任务', '列出任务', '有哪些任务', 
+              '还有几个', '待办列表', '任务管理'],
+    intent_types=['conversation'],
+    priority=2
+)
+async def task_management_handler(input_text: str, context: Dict[str, Any]) -> Tuple[str, List[str]]:
+    """
+    任务管理处理器
+    处理创建、添加、完成、取消、删除、列出任务等操作
+    """
+    tool = get_tool_logger("TaskManagement")
+    execution = get_execution_logger("TodoToolkit")
+    
+    execution_flow = []
+    should_log = _should_log(context)
+    
+    tool.info(f"（TaskManager） 收到任务管理请求: {input_text[:30]}...")
+    execution_flow.append("🧠 [决策层] TaskManagement 收到请求")
+    
+    from .todo_adapter import get_todo_adapter
+    
+    session_id = context.get('session_id', 'default') if context else 'default'
+    
+    try:
+        adapter = get_todo_adapter(session_id)
+        
+        input_lower = input_text.lower()
+        
+        if should_log:
+            execution.info(f"TodoToolkit 开始分析请求: {input_text[:30]}...")
+        execution_flow.append("（TodoToolkit） 解析请求")
+        
+        if any(kw in input_lower for kw in ['创建任务', '新建任务', '创建待办', 'create task', 'new task', 'todo create']):
+            result = _handle_create_tasks(input_text, adapter, should_log)
+        elif any(kw in input_lower for kw in ['添加任务', '新增任务', 'add task', '添加待办', '添加一个新任务']):
+            result = _handle_add_task(input_text, adapter, should_log)
+        elif any(kw in input_lower for kw in ['完成任务', '完成', 'complete', 'finish', 'done', '完成 #']):
+            result = _handle_complete_task(input_text, adapter, should_log)
+        elif any(kw in input_lower for kw in ['取消', 'cancel', '取消任务', '取消待办']):
+            result = _handle_cancel_task(input_text, adapter, should_log)
+        elif any(kw in input_lower for kw in ['删除任务', 'remove', 'delete', '删除']):
+            result = _handle_remove_task(input_text, adapter, should_log)
+        elif any(kw in input_lower for kw in ['列出任务', '查看任务', '列表', '有哪些任务', '待办列表', 'todo list', 'list task', '显示任务', '列出']):
+            result = _handle_list_tasks(adapter, should_log)
+        elif any(kw in input_lower for kw in ['重置任务', 'reset']):
+            result = _handle_reset_tasks(adapter, should_log)
+        elif any(kw in input_lower for kw in ['清空任务', 'clear']):
+            result = _handle_clear_tasks(adapter, should_log)
+        elif any(kw in input_lower for kw in ['任务', 'todo', 'task', '待办', '清单']):
+            result = _handle_list_tasks(adapter, should_log)
+        else:
+            result = _handle_list_tasks(adapter, should_log)
+        
+        if should_log:
+            execution.summary(f"（TaskManager） 执行完成")
+        
+        return result, execution_flow
+        
+    except Exception as e:
+        error_msg = str(e)
+        error_type = type(e).__name__
+        
+        if should_log:
+            execution.error(f"（TaskManager） 执行失败: {error_type} - {error_msg}")
+        
+        return f"❌ 任务管理失败\n\n错误类型: {error_type}\n错误信息: {error_msg[:100]}", execution_flow
+
+
+def _handle_create_tasks(input_text: str, adapter, should_log: bool) -> str:
+    """处理创建任务列表"""
+    import re
+    
+    tasks = []
+    
+    numbered_pattern = r'(?:^|\n)\s*(\d+)[.、、]\s*(.+?)(?:\n|$)'
+    matches = re.findall(numbered_pattern, input_text, re.MULTILINE)
+    if matches:
+        tasks = [task.strip() for _, task in matches]
+    
+    if not tasks:
+        chinese_numbered_pattern = r'(?:^|[，。；、\n])\s*(\d+)\s*[.、.、　]+\s*(.+?)(?=[，。；、\n]|$)'
+        matches = re.findall(chinese_numbered_pattern, input_text, re.MULTILINE)
+        if matches:
+            tasks = [task.strip() for _, task in matches]
+    
+    if not tasks:
+        comma_separated_pattern = r'[:：]\s*(.+)'
+        match = re.search(comma_separated_pattern, input_text)
+        if match:
+            after_colon = match.group(1)
+            potential_tasks = re.split(r'[,，、\n]', after_colon)
+            tasks = [t.strip() for t in potential_tasks if t.strip() and len(t.strip()) > 1]
+    
+    if not tasks:
+        bullet_pattern = r'[-*]\s*(.+?)(?:\n|$)'
+        matches = re.findall(bullet_pattern, input_text, re.MULTILINE)
+        if matches:
+            tasks = [task.strip() for task in matches]
+    
+    if not tasks:
+        quote_pattern = r'[""\'](.+?)[""\']'
+        matches = re.findall(quote_pattern, input_text)
+        if matches:
+            tasks = [task.strip() for task in matches]
+    
+    if not tasks:
+        common_words = ['创建任务', '新建任务', '创建待办', 'create task', 'new task', 
+                       'todo create', '创建', '新建', '设置', '如下', '这些']
+        cleaned = input_text
+        for word in common_words:
+            cleaned = cleaned.replace(word, '')
+        cleaned = re.sub(r'[，。、？！；：""''（）【】《》,，、.。]+', ' ', cleaned)
+        cleaned = cleaned.strip()
+        if cleaned:
+            tasks = [t.strip() for t in re.split(r'[,，\n]', cleaned) if t.strip()]
+    
+    if not tasks:
+        return "❌ 无法解析任务内容\n\n请按以下格式创建任务：\n- todo_create([\"任务1\", \"任务2\", \"任务3\"])\n- 1. 任务1\n  2. 任务2"
+    
+    from .todo_adapter import ToolCallResult
+    result = adapter.call_tool('todo_create', {'tasks': tasks})
+    
+    if isinstance(result, ToolCallResult):
+        return result.output if result.success else f"❌ {result.error}"
+    return str(result)
+
+
+def _handle_add_task(input_text: str, adapter, should_log: bool) -> str:
+    """处理添加任务"""
+    import re
+    
+    task_pattern = r'添加(?:任务|待办)[:：]?\s*[""\'"]?(.+?)[""\']?$'
+    match = re.search(task_pattern, input_text)
+    if match:
+        task = match.group(1).strip()
+    else:
+        words_to_remove = ['添加任务', '新增任务', 'add task', '添加待办', '添加', '新增']
+        cleaned = input_text
+        for word in words_to_remove:
+            cleaned = cleaned.replace(word, '')
+        cleaned = re.sub(r'[，。、？！；：""''（）【】《》,，、.。]+', ' ', cleaned)
+        task = cleaned.strip()
+    
+    if not task:
+        return "❌ 未指定任务内容\n\n请说：添加任务 [任务描述]"
+    
+    from .todo_adapter import ToolCallResult
+    result = adapter.call_tool('todo_add', {'task': task})
+    
+    if isinstance(result, ToolCallResult):
+        return result.output if result.success else f"❌ {result.error}"
+    return str(result)
+
+
+def _handle_complete_task(input_text: str, adapter, should_log: bool) -> str:
+    """处理完成任务"""
+    import re
+    
+    task_id = None
+    
+    id_patterns = [
+        r'#?(\d+)',
+        r'第\s*(\d+)\s*个',
+        r'任务\s*(\d+)',
+    ]
+    
+    for pattern in id_patterns:
+        match = re.search(pattern, input_text)
+        if match:
+            task_id = int(match.group(1))
+            break
+    
+    if task_id is None:
+        if '所有' in input_text or '全部' in input_text or 'all' in input_text.lower():
+            list_result = adapter.call_tool('todo_list', {})
+            from .todo_adapter import ToolCallResult
+            if isinstance(list_result, ToolCallResult) and list_result.success:
+                id_pattern = r'#(\d+)\.'
+                ids = re.findall(id_pattern, list_result.output)
+                if ids:
+                    for tid in reversed(ids):
+                        adapter.call_tool('todo_complete', {'task_id': int(tid), 'result': '批量完成'})
+                    return "✅ 所有任务已完成！"
+            return "❌ 没有可完成的任务"
+        
+        return "❌ 未指定任务ID\n\n请说：完成 #1 或 完成任务 1"
+    
+    from .todo_adapter import ToolCallResult
+    result = adapter.call_tool('todo_complete', {'task_id': task_id})
+    
+    if isinstance(result, ToolCallResult):
+        return result.output if result.success else f"❌ {result.error}"
+    return str(result)
+
+
+def _handle_cancel_task(input_text: str, adapter, should_log: bool) -> str:
+    """处理取消任务"""
+    import re
+    
+    task_id = None
+    
+    id_patterns = [
+        r'#?(\d+)',
+        r'第\s*(\d+)\s*个',
+        r'任务\s*(\d+)',
+    ]
+    
+    for pattern in id_patterns:
+        match = re.search(pattern, input_text)
+        if match:
+            task_id = int(match.group(1))
+            break
+    
+    if task_id is None:
+        return "❌ 未指定任务ID\n\n请说：取消 #1 或 取消任务 1"
+    
+    from .todo_adapter import ToolCallResult
+    result = adapter.call_tool('todo_cancel', {'task_id': task_id})
+    
+    if isinstance(result, ToolCallResult):
+        return result.output if result.success else f"❌ {result.error}"
+    return str(result)
+
+
+def _handle_remove_task(input_text: str, adapter, should_log: bool) -> str:
+    """处理删除任务"""
+    import re
+    
+    task_id = None
+    
+    id_patterns = [
+        r'#?(\d+)',
+        r'第\s*(\d+)\s*个',
+        r'任务\s*(\d+)',
+    ]
+    
+    for pattern in id_patterns:
+        match = re.search(pattern, input_text)
+        if match:
+            task_id = int(match.group(1))
+            break
+    
+    if task_id is None:
+        return "❌ 未指定任务ID\n\n请说：删除 #1 或 删除任务 1"
+    
+    from .todo_adapter import ToolCallResult
+    result = adapter.call_tool('todo_remove', {'task_id': task_id})
+    
+    if isinstance(result, ToolCallResult):
+        return result.output if result.success else f"❌ {result.error}"
+    return str(result)
+
+
+def _handle_list_tasks(adapter, should_log: bool) -> str:
+    """处理列出任务"""
+    from .todo_adapter import ToolCallResult
+    result = adapter.call_tool('todo_list', {})
+    
+    if isinstance(result, ToolCallResult):
+        if result.success:
+            output = result.output
+            if "暂无任务" in output:
+                return "📋 **待办列表**\n\n目前没有任务列表。\n\n你可以：\n• 说「创建任务：任务1、任务2」来创建新列表\n• 说「添加任务 [描述]」来添加任务"
+            return f"📋 **待办列表**\n\n{output}"
+        else:
+            return f"❌ {result.error}"
+    return str(result)
+
+
+def _handle_reset_tasks(adapter, should_log: bool) -> str:
+    """处理重置任务"""
+    from .todo_adapter import ToolCallResult
+    result = adapter.call_tool('todo_reset', {})
+    
+    if isinstance(result, ToolCallResult):
+        return result.output if result.success else f"❌ {result.error}"
+    return str(result)
+
+
+def _handle_clear_tasks(adapter, should_log: bool) -> str:
+    """处理清空任务"""
+    from .todo_adapter import ToolCallResult
+    result = adapter.call_tool('todo_clear', {})
+    
+    if isinstance(result, ToolCallResult):
+        return result.output if result.success else f"❌ {result.error}"
+    return str(result)

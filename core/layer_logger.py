@@ -20,7 +20,7 @@ from typing import Optional
 LAYER_EMOJI = {
     "access": "🚪",           # 接入层
     "decision": "🧠",         # 决策层
-    "execution": "⚡",        # 执行层
+    "execution": "🏃",         # 执行层
 }
 
 LAYER_NAMES = {

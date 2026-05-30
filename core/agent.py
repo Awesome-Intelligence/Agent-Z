@@ -41,6 +41,7 @@ from .logging_manager import (
     get_tool_logger,
     set_log_level
 )
+from .response_router import ResponseStrategyRouter, ResponseStrategy
 
 
 class AgentConfig(BaseModel):
@@ -60,13 +61,16 @@ class AgentConfig(BaseModel):
     intent_mode: str = "llm"  # Options: "keyword", "llm", "hybrid"
     intent_llm_threshold: float = 0.3  # Confidence threshold for keyword fallback
     
+    enable_task_planning: bool = True  # Enable LLM-driven task planning
+    task_complexity_threshold: int = 2  # Steps >= this value triggers planning
+    
+    enable_advanced_reasoning: bool = True  # Enable advanced reasoning (knowledge Q&A)
+    
     supported_languages: List[str] = ["zh", "en", "ja", "ko"]
     
     log_level: str = "info"              # Logging level: debug, info, warning, error
     enable_detailed_logs: bool = True    # Enable detailed processing logs
     enable_summary_logs: bool = True     # Enable summary logs (always recommended)
-    
-    explanation_depth: str = "detailed"  # Explanation detail level: brief, moderate, detailed
     
     class Config:
         extra = "allow"
@@ -215,7 +219,8 @@ class CustomAgent:
     __slots__ = ('config', 'explanation_module', '_access_logger', '_cache_logger', '_memory_logger',
                  '_intent_logger', '_router_logger', '_tool_select_logger', '_session_logger', 
                  '_postprocess_logger', '_cache', '_config_hash', '_session', '_intent_classifier', 
-                 'llm_provider', '_i18n')
+                 'llm_provider', '_i18n', '_task_planner', '_advanced_reasoning_module',
+                 '_strategy_router')
     
     def __init__(self, config: Optional[AgentConfig] = None, session_id: Optional[str] = None):
         self.config = config or AgentConfig()
@@ -261,12 +266,45 @@ class CustomAgent:
             self._session = None
         
         self.llm_provider = None
+        self._task_planner = None
+        self._advanced_reasoning_module = None
+        self._strategy_router = None
+        self._init_advanced_reasoning()
         self._intent_classifier.set_llm_provider(self.llm_provider)
+    
+    def _init_advanced_reasoning(self):
+        """初始化高级推理模块"""
+        if self.config.enable_advanced_reasoning:
+            try:
+                from advanced_reasoning.module import AdvancedReasoningModule
+                self._advanced_reasoning_module = AdvancedReasoningModule(self.config)
+                if self.llm_provider:
+                    self._advanced_reasoning_module.set_llm_provider(self.llm_provider)
+                self._strategy_router = ResponseStrategyRouter(
+                    enable_task_planning=self.config.enable_task_planning,
+                    enable_skills=self.config.enable_skills,
+                    enable_advanced_reasoning=True
+                )
+            except ImportError:
+                self._advanced_reasoning_module = None
+                self._strategy_router = None
     
     def set_llm_provider(self, provider):
         """Set the LLM provider for both generation and intent classification."""
         self.llm_provider = provider
         self._intent_classifier.set_llm_provider(provider)
+        self._task_planner = None
+        
+        if self._advanced_reasoning_module:
+            self._advanced_reasoning_module.set_llm_provider(provider)
+    
+    def _get_task_planner(self):
+        """获取任务规划器（延迟加载）"""
+        if self._task_planner is None:
+            from .task_planner import get_task_planner
+            session_id = self._session.session_id if self._session else 'default'
+            self._task_planner = get_task_planner(session_id, self.llm_provider, self.config.workspace_dir if hasattr(self.config, 'workspace_dir') else None)
+        return self._task_planner
     
     def setup_logging(self):
         set_log_level(self.config.explanation_depth)
@@ -283,13 +321,15 @@ class CustomAgent:
         if not user_input.strip():
             raise InputValidationError("Input cannot be empty")
         
-        self._intent_logger.summary(f"🎯 [/意图识别层] - [IntentClassifier] 输入格式验证通过")
+        self._intent_logger.summary(f"🏷️ [/意图识别层] - [IntentClassifier] 输入格式验证通过")
         execution_flow.append("🧠 [决策层-意图识别层] 输入格式验证通过 → [执行层] 保存消息")
         
+        start_time = time.time()
+        
         if self._session:
-            self._session_logger.info(f"⚡ [执行层] 添加用户消息到会话 (session_id: {self._session.session_id})")
+            self._session_logger.info(f"（SessionManager） 添加用户消息到会话 (session_id: {self._session.session_id})")
             self._session.add_message('user', user_input)
-            execution_flow.append(f"⚡ [执行层] 消息已添加到会话 [{self._session.session_id}] → [决策层-记忆检索层] 检查缓存")
+            execution_flow.append(f"（SessionManager） 消息已添加到会话 [{self._session.session_id}] → [决策层-记忆检索层] 检查缓存")
         
         if self._cache is not None:
             cache_key = create_cache_key(user_input, self._config_hash)
@@ -300,11 +340,56 @@ class CustomAgent:
                 cached_response.execution_time = 0.0
                 return cached_response
             self._memory_logger.info(f"💾 [/记忆检索层] - [MemoryRetrieval] 缓存未命中，执行正常流程")
-            execution_flow.append("🧠 [决策层-记忆检索层] 缓存未命中 → [决策层-路由层] 开始处理")
-        
-        self._router_logger.summary(f"🔀 [/路由层] - [TaskRouter] 开始处理请求")
+            execution_flow.append("🧠 [决策层-记忆检索层] 缓存未命中 → [决策层-策略路由] 分析请求类型")
+            
+            if self._strategy_router and self.llm_provider:
+                strategy = self._strategy_router.analyze(user_input)
+                execution_flow.append(f"🎯 [策略路由] 选择策略: {strategy.value}")
+                
+                if strategy == ResponseStrategy.ADVANCED_REASONING:
+                    self._router_logger.info(f"🎯 [策略路由] 选择高级推理策略")
+                    return await self._handle_advanced_reasoning(user_input, start_time)
+            
+            intent_result = await self._intent_classifier.classify_async(user_input)
+            emoji = self._intent_classifier._get_intent_emoji(intent_result)
+            self._intent_logger.summary(f"🏷️ [/意图识别层] - [IntentClassifier] {emoji} [{intent_result}] 分类完成")
+            execution_flow.append(f"🧠 [决策层-意图识别层] IntentClassifier 意图: {emoji} [{intent_result}]")
+            
+            planning_result = None
+            if self.llm_provider and self.config.enable_task_planning:
+                from .task_middleware import TaskPlanningMiddleware
+                session_id = self._session.session_id if self._session else 'default'
+                planning_middleware = TaskPlanningMiddleware(
+                    llm_provider=self.llm_provider,
+                    session_id=session_id,
+                    workspace_dir=self.config.workspace_dir if hasattr(self.config, 'workspace_dir') else None,
+                    complexity_threshold=2
+                )
+                planning_result = await planning_middleware.process(user_input)
+                
+                if planning_result.is_complex:
+                    self._router_logger.info(f"🎯 [/任务规划层] - [TaskPlanner] 检测到复杂任务，复杂度: {planning_result.complexity}")
+                    execution_flow.append(f"🧠 [决策层-任务规划层] 检测到复杂任务 ({planning_result.complexity})")
+                    
+                    self._session_logger.info(f"（TaskPlanning） 创建任务列表，共 {len(planning_result.subtasks)} 个子任务")
+                    
+                    if planning_result.initial_plan:
+                        execution_time = time.time() - start_time
+                        
+                        if self._session:
+                            self._session.add_message('assistant', planning_result.initial_plan)
+                            self._session._save_session()
+                        
+                        return AgentResponse(
+                            content=planning_result.initial_plan,
+                            reasoning_steps=execution_flow,
+                            confidence_score=0.9,
+                            execution_time=execution_time,
+                            metadata={'is_complex_task': True, 'subtasks': planning_result.subtasks}
+                        )
+            
+            self._router_logger.summary(f"🔀 [/路由层] - [TaskRouter] 开始处理请求")
         execution_flow.append("🧠 [决策层-路由层] 开始处理请求 → [决策层-路由层] 任务路由")
-        start_time = time.time()
         
         try:
             if self.config.enable_routing:
@@ -353,10 +438,6 @@ class CustomAgent:
                     self._tool_select_logger.debug(f"🔧 [/工具选择层] - [ToolSelector] SkillManager 启用技能执行")
                 execution_flow.append("🧠 [决策层-工具选择层] SkillManager 启用技能执行")
                 
-                intent_result = await self._intent_classifier.classify_async(user_input)
-                self._intent_logger.summary(f"🎯 [/意图识别层] - [IntentClassifier] IntentClassifier 分类结果: {intent_result}")
-                execution_flow.append(f"   ├─ [决策层-意图识别层] IntentClassifier 意图: {intent_result}")
-                
                 relevant_skills = await skill_manager.discover_skills(intent_result, user_input)
                 self._tool_select_logger.info(f"🔧 [/工具选择层] - [ToolSelector] SkillManager 发现 {len(relevant_skills)} 个相关技能")
                 execution_flow.append(f"   └─ [执行层] SkillManager 发现 {len(relevant_skills)} 个技能")
@@ -368,7 +449,7 @@ class CustomAgent:
                     skill_result = await skill_manager.execute_skill(skill_meta.id)
                     if skill_result and skill_result.success:
                         self._postprocess_logger.summary(f"📝 [/后处理层] - [PostProcessor] 响应生成成功")
-                        execution_flow.append("   ⚡ [执行层] Skill.execute() 成功 → 完成")
+                        execution_flow.append("   （SkillManager） Skill.execute() 成功 → 完成")
                         
                         if self._session:
                             self._session.add_message('assistant', skill_result.output)
@@ -398,7 +479,7 @@ class CustomAgent:
             
             if self._session:
                 self._session.add_message('assistant', response.content)
-            execution_flow.append("⚡ [执行层] 保存助手响应 → [决策层-记忆检索层] 缓存")
+            execution_flow.append("（SessionManager） 保存助手响应 → [决策层-记忆检索层] 缓存")
             
             if self._cache is not None:
                 self._memory_logger.info(f"💾 [/记忆检索层] - [MemoryRetrieval] 存储响应到缓存")
@@ -421,7 +502,7 @@ class CustomAgent:
             )
             
         except InputValidationError as e:
-            self._intent_logger.error(f"🎯 [/意图识别层] - [IntentClassifier] Input validation error: {e}")
+            self._intent_logger.error(f"🏷️ [/意图识别层] - [IntentClassifier] Input validation error: {e}")
             return AgentResponse(
                 content=f"I apologize, but there was an issue with your input: {str(e)}",
                 confidence_score=0.0,
@@ -466,14 +547,26 @@ class CustomAgent:
             return None, []
     
     async def _generate_response(self, user_input: str) -> AgentResponse:
-        if self.config.timeout_seconds > 0:
-            response_task = self.explanation_module.process(user_input, self._session)
-            response = await asyncio.wait_for(
-                response_task, 
-                timeout=self.config.timeout_seconds
-            )
+        """生成响应 - 优先使用 AdvancedReasoningModule"""
+        if self._advanced_reasoning_module:
+            self._postprocess_logger.info(f"📝 [/后处理层] - [PostProcessor] 使用 AdvancedReasoningModule 生成响应")
+            if self.config.timeout_seconds > 0:
+                response_task = self._advanced_reasoning_module.process(user_input, self._session)
+                response = await asyncio.wait_for(
+                    response_task, 
+                    timeout=self.config.timeout_seconds
+                )
+            else:
+                response = await self._advanced_reasoning_module.process(user_input, self._session)
         else:
-            response = await self.explanation_module.process(user_input, self._session)
+            if self.config.timeout_seconds > 0:
+                response_task = self.explanation_module.process(user_input, self._session)
+                response = await asyncio.wait_for(
+                    response_task, 
+                    timeout=self.config.timeout_seconds
+                )
+            else:
+                response = await self.explanation_module.process(user_input, self._session)
         
         if self.config.response_format == "markdown":
             response.content = self._format_as_markdown(response.content)
@@ -484,6 +577,56 @@ class CustomAgent:
             response.content = response.content[:self.config.max_response_length] + "...\n\n[Response truncated for length]"
         
         return response
+    
+    async def _handle_advanced_reasoning(self, user_input: str, start_time: float) -> AgentResponse:
+        """处理高级推理请求"""
+        execution_flow = []
+        execution_flow.append("🧠 [决策层] 选择高级推理策略")
+        
+        if self._advanced_reasoning_module:
+            self._postprocess_logger.info(f"🤖 [高级推理] 使用 AdvancedReasoningModule 生成响应")
+            execution_flow.append("🤖 [高级推理] 调用 AdvancedReasoningModule")
+            
+            if self.config.timeout_seconds > 0:
+                response_task = self._advanced_reasoning_module.process(user_input, self._session)
+                response = await asyncio.wait_for(
+                    response_task,
+                    timeout=self.config.timeout_seconds
+                )
+            else:
+                response = await self._advanced_reasoning_module.process(user_input, self._session)
+        else:
+            self._postprocess_logger.info(f"🤖 [高级推理] 使用 ExplanationModule 生成响应")
+            execution_flow.append("🤖 [高级推理] 回退到 ExplanationModule")
+            
+            if self.config.timeout_seconds > 0:
+                response_task = self.explanation_module.process(user_input, self._session)
+                response = await asyncio.wait_for(
+                    response_task,
+                    timeout=self.config.timeout_seconds
+                )
+            else:
+                response = await self.explanation_module.process(user_input, self._session)
+        
+        execution_time = time.time() - start_time
+        
+        if self._session:
+            self._session.add_message('assistant', response.content)
+            self._session._save_session()
+        
+        if self._cache is not None:
+            cache_key = create_cache_key(user_input, self._config_hash)
+            self._cache.put(cache_key, response)
+        
+        self._postprocess_logger.summary(f"🤖 [高级推理] 响应生成完成 (长度: {len(response.content)} 字符)")
+        execution_flow.append(f"✅ [高级推理] 完成")
+        
+        return AgentResponse(
+            content=response.content,
+            reasoning_steps=execution_flow,
+            confidence_score=0.85,
+            execution_time=execution_time
+        )
     
     def _format_as_markdown(self, content: str) -> str:
         return content

@@ -17,18 +17,10 @@ from enum import Enum
 
 
 class IntentType(Enum):
-    """Supported intent types."""
+    """Supported intent types (精简版：3种核心意图)."""
     CONVERSATION = "conversation"
-    QUESTION = "question"
-    WEATHER = "weather"
-    TIME_QUERY = "time_query"
+    OPERATION = "operation"
     CODING = "coding"
-    FILE_OPERATION = "file_operation"
-    WEB_SEARCH = "web_search"
-    TERMINAL = "terminal"
-    CREATION = "creation"
-    ANALYSIS = "analysis"
-    CONFIGURATION = "configuration"
 
 
 @dataclass
@@ -128,7 +120,10 @@ class TaskRouter:
             confidence = 0.0
             
             if intent in route.intent_types:
-                confidence += 0.4
+                if intent == 'task_management':
+                    confidence += 0.6
+                else:
+                    confidence += 0.4
             
             keyword_matches = sum(1 for kw in route.keywords if kw.lower() in input_lower)
             if route.keywords:
@@ -164,68 +159,76 @@ class IntentClassifier:
     DEFAULT_INTENT_KEYWORDS = {
         'conversation': [
             'hello', 'hi', '你好', '嗨', 'how are you', 'good morning',
-            'thanks', 'thank you', 'bye', 'goodbye', 'see you', 'morning', 'evening'
-        ],
-        'question': [
+            'thanks', 'thank you', 'bye', 'goodbye', 'see you', 'morning', 'evening',
             'what', 'who', 'when', 'where', 'why', 'how', 'explain',
-            'difference', 'compare', 'define', 'meaning', 'is there', 'tell me'
+            'difference', 'compare', 'define', 'meaning', 'is there', 'tell me',
+            '什么是', '如何', '为什么', '怎么', '干嘛', '什么意思',
+            '分析', '检查', '优化', 'analyze', 'review',
+            '故事', '讲一个', '说说', '谈谈', '聊聊', '讲讲', '说个', '讲个',
+            '分享', '告诉我', '跟我说', '跟我讲讲', '帮我', '想', '觉得', '认为',
+            '知道', '了解', '明白', '清楚', '有意思', '有趣', '好玩', '开心',
+            '高兴', '难过', '伤心', '生气', '喜欢', '爱', '讨厌',
+            '想知道', '想了解', '想听听', '想聊聊', '感觉', '体会', '感受',
+            '心情', '想法', '观点', '看法', '意见', '建议', '提议',
+            '觉得怎么样', '怎么样', '好不好', '可以吗', '行不行', '好吗',
+            '上一句', '刚说的', '最后说了什么', '聊了些什么', '聊什么', '历史',
+            '刚才聊', '之前聊', '我们聊',
+            '任务', 'todo', 'task', '待办', '清单', '列表', '添加任务', '完成',
+            '完成任务', '新建任务', '创建任务', '任务列表', '待办事项', '添加待办',
+            'complete', 'finish', 'done', 'cancel', '删除任务', '列出任务',
+            '有哪些任务', '还有几个', '待办列表', '任务管理'
         ],
-        'weather': [
-            '天气', 'weather', '温度', 'temperature', '下雨', 'rain', '晴天', 'sunny',
-            '多云', 'cloudy', '风', 'wind', '气候', 'climate', ' forecast', '预报'
-        ],
-        'time_query': [
-            '时间', '现在几点', '几点了', '什么时间', '几点', 'date', '日期', '今天几号',
-            '星期几', 'month', 'year', '年', '月', '日', '几点钟'
-        ],
-        'coding': [
-            'code', 'python', 'function', 'program', 'debug', 'error', 'bug',
-            'implement', 'write', 'fix', 'compile', 'syntax', 'class', 'method',
-            'import', 'variable', 'loop', 'if else', 'def ', 'return', 'print'
-        ],
-        'file_operation': [
+        'operation': [
             'file', 'read', 'write', 'save', 'delete', 'create file', 'open file',
             'list files', 'directory', 'folder', 'path', 'list',
-            '桌面', 'documents', 'downloads', '图片', '音乐', '视频', '文档', '下载',
-            '查看', '看看', '浏览', '显示', '有哪些', '哪些', '内容', '目录',
-            '打开文件夹', 'open folder'
-        ],
-        'web_search': [
+            '桌面', 'desktop', 'documents', 'downloads', '图片', '音乐', '视频',
+            '文档', '下载', '查看', '看看', '浏览', '显示', '有哪些', '哪些',
+            '内容', '目录', '打开文件夹', 'open folder',
+            '读取文件', '写入文件', '查看文件', '文件内容',
             'search', 'google', 'bing', 'web', 'internet', 'online', 'find',
-            'lookup', '查一下', '搜索', '搜一下', '帮我找', '帮我搜索'
-        ],
-        'terminal': [
+            'lookup', '查一下', '搜索', '搜一下', '帮我找', '帮我搜索',
+            '百度', '谷歌', '查询',
+            '天气', 'weather', '温度', 'temperature', '下雨', 'rain', '晴天', 'sunny',
+            '多云', 'cloudy', '风', 'wind', '气候', 'climate', 'forecast', '预报',
+            '气温', '今天天气', '明天天气', '后天天气', '天气怎么样', '天气如何',
+            '天气预报', '气温多少', '多少度', '冷不冷', '热不热', '穿什么',
+            '适合穿', '紫外线', '空气质量', 'pm2.5',
+            '时间', '现在几点', '几点了', '什么时间', '几点', '几点钟',
+            'date', '日期', '今天几号', '星期几', 'month', 'year', '年', '月', '日',
+            '现在时间', '当前时间',
             'run', 'execute', 'terminal', 'command', 'shell', 'bash', 'cmd',
             '运行', '执行', '命令', '终端', '命令行', 'npm', 'pip', 'git',
             '打开', 'open', '启动', 'start', 'launch',
             'browser', 'chrome', 'edge', 'firefox', 'safari', '浏览器',
-            'notepad', '记事本', 'calc', '计算器', 'explorer', '资源管理器'
+            'notepad', '记事本', 'calc', '计算器', 'explorer', '资源管理器',
+            'setup', 'config', 'configure', 'settings', 'preferences', '设置', '配置', '安装'
         ],
-        'creation': [
-            'create', 'build', 'make', 'generate', 'design', 'develop', '新建'
-        ],
-        'analysis': [
-            'analyze', 'analyze this', 'explain this', 'review', 'optimize', '检查'
-        ],
-        'configuration': [
-            'setup', 'config', 'configure', 'settings', 'preferences', '设置', '配置'
+        'coding': [
+            'code', 'python', 'function', 'program', 'debug', 'error', 'bug',
+            'implement', 'write', 'fix', 'compile', 'syntax', 'class', 'method',
+            'import', 'variable', 'loop', 'def', 'return', 'print',
+            '写代码', '帮我写', '编程', '代码', '函数', '程序',
+            'create', 'build', 'make', 'generate', 'design', 'develop',
+            '新建', '创建', '生成'
         ]
     }
     
     INTENTS_LIST = """
-    Available intents:
-    - conversation: Greetings, farewells, casual chat
-    - question: Asking questions, seeking explanations
-    - weather: Weather queries, temperature, forecasts
-    - time_query: Time, date, current moment inquiries
-    - coding: Programming, debugging, code-related tasks
-    - file_operation: Reading, writing, managing files
-    - web_search: Searching the internet, looking up information
-    - terminal: Running commands, opening apps, system operations
-    - creation: Creating new content, building things
-    - analysis: Analyzing, reviewing, optimizing
-    - configuration: Setting up, configuring, preferences
+    Available intents (精简版):
+    - conversation: 对话、问答、闲聊、分析、任务管理
+    - operation: 命令执行、文件操作、工具调用、系统配置、搜索查询
+    - coding: 编程、代码生成、调试、软件开发
     """
+    
+    INTENT_EMOJIS = {
+        'conversation': '💬',
+        'operation': '🛠️',
+        'coding': '💻'
+    }
+    
+    def _get_intent_emoji(self, intent: str) -> str:
+        """Get emoji for intent type."""
+        return self.INTENT_EMOJIS.get(intent, '📋')
     
     def __init__(self, llm_provider=None, mode: str = None, threshold: float = 0.3, language: str = "zh", enable_detailed_logs: bool = None, config_path: str = "config/intents.yaml"):
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -349,7 +352,8 @@ class IntentClassifier:
     def _classify_keyword_only(self, input_text: str) -> str:
         """Keyword-only intent classification."""
         keyword_intent, confidence = self._keyword_classify(input_text)
-        self.logger.debug(f"关键词分类: {keyword_intent} (置信度: {confidence:.2f})")
+        emoji = self._get_intent_emoji(keyword_intent)
+        self.logger.debug(f"📝 关键词分类: {emoji} [{keyword_intent}] (置信度: {confidence:.2f})")
         return keyword_intent
     
     def _classify_llm_only(self, input_text: str) -> str:
@@ -358,7 +362,8 @@ class IntentClassifier:
             try:
                 llm_intent = self._llm_classify(input_text)
                 if llm_intent:
-                    self.logger.info(f"🤖 LLM 分类成功: {llm_intent}")
+                    emoji = self._get_intent_emoji(llm_intent)
+                    self.logger.info(f"🤖 LLM 分类成功: {emoji} [{llm_intent}]")
                     return llm_intent
                 else:
                     self.logger.warning("⚠️ LLM 返回无效结果，fallback 到关键词分类")
@@ -371,21 +376,23 @@ class IntentClassifier:
     def _classify_hybrid(self, input_text: str) -> str:
         """Hybrid intent classification (keyword first, then LLM)."""
         keyword_intent, confidence = self._keyword_classify(input_text)
+        keyword_emoji = self._get_intent_emoji(keyword_intent)
         
         if confidence >= self.threshold:
-            self.logger.info(f"📝 关键词分类: {keyword_intent} (置信度: {confidence:.2f})")
+            self.logger.info(f"📝 关键词分类: {keyword_emoji} [{keyword_intent}] (置信度: {confidence:.2f})")
             return keyword_intent
         
         if self.llm_provider:
             try:
                 llm_intent = self._llm_classify(input_text)
                 if llm_intent:
-                    self.logger.info(f"🤖 LLM 分类: {llm_intent}")
+                    llm_emoji = self._get_intent_emoji(llm_intent)
+                    self.logger.info(f"🤖 LLM 分类: {llm_emoji} [{llm_intent}]")
                     return llm_intent
             except Exception as e:
                 self.logger.warning(f"⚠️ LLM 调用失败: {e}")
         
-        self.logger.info(f"📝 关键词分类 (低置信度): {keyword_intent} (置信度: {confidence:.2f})")
+        self.logger.info(f"📝 关键词分类 (低置信度): {keyword_emoji} [{keyword_intent}] (置信度: {confidence:.2f})")
         return keyword_intent
     
     async def classify_async(self, input_text: str) -> str:
@@ -403,7 +410,8 @@ class IntentClassifier:
             try:
                 llm_intent = await self._llm_classify_async(input_text)
                 if llm_intent:
-                    self.logger.info(f"🤖 LLM 分类成功: {llm_intent}")
+                    emoji = self._get_intent_emoji(llm_intent)
+                    self.logger.info(f"🤖 LLM 分类成功: {emoji} [{llm_intent}]")
                     return llm_intent
                 else:
                     self.logger.warning("⚠️ LLM 返回无效结果，fallback 到关键词分类")
@@ -416,21 +424,23 @@ class IntentClassifier:
     async def _classify_hybrid_async(self, input_text: str) -> str:
         """Async hybrid intent classification (keyword first, then LLM)."""
         keyword_intent, confidence = self._keyword_classify(input_text)
+        keyword_emoji = self._get_intent_emoji(keyword_intent)
         
         if confidence >= self.threshold:
-            self.logger.info(f"📝 关键词分类: {keyword_intent} (置信度: {confidence:.2f})")
+            self.logger.info(f"📝 关键词分类: {keyword_emoji} [{keyword_intent}] (置信度: {confidence:.2f})")
             return keyword_intent
         
         if self.llm_provider:
             try:
                 llm_intent = await self._llm_classify_async(input_text)
                 if llm_intent:
-                    self.logger.info(f"🤖 LLM 分类: {llm_intent}")
+                    llm_emoji = self._get_intent_emoji(llm_intent)
+                    self.logger.info(f"🤖 LLM 分类: {llm_emoji} [{llm_intent}]")
                     return llm_intent
             except Exception as e:
                 self.logger.warning(f"⚠️ LLM 调用失败: {e}")
         
-        self.logger.info(f"📝 关键词分类 (低置信度): {keyword_intent} (置信度: {confidence:.2f})")
+        self.logger.info(f"📝 关键词分类 (低置信度): {keyword_emoji} [{keyword_intent}] (置信度: {confidence:.2f})")
         return keyword_intent
     
     def _keyword_classify(self, input_text: str) -> Tuple[str, float]:
@@ -441,17 +451,20 @@ class IntentClassifier:
         for intent, keywords in self.INTENT_KEYWORDS.items():
             total_weight = 0.0
             matched_count = 0
+            matched_keywords = []
             for kw in keywords:
-                if kw in input_lower:
+                if kw.lower() in input_lower:
                     weight = 1.0 + len(kw) / 10.0
                     total_weight += weight
                     matched_count += 1
+                    matched_keywords.append(kw)
             
             if matched_count > 0:
-                input_length = len(input_lower)
-                score = total_weight / max(input_length, len(max(keywords, key=len)))
-                score = min(max(score, 0.0), 1.0)
-                score = min(score * (1 + matched_count * 0.05), 1.0)
+                score = matched_count * 0.2 + total_weight / len(keywords) * 0.3
+                score = min(score, 1.0)
+                
+                if intent == 'task_management' and matched_count >= 1:
+                    score = min(score * 1.8, 1.0)
             else:
                 score = 0.0
             
@@ -469,6 +482,8 @@ class IntentClassifier:
                 priority = self._intent_priorities.get(intent, float('inf'))
                 if priority < best_priority:
                     best_priority = priority
+                    best_intent = intent
+                elif priority == best_priority and intent == 'task_management':
                     best_intent = intent
         
         confidence = scores[best_intent]
