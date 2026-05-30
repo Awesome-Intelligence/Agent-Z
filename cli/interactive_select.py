@@ -63,6 +63,14 @@ def print_config_summary():
         print()
 
 
+def _hide_cursor():
+    """隐藏终端光标"""
+    print('\033[?25l', end='', flush=True)
+
+def _show_cursor():
+    """显示终端光标"""
+    print('\033[?25h', end='', flush=True)
+
 # ============ 1. inquirer 主实现（跨平台） ============
 def _select_with_inquirer(
     options: List[Union[str, Tuple[str, str]]],
@@ -99,7 +107,11 @@ def _select_with_inquirer(
         )
     ]
     
-    result = inquirer.prompt(questions)
+    _hide_cursor()
+    try:
+        result = inquirer.prompt(questions)
+    finally:
+        _show_cursor()
     
     if result and 'choice' in result:
         return result['choice']
@@ -188,6 +200,7 @@ def _select_with_native(
     current_idx = 0
     first_run = True
     
+    _hide_cursor()
     try:
         while True:
             if not first_run:
@@ -254,6 +267,8 @@ def _select_with_native(
     except (KeyboardInterrupt, EOFError):
         print(f"\n\n{GRAY}用户中断选择{RESET}")
         return None
+    finally:
+        _show_cursor()
 
 
 # ============ 3. 降级选择方案 ============
