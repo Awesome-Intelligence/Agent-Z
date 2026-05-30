@@ -55,12 +55,13 @@ def print_logo():
 
 def print_config_summary():
     """打印配置摘要"""
-    from .setup_wizard import has_existing_config, show_current_config, load_config
+    from .setup_wizard import has_existing_config, show_current_config, load_config as wizard_load_config
     
     if has_existing_config():
-        config = load_config()
-        show_current_config(config)
-        print()
+        config = wizard_load_config()
+        if isinstance(config, dict):
+            show_current_config(config)
+            print()
 
 
 def _hide_cursor():
