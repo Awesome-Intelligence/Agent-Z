@@ -4,6 +4,16 @@
 
 ---
 
+## 参考项目路径
+
+**重要提示**：当需要参考 OpenClaw 和 Hermes 项目时，请使用以下路径：
+- OpenClaw 项目：`e:\openclaw-for-study`
+- Hermes 项目：`e:\hermes-agent-study`
+
+这些路径包含完整的项目代码和配置，可用于参考实现方式。
+
+---
+
 ## 核心原则
 
 ### 1. 优先使用成熟开源组件
