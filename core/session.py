@@ -28,6 +28,17 @@ class Message:
 
 
 @dataclass
+class CompressionRecord:
+    """压缩记录 - 追踪会话压缩历史"""
+    timestamp: float
+    original_count: int
+    compressed_count: int
+    summary: str
+    parent_messages: List[Dict[str, Any]]  # 被压缩的原始消息
+    compression_ratio: float
+
+
+@dataclass
 class SessionConfig:
     """Configuration for session behavior."""
     max_history_length: int = 50
@@ -35,6 +46,9 @@ class SessionConfig:
     enable_persistence: bool = True
     history_path: str = field(default_factory=lambda: str(get_sessions_dir()))
     enable_detailed_logs: bool = True
+    enable_compression: bool = True  # 启用上下文压缩
+    compression_threshold: int = 30  # 触发压缩的消息数阈值
+    preserve_compressed_history: bool = True  # 保留压缩历史用于追踪
 
 
 class BaseSessionStore(ABC):
@@ -117,6 +131,7 @@ class Session:
     - Context retention
     - Automatic persistence
     - Tool call tracking
+    - Session compression with lineage tracking (压缩传承追踪)
     """
     
     def __init__(self, session_id: str, config: Optional[SessionConfig] = None):
@@ -130,6 +145,11 @@ class Session:
         self.logger = logging.getLogger(f"Session.{session_id}")
         self.logger.propagate = False
         self._enable_detailed_logs = self.config.enable_detailed_logs
+        
+        # 会话压缩传承追踪
+        self._compression_records: List[CompressionRecord] = []
+        self._parent_session_id: Optional[str] = None  # 父会话ID（压缩产生的新会话）
+        self._child_session_ids: List[str] = []  # 子会话ID列表
         
         if self.config.enable_persistence:
             self._load_session()
@@ -145,7 +165,19 @@ class Session:
                 
                 self.context = data.get('context', {})
                 
+                # 加载压缩记录
+                if self.config.preserve_compressed_history:
+                    compression_data = data.get('compression_records', [])
+                    self._compression_records = [
+                        CompressionRecord(**record) for record in compression_data
+                    ]
+                
+                self._parent_session_id = data.get('parent_session_id')
+                self._child_session_ids = data.get('child_session_ids', [])
+                
                 self.logger.info(f"Loaded session with {len(self.messages)} messages")
+                if self._compression_records:
+                    self.logger.info(f"Session has {len(self._compression_records)} compression records")
             except Exception as e:
                 self.logger.error(f"Failed to load session: {e}")
     
@@ -168,7 +200,20 @@ class Session:
                     for msg in self.messages
                 ],
                 'context': self.context,
-                'updated_at': time.time()
+                'updated_at': time.time(),
+                'compression_records': [
+                    {
+                        'timestamp': record.timestamp,
+                        'original_count': record.original_count,
+                        'compressed_count': record.compressed_count,
+                        'summary': record.summary,
+                        'parent_messages': record.parent_messages,
+                        'compression_ratio': record.compression_ratio
+                    }
+                    for record in self._compression_records
+                ] if self.config.preserve_compressed_history else [],
+                'parent_session_id': self._parent_session_id,
+                'child_session_ids': self._child_session_ids
             }
             
             self.store.save(self.session_id, data)
@@ -204,6 +249,121 @@ class Session:
         
         if time.time() - self.last_save_time > self.config.auto_save_interval:
             self._save_session()
+    
+    def record_compression(
+        self,
+        original_count: int,
+        compressed_count: int,
+        summary: str,
+        parent_messages: List[Dict[str, Any]],
+        compression_ratio: float
+    ):
+        """
+        记录一次压缩操作
+        
+        Args:
+            original_count: 原始消息数
+            compressed_count: 压缩后消息数
+            summary: 压缩摘要
+            parent_messages: 被压缩的原始消息
+            compression_ratio: 压缩率
+        """
+        record = CompressionRecord(
+            timestamp=time.time(),
+            original_count=original_count,
+            compressed_count=compressed_count,
+            summary=summary,
+            parent_messages=parent_messages,
+            compression_ratio=compression_ratio
+        )
+        self._compression_records.append(record)
+        self.logger.info(
+            f"Recorded compression: {original_count} -> {compressed_count} messages "
+            f"(ratio: {compression_ratio:.2%})"
+        )
+        
+        # 限制压缩记录数量
+        if len(self._compression_records) > 50:
+            self._compression_records = self._compression_records[-50:]
+        
+        self._save_session()
+    
+    def get_compression_history(self) -> List[CompressionRecord]:
+        """获取压缩历史"""
+        return self._compression_records.copy()
+    
+    def get_lineage_info(self) -> Dict[str, Any]:
+        """获取会话传承信息"""
+        return {
+            'session_id': self.session_id,
+            'parent_session_id': self._parent_session_id,
+            'has_parent': self._parent_session_id is not None,
+            'child_session_ids': self._child_session_ids.copy(),
+            'child_count': len(self._child_session_ids),
+            'compression_count': len(self._compression_records),
+            'total_messages_preserved': sum(
+                r.original_count - r.compressed_count
+                for r in self._compression_records
+            )
+        }
+    
+    def set_parent_session(self, parent_id: str):
+        """设置父会话（压缩产生的新会话）"""
+        self._parent_session_id = parent_id
+        self._save_session()
+    
+    def add_child_session(self, child_id: str):
+        """添加子会话"""
+        if child_id not in self._child_session_ids:
+            self._child_session_ids.append(child_id)
+            self._save_session()
+    
+    def expand_compressed_message(self, summary_content: str) -> List[Dict[str, Any]]:
+        """
+        展开压缩消息，恢复原始内容
+        
+        Args:
+            summary_content: 摘要消息的内容
+            
+        Returns:
+            被压缩的原始消息列表
+        """
+        for record in self._compression_records:
+            if summary_content in record.summary:
+                return record.parent_messages
+        return []
+    
+    def get_full_history_with_lineage(self) -> Dict[str, Any]:
+        """
+        获取完整的会话历史（包括传承追踪信息）
+        
+        Returns:
+            包含消息和传承信息的字典
+        """
+        return {
+            'session_id': self.session_id,
+            'messages': [
+                {
+                    'role': msg.role,
+                    'content': msg.content,
+                    'timestamp': msg.timestamp,
+                    'metadata': msg.metadata
+                }
+                for msg in self.messages
+            ],
+            'context': self.context.copy(),
+            'lineage': self.get_lineage_info(),
+            'compression_history': [
+                {
+                    'timestamp': r.timestamp,
+                    'original_count': r.original_count,
+                    'compressed_count': r.compressed_count,
+                    'summary': r.summary[:200],  # 截断摘要
+                    'compression_ratio': r.compression_ratio
+                }
+                for r in self._compression_records
+            ]
+        }
     
     def get_history(self, limit: Optional[int] = None) -> List[Message]:
         """
@@ -294,7 +454,19 @@ class Session:
             'tool_calls': sum(1 for m in self.messages if m.role == 'tool'),
             'context_keys': len(self.context),
             'created_at': self.messages[0].timestamp if self.messages else None,
-            'last_activity': self.messages[-1].timestamp if self.messages else None
+            'last_activity': self.messages[-1].timestamp if self.messages else None,
+            # 压缩统计
+            'compression_enabled': self.config.enable_compression,
+            'compression_records': len(self._compression_records),
+            'total_messages_preserved': sum(
+                r.original_count - r.compressed_count
+                for r in self._compression_records
+            ) if self.config.preserve_compressed_history else 0,
+            'lineage': {
+                'has_parent': self._parent_session_id is not None,
+                'parent_session_id': self._parent_session_id,
+                'child_count': len(self._child_session_ids)
+            }
         }
         return stats
 
