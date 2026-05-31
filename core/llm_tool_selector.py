@@ -50,12 +50,18 @@ class AgentDefinitionLoader:
     """
     Agent 定义加载器
     
-    从 agent.md、capabilities.md 等文件加载 Agent 的身份、性格和能力边界
+    从 workspace 加载 Agent 的身份、性格、能力边界和用户信息
     参考 Hermes 和 OpenClaw 的实现方式
+    
+    架构：
+    - 模板目录 (agent/templates/) - 存放默认配置模板
+    - 用户工作空间 (~/.handsome_agent/) - 用户实际修改的配置
     """
     
     def __init__(self):
-        self.agent_dir = Path(__file__).parent.parent / "agent"
+        from .workspace import get_workspace_manager
+        
+        self.workspace_manager = get_workspace_manager()
         self._definitions: Dict[str, str] = {}
         self._load_definitions()
     
@@ -65,18 +71,18 @@ class AgentDefinitionLoader:
             'identity': 'agent.md',
             'capabilities': 'capabilities.md',
             'memory': 'memory.md',
+            'user': 'user.md',
             'tools': 'tools.md'
         }
         
         for key, filename in definition_files.items():
-            file_path = self.agent_dir / filename
             try:
-                if file_path.exists():
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        self._definitions[key] = f.read()
-                    logging.getLogger(__name__).info(f"Loaded agent definition: {filename}")
+                content = self.workspace_manager.load_workspace_file(filename)
+                if content:
+                    self._definitions[key] = content
+                    logging.getLogger(__name__).info(f"Loaded agent definition from workspace: {filename}")
                 else:
-                    logging.getLogger(__name__).warning(f"Agent definition file not found: {filename}")
+                    logging.getLogger(__name__).warning(f"Agent definition file not found in workspace: {filename}")
             except Exception as e:
                 logging.getLogger(__name__).error(f"Failed to load {filename}: {e}")
     
@@ -116,9 +122,48 @@ class AgentDefinitionLoader:
         
         return '\n'.join(summary_lines[:30])
     
+    def get_user_summary(self) -> str:
+        """获取用户信息摘要（用于个性化服务）"""
+        if 'user' not in self._definitions:
+            return ""
+        
+        user_def = self._definitions['user']
+        lines = user_def.split('\n')
+        summary_lines = []
+        
+        # 提取关键用户信息
+        for i, line in enumerate(lines):
+            # 基本信息
+            if '## 👤 用户基本信息' in line:
+                summary_lines.append(line)
+                # 添加接下来的配置行
+                for j in range(i+1, min(i+10, len(lines))):
+                    if lines[j].startswith('##'):
+                        break
+                    if lines[j].strip() and not lines[j].startswith('```'):
+                        summary_lines.append(lines[j])
+            
+            # 交互偏好
+            elif '## ⚙️ 用户偏好设置' in line:
+                summary_lines.append(line)
+            
+            # 工作场景
+            elif '## 🎯 工作场景' in line:
+                summary_lines.append(line)
+        
+        if summary_lines:
+            return '\n'.join(summary_lines)
+        return ""
+    
     def get_all_definitions(self) -> Dict[str, str]:
         """获取所有定义"""
         return self._definitions.copy()
+    
+    def reload(self):
+        """重新加载配置（用于配置更新后）"""
+        self._definitions.clear()
+        self.workspace_manager.clear_cache()
+        self._load_definitions()
 
 
 class LLMToolSelector:
@@ -180,10 +225,14 @@ class LLMToolSelector:
 
         identity_summary = self.agent_loader.get_identity_summary()
         capabilities_summary = self.agent_loader.get_capabilities_summary()
+        user_summary = self.agent_loader.get_user_summary()
 
         prompt = f"""{identity_summary}
 
 {capabilities_summary}
+
+User Profile:
+{user_summary if user_summary else "User information not configured. Provide general assistance."}
 
 Available tools:
 {tools_schema}
@@ -192,15 +241,17 @@ Available tools:
 
 Your task:
 1. Understand the user's request based on your identity and capabilities
-2. Decide if you need to use a tool or respond directly
-3. If using a tool, select the most appropriate one and provide parameters
-4. Stay within your capabilities - do not attempt actions you cannot perform
+2. Consider the user's background and preferences
+3. Decide if you need to use a tool or respond directly
+4. If using a tool, select the most appropriate one and provide parameters
+5. Stay within your capabilities - do not attempt actions you cannot perform
 
 Decision rules:
 - Use a tool ONLY when necessary (e.g., need external data, execute commands, access files)
 - For general knowledge questions, greetings, or conversations, respond directly
 - If unsure about parameters, use reasonable defaults or ask for clarification
 - If the request is outside your capabilities, politely explain and suggest alternatives
+- Personalize your response based on the user's background and preferences
 
 Response format (JSON):
 {{

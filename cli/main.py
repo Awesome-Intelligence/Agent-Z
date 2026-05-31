@@ -100,6 +100,27 @@ def run_setup_if_needed():
     """Run setup wizard if no configuration exists."""
     from cli import ui
     
+    # 初始化工作空间
+    from core.workspace import get_workspace_manager
+    
+    workspace_manager = get_workspace_manager()
+    is_first_run = not workspace_manager.is_workspace_setup_completed()
+    
+    if is_first_run:
+        ui.print_header("🎉 欢迎使用 Handsome Agent")
+        print()
+        ui.print_info("正在初始化工作空间...")
+        
+        # 确保工作空间存在
+        workspace_manager.ensure_workspace()
+        
+        ui.print_success(f"工作空间已创建: {workspace_manager.workspace_dir}")
+        ui.print_info("配置文件已复制到工作空间，您可以随时修改")
+        print()
+        
+        # 标记设置完成
+        workspace_manager.mark_setup_complete()
+    
     if not has_existing_config():
         ui.print_header("首次运行 Handsome Agent")
         print()

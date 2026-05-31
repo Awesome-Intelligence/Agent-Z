@@ -276,8 +276,14 @@ Please provide a natural language response to the user based on the tool result.
             LLM 生成的回复
         """
         try:
-            # 构建完整的消息列表：历史消息 + 当前用户输入
+            # 构建完整的消息列表：系统提示 + 历史消息 + 当前用户输入
             messages = []
+            
+            # 添加系统提示（包含 Agent 身份定义）
+            system_prompt = self._build_identity_prompt()
+            messages.append({"role": "system", "content": system_prompt})
+            
+            # 添加对话历史
             if conversation_history:
                 messages.extend(conversation_history)
             
@@ -292,6 +298,20 @@ Please provide a natural language response to the user based on the tool result.
             # 回退到简单方法
             response = await self.llm_provider.generate(user_input)
             return response
+    
+    def _build_identity_prompt(self) -> str:
+        """构建 Agent 身份提示词"""
+        from core.llm_tool_selector import AgentDefinitionLoader
+        
+        loader = AgentDefinitionLoader()
+        identity = loader.get_identity_summary()
+        capabilities = loader.get_capabilities_summary()
+        
+        return f"""{identity}
+
+{capabilities}
+
+Please respond naturally based on your identity and capabilities. When asked "who are you" or "你是谁", introduce yourself as Handsome Agent."""
     
     async def _generate_clarification_response(
         self,
