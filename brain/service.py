@@ -236,6 +236,72 @@ class BrainService:
                     for s in skills
                 ]
             }
+
+        @self.app.get("/api/v1/skills")
+        async def list_skills():
+            """列出所有已安装的技能"""
+            from brain.skills import get_skill_telemetry, load_skills_from_directory
+            from shared.config import get_skills_dir
+
+            telemetry = get_skill_telemetry()
+            skills_dir = get_skills_dir()
+
+            skills = load_skills_from_directory(skills_dir)
+            reports = telemetry.get_skill_report()
+
+            report_map = {r["name"]: r for r in reports}
+
+            return {
+                "skills": [
+                    {
+                        "name": skill.name,
+                        "path": str(skill.path),
+                        "description": skill.description,
+                        **report_map.get(skill.name, {}),
+                    }
+                    for skill in skills
+                ]
+            }
+
+        @self.app.post("/api/v1/skills/install")
+        async def install_skill(source: str, name: str = None):
+            """安装技能
+
+            支持:
+            - URL: https://example.com/skill.zip
+            - GitHub: owner/repo 或 owner/repo/path
+            """
+            from cli.skills_cli import install_from_url, install_from_github
+
+            if source.startswith("http://") or source.startswith("https://"):
+                success = await install_from_url(source, name)
+            elif "github.com" in source or "/" in source:
+                success = await install_from_github(source, name)
+            else:
+                return {"success": False, "message": "Unsupported source format"}
+
+            if success:
+                return {"success": True, "message": f"Skill '{name or source}' installed successfully"}
+            return {"success": False, "message": "Installation failed"}
+
+        @self.app.delete("/api/v1/skills/{skill_name}")
+        async def uninstall_skill(skill_name: str):
+            """卸载技能"""
+            from cli.skills_cli import uninstall_skill
+            import asyncio
+
+            success = uninstall_skill(skill_name)
+            if success:
+                return {"success": True, "message": f"Skill '{skill_name}' uninstalled"}
+            return {"success": False, "message": "Uninstallation failed"}
+
+        @self.app.get("/api/v1/skills/stats")
+        async def get_skills_stats():
+            """获取技能统计"""
+            from brain.skills import get_skill_telemetry
+
+            telemetry = get_skill_telemetry()
+            return telemetry.get_usage_summary()
     
     async def _handle_process_request(self, request: ProcessRequest) -> ProcessResponse:
         """处理消息请求"""

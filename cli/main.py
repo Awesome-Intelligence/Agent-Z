@@ -273,7 +273,11 @@ def main():
     
     # Version
     subparsers.add_parser('version', help='Show version')
-    
+
+    # Skills commands
+    from cli.skills_cli import add_skills_parser
+    add_skills_parser(subparsers)
+
     parser.add_argument(
         "--setup",
         action="store_true",
@@ -367,6 +371,9 @@ def main():
         print("Inspired by Hermes Agent")
         print("Updated to use Modern Agent (LLM-driven decision engine)!")
         return
+    elif args.command == 'skills':
+        from cli.skills_cli import run_skills_command
+        exit(asyncio.run(run_skills_command(args)))
     elif args.command == 'chat':
         pass
     

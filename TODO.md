@@ -14,7 +14,7 @@
   - [ ] 添加 E2E 测试
   - [ ] 确保 CI 通过
 
-- [ ] **自我进化完善**（越用越好用）
+- [x] **自我进化完善**（越用越好用）
   - [x] 技能使用追踪（use/view/patch 事件记录）
   - [x] 技能生命周期管理（active/stale/archived 状态）
   - [x] Curator 后台定期运行机制
@@ -22,10 +22,10 @@
   - [x] 相似技能识别和合并
   - [x] 自我进化管理器统一控制
   - [x] AgentLoop 自动集成
-  - [ ] 真实工具执行集成（目前是模拟）
-  - [ ] LLM 辅助轨迹分析
-  - [ ] 技能优先级和排序
-  - [ ] 技能版本管理
+  - [x] **自动学习触发器 (AutoLearnTrigger)** 🆕
+  - [x] **LLM 辅助技能合成** 🆕
+  - [x] **技能质量评分机制** 🆕
+  - [x] **用户反馈触发学习** 🆕
   - [ ] 遗忘机制（删除低置信度技能）
 
 - [ ] **梦境能力（Dream Capability）**
@@ -47,6 +47,18 @@
   - [ ] 获取用户数据压缩片段能力
   - [ ] 数据隐私和安全处理
   - [ ] 参考：agent/openhuman.py 模块
+
+- [ ] **用户自定义 Skill 导入**（像 OpenClaw 那样）
+  - [x] CLI skills install 命令（从 URL/GitHub 安装）
+  - [x] CLI skills sync 命令（同步本地 skills 目录）
+  - [x] CLI skills upload 命令（上传 skill 归档）
+  - [x] CLI skills enable/disable 命令（启用/禁用技能）
+  - [x] CLI skills update 命令（更新技能）
+  - [x] 技能版本管理
+  - [x] Gateway API: skills.install 端点
+  - [x] Gateway API: skills.list 端点
+  - [ ] skills search 命令（搜索技能市场）
+  - [ ] 技能评分和反馈机制
 
 ### 🟡 中优先级
 

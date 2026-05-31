@@ -21,22 +21,30 @@ brain_curator/
 - 计算成功率和置信度
 - 生成改进建议
 
-### 2. 技能合成器 (Synthesizer)
+### 2. 技能合成器 (SkillSynthesizer) 🆕
 - 从成功轨迹合成新技能
 - 生成技能名称和描述
 - 提取触发模式和动作模板
+- **LLM 辅助增强**（如 LLM Provider 可用）
+- **质量评分机制**
 
-### 3. 技能写入器 (SkillWriter)
+### 3. 自动学习触发器 (AutoLearnTrigger) 🆕
+- 判断是否应该从轨迹学习
+- 成功执行后触发
+- 用户正反馈后触发
+- 重复模式识别后触发
+
+### 4. 技能写入器 (SkillWriter)
 - 将合成的技能写入文件系统
 - 生成 SKILL.md 文件
 - 支持技能版本管理
 
-### 4. Curator (原版)
+### 5. Curator (原版)
 - 协调评估和合成
 - 管理技能生命周期
 - 提供反馈闭环
 
-### 5. 增强版 Curator (EnhancedCurator) 🆕
+### 6. 增强版 Curator (EnhancedCurator)
 - 后台定期运行机制
 - 空闲触发审查
 - CuratorState 持久化

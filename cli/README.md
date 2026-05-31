@@ -32,6 +32,13 @@ cli/
 | `sessions` | 列出所有会话 | `python cli.py sessions` |
 | `batch` | 批量处理 | `python cli.py batch -i input.json` |
 | `version` | 显示版本信息 | `python cli.py version` |
+| `skills install <source>` | 安装技能 | `python cli.py skills install owner/repo` |
+| `skills sync` | 同步本地技能目录 | `python cli.py skills sync` |
+| `skills list` | 列出已安装的技能 | `python cli.py skills list` |
+| `skills enable <name>` | 启用技能 | `python cli.py skills enable skill-name` |
+| `skills disable <name>` | 禁用技能 | `python cli.py skills disable skill-name` |
+| `skills update <name>` | 更新技能 | `python cli.py skills update skill-name` |
+| `skills uninstall <name>` | 卸载技能 | `python cli.py skills uninstall skill-name` |
 
 ### 2. UI 组件 (cli/ui.py)
 
@@ -87,6 +94,49 @@ class Theme:
 - 数字输入选择（Windows 兼容）
 - 支持单选和多选
 - 高亮显示选项
+
+### 5. Skills CLI (cli/skills_cli.py) 🆕
+
+**职责**: 管理用户自定义技能，支持从 URL、GitHub 安装和管理技能。
+
+**支持的命令**:
+
+| 命令 | 功能 |
+|------|------|
+| `skills install <source>` | 从 URL 或 GitHub 安装技能 |
+| `skills sync` | 同步本地技能目录 |
+| `skills list` | 列出已安装的技能 |
+| `skills enable <name>` | 启用技能 |
+| `skills disable <name>` | 禁用技能 |
+| `skills update <name>` | 更新技能 |
+| `skills uninstall <name>` | 卸载技能 |
+
+**支持的来源格式**:
+
+```bash
+# 从 URL 安装
+python cli.py skills install https://example.com/skill.zip
+
+# 从 GitHub 安装
+python cli.py skills install owner/repo
+python cli.py skills install owner/repo/path/to/skill
+```
+
+**工作原理**:
+
+```
+skills install owner/repo
+    ↓
+GitHub API 获取仓库内容
+    ↓
+查找 SKILL.md 文件
+    ↓
+下载并解压到 ~/.handsome_agent/skills/
+    ↓
+注册到 SkillTelemetry
+    ↓
+AgentLoop 可使用新技能
+```
 
 ## 🔄 处理流程
 

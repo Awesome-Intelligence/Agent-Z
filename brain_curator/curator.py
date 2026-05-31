@@ -89,24 +89,22 @@ class Curator:
     async def process_trajectory(self, trajectory: Dict[str, Any]) -> Optional[SynthesizedSkill]:
         """
         处理轨迹 - 主入口
-        
+
         1. 评估轨迹
         2. 生成建议
         3. 合成技能（如有必要）
         4. 自动学习（如启用）
-        
+
         Args:
             trajectory: 轨迹数据
-            
+
         Returns:
             SynthesizedSkill: 合成的技能（如有）
         """
         logger.info(f"Processing trajectory: {trajectory.get('trajectory_id', 'unknown')}")
-        
-        # 1. 评估轨迹
+
         report = await self.evaluate(trajectory)
-        
-        # 2. 调用回调（用于通知前端等）
+
         for callback in self._evaluation_callbacks:
             try:
                 if asyncio.iscoroutinefunction(callback):
@@ -115,16 +113,38 @@ class Curator:
                     callback(report)
             except Exception as e:
                 logger.error(f"Callback error: {e}")
-        
-        # 3. 根据评估结果决定是否合成技能
+
         if report.overall_result == EvaluationResult.SUCCESS:
             skill = await self.synthesize_skill(trajectory, report)
             if skill:
-                # 4. 自动学习
                 if self.enable_auto_learn:
                     await self.learn_skill(skill)
                 return skill
-        
+
+        return None
+
+    async def auto_learn_from_trajectory(
+        self,
+        trajectory: Dict[str, Any],
+    ) -> Optional[SynthesizedSkill]:
+        """
+        自动从轨迹学习
+
+        使用 AutoLearnTrigger 判断是否应该学习，
+        并使用 SkillSynthesizer 合成技能
+
+        Args:
+            trajectory: 执行轨迹
+
+        Returns:
+            SynthesizedSkill: 合成的技能（如有）
+        """
+        skill = await self._auto_learn_trigger.learn_from_trajectory(trajectory)
+
+        if skill and self.enable_auto_learn:
+            await self.learn_skill(skill)
+            return skill
+
         return None
     
     async def evaluate(self, trajectory: Dict[str, Any]) -> EvaluationReport:

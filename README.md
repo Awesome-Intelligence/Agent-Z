@@ -198,34 +198,56 @@ handsome-agent/
 | **SkillTelemetry** | `brain/skills/telemetry.py` | 记录技能使用/查看/修改事件 |
 | **SkillLifecycleManager** | `brain/skills/lifecycle.py` | 管理技能状态 (active/stale/archived) |
 | **EnhancedCurator** | `brain_curator/enhanced_curator.py` | 后台定期运行,空闲触发审查 |
+| **SkillSynthesizer** | `brain_curator/synthesizer.py` | 从轨迹提取可复用技能 🆕 |
+| **AutoLearnTrigger** | `brain_curator/synthesizer.py` | 自动学习触发器 🆕 |
 | **SkillMerger** | `brain/skills/merger.py` | 识别相似技能,创建伞形技能 |
 | **SelfEvolutionManager** | `brain/skills/evolution_manager.py` | 统一管理所有组件 |
 
-#### 自我进化流程
+#### 自动学习流程 🆕
 
 ```
-用户对话
+用户对话执行
     ↓
-AgentLoop 执行工具调用
+记录轨迹 (Thought/Action/Observation)
     ↓
-记录使用 → SkillTelemetry (use_count++, view_count++)
+评估轨迹 (Curator.evaluate)
     ↓
-每 10 轮 → EnhancedCurator.run_review()
+AutoLearnTrigger 判断是否应该学习
+├─ 成功执行 ✓
+├─ 用户正反馈 ("好", "很有用") ✓
+└─ 重复模式出现 (≥2次) ✓
     ↓
-SkillLifecycleManager.apply_automatic_transitions()
-    ├─ active → stale (30天未使用)
-    ├─ stale → archived (90天未使用)
-    └─ stale → active (重新使用)
+SkillSynthesizer 合成技能
+├─ 提取触发模式
+├─ 生成动作模板
+├─ LLM 辅助增强 (如可用)
+└─ 质量评分
     ↓
-Curator 评估轨迹
+质量 ≥ 0.5? → 写入 ~/.skills/
     ↓
-SkillMerger 合并相似技能 → 伞形技能
-    ↓
-新技能写入 ~/.skills/
-    ↓
-AgentLoop 加载新技能
+下次遇到类似问题 → 直接使用技能
     ↓
 越聊越好用 ✨
+```
+
+#### 技能合成示例
+
+```python
+# 输入: 用户成功完成一个复杂任务
+trajectory = {
+    "user_input": "帮我分析 Python 代码并生成文档",
+    "steps": [
+        {"type": "action", "tool_name": "file_read", "parameters": {...}},
+        {"type": "action", "tool_name": "code_analysis", "parameters": {...}},
+        {"type": "observation", "success": True},
+    ]
+}
+
+# 自动合成技能
+skill = await curator.auto_learn_from_trajectory(trajectory)
+# → 生成: auto_python_doc_generator
+#   触发: ["分析", "Python", "文档", "code_analysis"]
+#   动作: [file_read(), code_analysis()]
 ```
 
 #### 技能状态机
@@ -265,7 +287,57 @@ AgentLoop 加载新技能
 | `/api/v1/trajectories`               | GET  | 获取最近轨迹  |
 | `/api/v1/trajectories/stats`         | GET  | 获取轨迹统计  |
 | `/api/v1/trajectories/{id}/feedback` | POST | 添加用户反馈  |
+| `/api/v1/skills`                     | GET  | 列出已安装技能 |
+| `/api/v1/skills/install`              | POST | 安装技能     |
+| `/api/v1/skills/{name}`              | DELETE | 卸载技能   |
+| `/api/v1/skills/stats`               | GET  | 获取技能统计  |
 | `/api/v1/skills/learned`             | GET  | 获取已学习技能 |
+
+### 7. 📥 用户自定义 Skill 导入
+
+像 OpenClaw 一样支持用户导入和管理自定义技能:
+
+#### CLI 命令
+
+```bash
+# 安装技能
+handsome skills install https://example.com/skill.zip
+handsome skills install owner/repo
+handsome skills install owner/repo/path/to/skill
+
+# 同步本地技能目录
+handsome skills sync
+
+# 列出已安装的技能
+handsome skills list
+
+# 启用/禁用技能
+handsome skills enable skill-name
+handsome skills disable skill-name
+
+# 更新技能
+handsome skills update skill-name
+handsome skills update skill-name --source owner/repo
+
+# 卸载技能
+handsome skills uninstall skill-name
+```
+
+#### API 调用
+
+```bash
+# 列出所有技能
+curl http://localhost:8001/api/v1/skills
+
+# 安装技能
+curl -X POST "http://localhost:8001/api/v1/skills/install?source=owner/repo"
+
+# 获取技能统计
+curl http://localhost:8001/api/v1/skills/stats
+
+# 卸载技能
+curl -X DELETE http://localhost:8001/api/v1/skills/skill-name
+```
 
 ***
 
