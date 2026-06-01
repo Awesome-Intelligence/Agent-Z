@@ -50,7 +50,7 @@ if not _logging_already_configured:
     logging.root.setLevel(logging.CRITICAL + 1)
     
     # 现在导入核心模块（此时日志被禁用，不会输出任何日志）
-    from core.logging_manager import configure_logging
+    from common.logging_manager import configure_logging
     
     # 根据配置启用日志
     if args.explanation_depth != "brief":
@@ -65,12 +65,12 @@ else:
     pass
 
 # 导入新的 ModernAgent！
-from core.modern_agent import ModernAgent, ModernAgentResponse
+from agent.modern_agent import ModernAgent, ModernAgentResponse
 
 # 保持原有的异常导入（虽然可能不再需要，但保持兼容性）
-from core.exceptions import AgentError, InputValidationError, ResponseGenerationError
+from common.exceptions import AgentError, InputValidationError, ResponseGenerationError
 
-CONFIG_FILE = os.path.expanduser("~/.custom_agent_config.json")
+CONFIG_FILE = os.path.expanduser("~/.handsome_agent/config.json")
 
 LLM_AVAILABLE = False
 try:
@@ -101,7 +101,7 @@ def run_setup_if_needed():
     from cli import ui
     
     # 初始化工作空间
-    from core.workspace import get_workspace_manager
+    from agent.session import session_manager
     
     workspace_manager = get_workspace_manager()
     is_first_run = not workspace_manager.is_workspace_setup_completed()
@@ -240,7 +240,7 @@ async def single_query_mode(agent: ModernAgent, query: str, model_name: str = "M
 
 def list_sessions():
     """List all sessions."""
-    from core.session import session_manager
+    from agent.session import session_manager
     
     sessions = session_manager.list_sessions()
     
@@ -473,7 +473,7 @@ def main():
     
     # 在创建 agent 之前，先配置日志级别（如果尚未配置）
     if not _logging_already_configured:
-        from core.logging_manager import set_log_level
+        from common.logging_manager import set_log_level
         set_log_level(explanation_depth)
     
     # Create NEW ModernAgent!

@@ -8,8 +8,8 @@ These tests verify that all modules work together correctly.
 
 import asyncio
 import unittest
-from core import CustomAgent, AgentConfig, AgentResponse
-from advanced_reasoning.integration import enhance_agent_with_advanced_reasoning
+from agent.agent import CustomAgent, AgentConfig, AgentResponse
+from agent.advanced_reasoning.integration import enhance_agent_with_advanced_reasoning
 
 
 class TestIntegration(unittest.TestCase):

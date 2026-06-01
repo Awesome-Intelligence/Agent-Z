@@ -6,7 +6,7 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from brain.skills.telemetry import SkillTelemetry, SkillUsageRecord
+from skills.telemetry import SkillTelemetry, SkillUsageRecord
 
 
 @pytest.fixture

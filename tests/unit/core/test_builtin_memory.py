@@ -2,7 +2,7 @@
 import pytest
 import tempfile
 import os
-from core.builtin_memory import BuiltinMemoryProvider
+from agent.builtin_memory import BuiltinMemoryProvider
 
 
 class TestBuiltinMemoryProvider:

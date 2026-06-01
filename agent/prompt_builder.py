@@ -9,13 +9,14 @@ including tool definitions, context, and personality settings.
 
 import json
 import os
-import logging
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_decision_logger("PromptBuilder")
 
 
 @dataclass

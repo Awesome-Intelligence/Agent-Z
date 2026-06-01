@@ -18,13 +18,14 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from tools.registry import registry, ToolEntry
-from core.llm_tool_selector import (
+from agent.llm_tool_selector import (
     LLMDrivenDecisionEngine,
     ToolDefinition
 )
-from core.simplified_agent import Tool
+from agent.simplified_agent import Tool
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger(__name__)
 
 
 def register_integrated_tools(engine: LLMDrivenDecisionEngine):

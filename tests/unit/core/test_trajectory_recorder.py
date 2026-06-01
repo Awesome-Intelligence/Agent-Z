@@ -3,7 +3,7 @@ import pytest
 import tempfile
 import json
 import os
-from core.trajectory_recorder import TrajectoryRecorder
+from agent.trajectory_recorder import TrajectoryRecorder
 
 
 class TestTrajectoryRecorder:

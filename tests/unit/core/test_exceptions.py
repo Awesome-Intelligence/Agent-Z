@@ -7,7 +7,7 @@ These tests cover custom exception classes and error handling functionality.
 """
 
 import unittest
-from core.exceptions import (
+from common.exceptions import (
     AgentError,
     InputValidationError,
     ResponseGenerationError,

@@ -2,7 +2,7 @@
 
 import pytest
 import asyncio
-from core.context_compressor import (
+from agent.context_compressor import (
     SummaryCompressor,
     HierarchicalCompressor,
     ContextCompressionManager,

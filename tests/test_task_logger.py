@@ -11,7 +11,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.task_logger import TaskLogger, TaskTreeLogger, LogStyle
+from agent.task_logger import TaskLogger, TaskTreeLogger, LogStyle
 
 
 def demo_basic_tree():

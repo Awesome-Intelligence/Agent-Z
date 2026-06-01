@@ -21,7 +21,7 @@ def temp_dir():
 
 def test_self_evolution_manager_initialization(temp_dir):
     """测试自我进化管理器初始化"""
-    from brain.skills import SelfEvolutionManager, SelfEvolutionConfig
+    from skills import SelfEvolutionManager, SelfEvolutionConfig
 
     config = SelfEvolutionConfig(
         enable_telemetry=True,
@@ -40,7 +40,7 @@ def test_self_evolution_manager_initialization(temp_dir):
 
 def test_self_evolution_manager_record_usage(temp_dir):
     """测试记录技能使用"""
-    from brain.skills.telemetry import SkillTelemetry
+    from skills.telemetry import SkillTelemetry
 
     skills_dir = temp_dir / "skills"
     telemetry = SkillTelemetry(skills_dir=skills_dir)
@@ -58,7 +58,7 @@ def test_self_evolution_manager_record_usage(temp_dir):
 
 def test_self_evolution_manager_components(temp_dir):
     """测试组件获取"""
-    from brain.skills import SelfEvolutionManager, SelfEvolutionConfig
+    from skills import SelfEvolutionManager, SelfEvolutionConfig
 
     config = SelfEvolutionConfig()
     skills_dir = temp_dir / "skills"
@@ -69,7 +69,7 @@ def test_self_evolution_manager_components(temp_dir):
 
 def test_enable_disable_components(temp_dir):
     """测试启用/禁用组件"""
-    from brain.skills import SelfEvolutionManager, SelfEvolutionConfig
+    from skills import SelfEvolutionManager, SelfEvolutionConfig
 
     config = SelfEvolutionConfig()
     skills_dir = temp_dir / "skills"
@@ -82,8 +82,8 @@ def test_enable_disable_components(temp_dir):
 
 def test_lifecycle_manager_integration(temp_dir):
     """测试与生命周期管理器的集成"""
-    from brain.skills.telemetry import SkillTelemetry
-    from brain.skills.lifecycle import SkillLifecycleManager
+    from skills.telemetry import SkillTelemetry
+    from skills.lifecycle import SkillLifecycleManager
 
     skills_dir = temp_dir / "skills"
     telemetry = SkillTelemetry(skills_dir=skills_dir)
@@ -98,7 +98,7 @@ def test_lifecycle_manager_integration(temp_dir):
 
 def test_curator_integration(temp_dir):
     """测试与 Curator 的集成"""
-    from brain_curator.enhanced_curator import EnhancedCurator, CuratorState
+    from agent.curator.enhanced_curator import EnhancedCurator, CuratorState
 
     state_file = temp_dir / ".curator_state"
     curator_state = CuratorState(state_file=state_file)
@@ -112,9 +112,9 @@ def test_curator_integration(temp_dir):
 @pytest.mark.asyncio
 async def test_start_stop(temp_dir):
     """测试启动/停止"""
-    from brain_curator.enhanced_curator import EnhancedCurator, CuratorState
-    from brain.skills.lifecycle import SkillLifecycleManager
-    from brain.skills.telemetry import SkillTelemetry
+    from agent.curator.enhanced_curator import EnhancedCurator, CuratorState
+    from skills.lifecycle import SkillLifecycleManager
+    from skills.telemetry import SkillTelemetry
 
     skills_dir = temp_dir / "skills"
     state_file = temp_dir / ".curator_state"
@@ -130,7 +130,7 @@ async def test_start_stop(temp_dir):
 @pytest.mark.asyncio
 async def test_trigger_review(temp_dir):
     """测试触发审查"""
-    from brain_curator.enhanced_curator import EnhancedCurator, CuratorState
+    from agent.curator.enhanced_curator import EnhancedCurator, CuratorState
 
     state_file = temp_dir / ".curator_state"
     curator_state = CuratorState(state_file=state_file)
@@ -145,7 +145,7 @@ async def test_trigger_review(temp_dir):
 
 def test_config_defaults():
     """测试配置默认值"""
-    from brain.skills import SelfEvolutionConfig
+    from skills import SelfEvolutionConfig
 
     config = SelfEvolutionConfig()
 

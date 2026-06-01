@@ -160,6 +160,159 @@ executor/ (通过抽象接口)
 
 **必须遵循**：做复杂事情（多步骤、跨模块、需多个文件修改）时，必须先将任务分解并记录到 `TODO.md` 中。
 
+### 2.7 层级架构一致性约束
+
+**必须遵循**：README、日志系统、目录架构三者中的层级定义必须保持严格一致，禁止各自独立修改。
+
+**英文命名约束**：所有与层级、模块相关的名称（如目录名、模块名、层级标识）必须使用英文命名，禁止翻译为中文。
+
+**英文命名规则**：
+
+| 类型 | 示例 | 说明 |
+|------|------|------|
+| 主层名称 | `access`, `decision`, `execution`, `system` | 使用英文标识 |
+| 子层名称 | `memory`, `skills`, `trajectory`, `curator` | 使用英文标识 |
+| 目录名称 | `agent/`, `skills/`, `gateway/`, `executor/` | 使用英文命名 |
+| 模块名称 | `memory.py`, `context_engine.py`, `prompt_builder.py` | 使用英文命名 |
+| README 标题 | `Architecture`, `Key Features`, `Quick Start` | 使用英文标题 |
+| README 表格内容 | `Agent Core`, `Skills System`, `Gateway` | 使用英文描述 |
+
+**禁止做法**：
+- ❌ 在 README 中将层级名称翻译为中文（如"接入层"应改为"Access Layer"）
+- ❌ 使用混合中英文命名（如"技能系统"应改为"Skills System"）
+- ❌ 在代码注释中使用中文描述层级功能（应使用英文）
+
+**必须做法**：
+- ✅ 所有层级、模块、目录名称使用英文
+- ✅ README 中的标题和表格内容使用英文
+- ✅ 代码注释中涉及层级的描述使用英文
+
+**一致性检查项**：
+
+1. **主层定义一致**：接入层、决策层、执行层、系统层的标识和说明必须一致
+2. **子层定义一致**：各主层下的子模块命名和职责必须一致  
+3. **模块-层级映射一致**：各代码模块对应的层级必须一致
+4. **目录-层级映射一致**：各目录对应的层级必须一致
+
+**一致性约束范围**：
+
+| 文档/模块 | 文件路径 | 层级相关内容 |
+|----------|----------|-------------|
+| README.md | `/README.md` | 三层架构图、目录结构、模块职责 |
+| 日志系统 | `/common/logging_manager.py` | `LOG_LAYERS`、`SUB_LAYERS` 定义 |
+| 编码规范 | `/.trae/rules/rule.md` | 层级映射表、日志规范 |
+
+**一致性检查项**：
+
+1. **主层定义一致**：接入层、决策层、执行层、系统层的标识和说明必须一致
+2. **子层定义一致**：各主层下的子模块命名和职责必须一致  
+3. **模块-层级映射一致**：各代码模块对应的层级必须一致
+4. **目录-层级映射一致**：各目录对应的层级必须一致
+
+**修改流程**：
+
+```
+修改层级定义 → 更新所有相关文档 → 同步日志系统配置 → 更新测试用例
+```
+
+**禁止做法**：
+- ❌ 修改 README 中的架构图但不同步日志系统配置
+- ❌ 修改日志系统层级但不同步规则文档
+- ❌ 修改目录结构但不更新 README 和日志映射
+
+**必须做法**：
+- ✅ 修改任何层级相关内容时，同步更新所有相关文档
+- ✅ 在 PR 描述中明确说明层级变更范围
+- ✅ 确保 CI 检查包含层级一致性验证
+
+**责任归属**：
+- 架构师：负责制定和维护层级定义规范
+- 开发者：负责在修改时保持一致性
+- 审核者：负责检查 PR 中的层级一致性
+
+### 2.8 Logging with Unified LayerLogger
+
+**Must follow**: All logging must use the unified logger from `common/logging_manager.py`. Direct use of `logging.getLogger()` is prohibited.
+
+**Main Layers (Three-Tier Architecture)**:
+
+| Layer ID | Emoji | Name | Description |
+|----------|-------|------|-------------|
+| `access` | 🚪 | Access | User input, response output, gateway communication |
+| `decision` | 🧠 | Decision | LLM-driven decisions, tool selection, intent understanding |
+| `execution` | 🏃 | Execution | Tool execution, command execution, task execution |
+| `system` | 🔧 | System | System initialization, config loading, basic services |
+
+**Sublayer Definitions**:
+
+| Sublayer ID | Emoji | Name | Parent Layer |
+|-------------|-------|------|--------------|
+| `memory` | 💾 | Memory | Decision |
+| `skills` | 📋 | Skills | Decision |
+| `trajectory` | 📝 | Trajectory | Decision |
+| `curator` | 🔬 | Curator | Decision |
+| `context` | 📊 | Context | Decision |
+| `llm` | 🤖 | LLM | Decision |
+| `tool_select` | 🔧 | ToolSelect | Decision |
+| `tool_exec` | 🛠️ | ToolExec | Execution |
+| `shell_exec` | 🐚 | ShellExec | Execution |
+| `docker_exec` | 🐳 | DockerExec | Execution |
+| `api` | 🌐 | API | Access |
+| `cli` | 💬 | CLI | Access |
+| `gateway` | 🚪 | Gateway | Access |
+
+**Log Format Specification**:
+
+```
+# With sublayer
+INFO - [🚪MainLayer] - [/💾SublayerName] - (ModuleName) message
+
+# Without sublayer
+INFO - [🚪MainLayer] - (ModuleName) message
+```
+
+**Examples**:
+```
+# With sublayer (Memory)
+INFO - 🧠 [Decision] - [/💾Memory] - (MemoryManager) Retrieving memory
+
+# With sublayer (ToolExec)
+INFO - 🏃 [Execution] - [/🛠️ToolExec] - (ToolExecutionEngine) Executing tool
+
+# Without sublayer (Config loading)
+INFO - 🧠 [Decision] - (LLMDrivenDecisionEngine) Initialization complete
+```
+
+**Module-Layer Mapping**:
+
+| Module/Directory | Logger Function | Main Layer | Recommended Sublayer |
+|------------------|-----------------|------------|---------------------|
+| `agent/` | `get_decision_logger()` | 🧠 Decision | Based on submodule |
+| `agent/memory.py` | `get_decision_logger()` | 🧠 Decision | `memory` |
+| `agent/curator/` | `get_decision_logger()` | 🧠 Decision | `curator` |
+| `agent/llm/` | `get_decision_logger()` | 🧠 Decision | `llm` |
+| `agent/llm_tool_selector.py` | `get_decision_logger()` | 🧠 Decision | `tool_select` |
+| `executor/` | `get_execution_logger()` | 🏃 Execution | Based on execution type |
+| `tools/` | `get_execution_logger()` | 🏃 Execution | `tool_exec` |
+| `gateway/` | `get_access_logger()` | 🚪 Access | `gateway` |
+| `cli/` | `get_access_logger()` | 🚪 Access | `cli` |
+| `common/` | `get_system_logger()` | 🔧 System | None |
+
+**Prohibited**:
+- ❌ `logging.getLogger(__name__)`
+- ❌ `logging.getLogger(self.__class__.__name__)`
+
+**Required**:
+- ✅ `from common.logging_manager import get_decision_logger`
+- ✅ `self.logger = get_decision_logger(self.__class__.__name__)`
+- ✅ `self.logger = get_decision_logger(self.__class__.__name__, sublayer="memory")`
+
+**Logging Standards**:
+- Must include timestamp, layer identifier, log level, module name
+- Log messages should clearly describe the operation being performed
+- Error logs should include complete exception information
+- Use sublayer parameter to distinguish different sub-functions within the same module
+
 ---
 
 ## 三、代码风格

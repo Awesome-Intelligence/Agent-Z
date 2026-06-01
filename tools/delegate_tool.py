@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Delegate Tool Module - 代理工具
+Delegate Tool Module
 
-提供任务代理功能：
-- 子任务创建和管理
-- 并发任务执行
-- 任务结果聚合
+Provides task delegation functionality:
+- Subtask creation and management
+- Concurrent task execution
+- Task result aggregation
 
-参考 Hermes Agent 的 delegate_tool.py 实现。
+Based on Hermes Agent's delegate_tool.py implementation.
 
 Usage:
     from tools.delegate_tool import delegate_subtask, delegate_batch
@@ -15,14 +15,14 @@ Usage:
 
 import asyncio
 import json
-import logging
 import uuid
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
+from common.logging_manager import get_execution_logger
 from tools.registry import registry
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("DelegateTool")
 
 
 class SubtaskState:

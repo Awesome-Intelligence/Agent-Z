@@ -16,7 +16,7 @@ class TestBaseResponse:
     
     def test_default_values(self):
         """Test default values for BaseResponse."""
-        from shared.models import BaseResponse
+        from common.models import BaseResponse
         
         response = BaseResponse()
         
@@ -26,7 +26,7 @@ class TestBaseResponse:
     
     def test_with_message(self):
         """Test BaseResponse with message."""
-        from shared.models import BaseResponse
+        from common.models import BaseResponse
         
         response = BaseResponse(
             success=True,
@@ -38,7 +38,7 @@ class TestBaseResponse:
     
     def test_error_response(self):
         """Test BaseResponse for error case."""
-        from shared.models import BaseResponse
+        from common.models import BaseResponse
         
         response = BaseResponse(
             success=False,
@@ -56,7 +56,7 @@ class TestSessionInfo:
     
     def test_auto_generated_fields(self):
         """Test auto-generated session_id and timestamps."""
-        from shared.models import SessionInfo
+        from common.models import SessionInfo
         
         session = SessionInfo(user_id="user_001")
         
@@ -68,7 +68,7 @@ class TestSessionInfo:
     
     def test_custom_session_id(self):
         """Test custom session ID."""
-        from shared.models import SessionInfo
+        from common.models import SessionInfo
         
         session = SessionInfo(
             session_id="custom_session_123",
@@ -79,7 +79,7 @@ class TestSessionInfo:
     
     def test_with_metadata(self):
         """Test SessionInfo with metadata."""
-        from shared.models import SessionInfo
+        from common.models import SessionInfo
         
         metadata = {
             "ip_address": "192.168.1.1",
@@ -98,7 +98,7 @@ class TestSessionInfo:
     
     def test_update_last_active(self):
         """Test updating last_active timestamp."""
-        from shared.models import SessionInfo
+        from common.models import SessionInfo
         import time
         
         session = SessionInfo(user_id="user_001")
@@ -115,7 +115,7 @@ class TestHealthCheck:
     
     def test_default_health_check(self):
         """Test default health check values."""
-        from shared.models import HealthCheck
+        from common.models import HealthCheck
         
         health = HealthCheck()
         
@@ -126,7 +126,7 @@ class TestHealthCheck:
     
     def test_custom_status(self):
         """Test custom health check status."""
-        from shared.models import HealthCheck
+        from common.models import HealthCheck
         
         health = HealthCheck(
             status="degraded",
@@ -142,7 +142,7 @@ class TestHealthCheck:
     
     def test_healthy_status(self):
         """Test healthy status."""
-        from shared.models import HealthCheck
+        from common.models import HealthCheck
         
         health = HealthCheck(
             status="healthy",
@@ -161,7 +161,7 @@ class TestErrorResponse:
     
     def test_error_response_required_fields(self):
         """Test required fields for ErrorResponse."""
-        from shared.models import ErrorResponse
+        from common.models import ErrorResponse
         
         error = ErrorResponse(
             error="Something went wrong",
@@ -174,7 +174,7 @@ class TestErrorResponse:
     
     def test_error_response_with_details(self):
         """Test ErrorResponse with details."""
-        from shared.models import ErrorResponse
+        from common.models import ErrorResponse
         
         details = {
             "field": "username",
@@ -194,7 +194,7 @@ class TestErrorResponse:
     
     def test_error_response_various_codes(self):
         """Test various error codes."""
-        from shared.models import ErrorResponse
+        from common.models import ErrorResponse
         
         # 400 Bad Request
         error_400 = ErrorResponse(error="Bad request", code=400)

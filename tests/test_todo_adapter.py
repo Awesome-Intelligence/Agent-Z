@@ -21,7 +21,7 @@ def test_todo_adapter_basic():
     print("测试 1: TodoToolkitAdapter 基础功能")
     print("=" * 60)
 
-    from core.todo_adapter import TodoToolkitAdapter, ToolCallResult
+    from agent.todo_adapter import TodoToolkitAdapter, ToolCallResult
 
     with tempfile.TemporaryDirectory() as tmpdir:
         session_id = "test_basic"
@@ -62,7 +62,7 @@ def test_todo_adapter_tools():
     print("测试 2: 工具列表注册")
     print("=" * 60)
 
-    from core.todo_adapter import TodoToolkitAdapter
+    from agent.todo_adapter import TodoToolkitAdapter
 
     with tempfile.TemporaryDirectory() as tmpdir:
         adapter = TodoToolkitAdapter("test_tools", tmpdir)
@@ -98,7 +98,7 @@ def test_task_parsing():
     print("测试 4: 任务解析")
     print("=" * 60)
 
-    from core.todo_adapter import TodoToolkitAdapter
+    from agent.todo_adapter import TodoToolkitAdapter
 
     with tempfile.TemporaryDirectory() as tmpdir:
         adapter = TodoToolkitAdapter("test_parse", tmpdir)
@@ -142,7 +142,7 @@ async def test_handler_integration():
     print("测试 5: Handler 集成")
     print("=" * 60)
 
-    from core.router_handlers import task_management_handler
+    from agent.router_handlers import task_management_handler
 
     with tempfile.TemporaryDirectory() as tmpdir:
         os.environ['HANDSOME_AGENT_WORKSPACE'] = tmpdir

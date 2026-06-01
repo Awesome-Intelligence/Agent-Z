@@ -2,7 +2,7 @@
 
 import pytest
 import json
-from core.llm_tool_selector import (
+from agent.llm_tool_selector import (
     LLMToolSelector,
     LLMDrivenDecisionEngine,
     DirectToolRouter,
@@ -10,7 +10,7 @@ from core.llm_tool_selector import (
     ToolDefinition,
     ToolSelectionResult
 )
-from core.simplified_agent import ActionType
+from agent.simplified_agent import ActionType
 
 
 class MockLLMProvider:
@@ -352,7 +352,7 @@ class TestSimplifiedAgent:
     @pytest.mark.asyncio
     async def test_direct_decision(self):
         """测试直接决策"""
-        from core.simplified_agent import SimplifiedAgent, Tool, ActionType
+        from agent.simplified_agent import SimplifiedAgent, Tool, ActionType
 
         async def calc_handler(params):
             return eval(params.get('expression', '0'))

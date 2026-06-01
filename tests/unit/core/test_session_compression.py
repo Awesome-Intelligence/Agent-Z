@@ -5,7 +5,7 @@ import tempfile
 import shutil
 from pathlib import Path
 
-from core.session import (
+from agent.session import (
     Session,
     SessionConfig,
     SessionManager,

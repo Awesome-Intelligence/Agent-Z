@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
 """
-Cronjob Tool Module - 定时任务工具
+Cronjob Tool Module
 
-提供定时任务功能：
-- 定时任务创建和管理
-- 任务调度
-- 任务执行历史
+Provides scheduled task functionality:
+- Scheduled task creation and management
+- Task scheduling
+- Task execution history
 
-参考 Hermes Agent 的 cronjob_tools.py 实现。
+Based on Hermes Agent's cronjob_tools.py implementation.
 
 Usage:
     from tools.cronjob_tool import cron_create_job, cron_list_jobs
 """
 
 import json
-import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from common.logging_manager import get_execution_logger
 from tools.registry import registry
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("CronjobTool")
 
 
 class CronJob:

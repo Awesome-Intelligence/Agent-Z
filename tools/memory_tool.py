@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 """
-Memory Tool Module - 记忆工具
+Memory Tool Module
 
-提供 Agent 记忆管理功能，包括：
-- 记忆存储和检索
-- 会话历史管理
-- 知识库查询
+Provides Agent memory management functionality:
+- Memory storage and retrieval
+- Session history management
+- Knowledge base query
 
-参考 Hermes Agent 的 memory_tool.py 实现。
+Based on Hermes Agent's memory_tool.py implementation.
 
 Usage:
     from tools.memory_tool import memory_tool, MemoryStore
 """
 
 import json
-import logging
 import os
 import re
 import tempfile
@@ -22,17 +21,18 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
+from common.logging_manager import get_execution_logger
 from tools.registry import registry
 
 
 def tool_error(message: str, success: bool = False) -> str:
-    """简单的工具错误响应函数"""
+    """Simple tool error response function"""
     return json.dumps({
         "success": success,
         "error": message
     }, ensure_ascii=False)
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("MemoryTool")
 
 # 记忆目录路径
 def get_memory_dir() -> Path:

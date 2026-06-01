@@ -6,8 +6,8 @@ This file contains shared fixtures and configuration for all tests.
 
 import pytest
 import asyncio
-from core import AgentConfig, CustomAgent
-from advanced_reasoning.integration import enhance_agent_with_advanced_reasoning
+from agent.agent import AgentConfig, CustomAgent
+from agent.advanced_reasoning.integration import enhance_agent_with_advanced_reasoning
 
 
 @pytest.fixture(scope="session")

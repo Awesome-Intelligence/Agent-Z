@@ -19,10 +19,10 @@ project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from core.modern_agent import ModernAgent, ModernAgentResponse
+from agent.modern_agent import ModernAgent, ModernAgentResponse
 from tools.integrated_tools import initialize_tools
 
-CONFIG_FILE = os.path.expanduser("~/.custom_agent_config.json")
+CONFIG_FILE = os.path.expanduser("~/.handsome_agent/config.json")
 
 
 def load_saved_config() -> dict:
@@ -198,9 +198,6 @@ Examples:
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
     
-    # 初始化工具
-    initialize_tools()
-    
     # 尝试加载 LLM 配置
     llm_provider = None
     saved_config = load_saved_config()
@@ -221,6 +218,9 @@ Examples:
         except Exception as e:
             print(f"⚠️  Could not load LLM integration: {e}")
             print("   Running in tool-only mode.")
+    
+    # 初始化工具（在 LLM 配置之后）
+    initialize_tools()
     
     # 创建 Agent
     agent = ModernAgent(llm_provider=llm_provider)

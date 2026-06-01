@@ -9,8 +9,8 @@ These tests measure response times, memory usage, and caching effectiveness.
 import asyncio
 import time
 import unittest
-from core import CustomAgent, AgentConfig
-from advanced_reasoning.integration import enhance_agent_with_advanced_reasoning
+from agent.agent import CustomAgent, AgentConfig
+from agent.advanced_reasoning.integration import enhance_agent_with_advanced_reasoning
 
 
 class TestPerformance(unittest.TestCase):

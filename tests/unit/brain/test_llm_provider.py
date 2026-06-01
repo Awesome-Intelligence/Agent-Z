@@ -116,7 +116,7 @@ class TestLLMConfiguration:
     
     def test_default_provider_config(self):
         """测试默认提供商配置"""
-        from shared.config import get_settings, get_llm_provider_config
+        from common.config import get_settings, get_llm_provider_config
         
         settings = get_settings()
         
@@ -125,7 +125,7 @@ class TestLLMConfiguration:
     
     def test_provider_config_structure(self):
         """测试提供商配置结构"""
-        from shared.config import LLMProviderConfig
+        from common.config import LLMProviderConfig
         
         config = LLMProviderConfig(
             api_key="test-key",
@@ -141,7 +141,7 @@ class TestLLMConfiguration:
     
     def test_get_llm_provider_config(self):
         """测试获取提供商配置"""
-        from shared.config import get_llm_provider_config
+        from common.config import get_llm_provider_config
         
         # 测试获取不存在的提供商
         config = get_llm_provider_config('nonexistent')
@@ -152,7 +152,7 @@ class TestLLMConfiguration:
     
     def test_model_config_defaults(self):
         """测试模型配置默认值"""
-        from shared.config import ModelConfig
+        from common.config import ModelConfig
         
         config = ModelConfig()
         
@@ -163,7 +163,7 @@ class TestLLMConfiguration:
     
     def test_model_config_custom(self):
         """测试自定义模型配置"""
-        from shared.config import ModelConfig
+        from common.config import ModelConfig
         
         config = ModelConfig(
             default="anthropic/claude-3-opus",

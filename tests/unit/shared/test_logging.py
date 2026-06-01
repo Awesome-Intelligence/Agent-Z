@@ -15,14 +15,14 @@ class TestLoggingSetup:
     
     def test_setup_logging_default(self):
         """Test default logging setup."""
-        from shared.logging import setup_logging
+        from common.logging import setup_logging
         
         # Should not raise
         setup_logging()
     
     def test_setup_logging_with_level(self):
         """Test logging setup with custom level."""
-        from shared.logging import setup_logging
+        from common.logging import setup_logging
         
         # Should not raise
         setup_logging(level=logging.DEBUG)
@@ -35,7 +35,7 @@ class TestLoggingSetup:
         with tempfile.TemporaryDirectory() as tmpdir:
             log_file = Path(tmpdir) / "test.log"
             
-            from shared.logging import setup_logging
+            from common.logging import setup_logging
             setup_logging(log_file=str(log_file))
             
             # Check that file was created
@@ -47,7 +47,7 @@ class TestLoggerCreation:
     
     def test_get_logger_with_name(self):
         """Test creating a logger with a specific name."""
-        from shared.logging import get_logger
+        from common.logging import get_logger
         
         logger = get_logger("test_module")
         
@@ -56,7 +56,7 @@ class TestLoggerCreation:
     
     def test_get_logger_returns_logger(self):
         """Test that get_logger returns proper logger instance."""
-        from shared.logging import get_logger
+        from common.logging import get_logger
         
         logger = get_logger("test")
         
@@ -72,7 +72,7 @@ class TestLogConfiguration:
     
     def test_setup_logging_configures_uvicorn(self):
         """Test that setup_logging configures uvicorn logger."""
-        from shared.logging import setup_logging
+        from common.logging import setup_logging
         
         setup_logging()
         
@@ -81,7 +81,7 @@ class TestLogConfiguration:
     
     def test_setup_logging_configures_fastapi(self):
         """Test that setup_logging configures fastapi logger."""
-        from shared.logging import setup_logging
+        from common.logging import setup_logging
         
         setup_logging()
         
@@ -90,7 +90,7 @@ class TestLogConfiguration:
     
     def test_setup_logging_configures_brain_loggers(self):
         """Test that setup_logging configures brain module loggers."""
-        from shared.logging import setup_logging
+        from common.logging import setup_logging
         
         setup_logging()
         

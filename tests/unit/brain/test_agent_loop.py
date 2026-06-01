@@ -1,6 +1,6 @@
 """Agent Loop 单元测试"""
 import pytest
-from brain.agent.agent_loop import AgentLoop, AgentConfig, AgentState
+from agent.agent_loop import AgentLoop, AgentConfig, AgentState
 
 
 class TestAgentLoop:
@@ -116,7 +116,7 @@ class TestAgentLoop:
     @pytest.mark.asyncio
     async def test_act_shell_execute(self):
         """测试 Shell 执行动作"""
-        from brain.agent.schemas import Action
+        from agent.schemas import Action
         
         action = Action(tool_name="shell_execute", parameters={"command": "ls"})
         result = await self.agent._act(action, {})
@@ -126,7 +126,7 @@ class TestAgentLoop:
     @pytest.mark.asyncio
     async def test_act_file_edit(self):
         """测试文件编辑动作"""
-        from brain.agent.schemas import Action
+        from agent.schemas import Action
         
         action = Action(tool_name="file_edit", parameters={"content": "test content"})
         result = await self.agent._act(action, {})

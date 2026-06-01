@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
 """
-Kanban Tool Module - 看板工具
+Kanban Tool Module
 
-提供看板/任务管理功能：
-- 看板创建和管理
-- 任务状态流转
-- 任务优先级管理
+Provides kanban/task management functionality:
+- Board creation and management
+- Task status transitions
+- Task priority management
 
-参考 Hermes Agent 的 kanban_tools.py 实现。
+Based on Hermes Agent's kanban_tools.py implementation.
 
 Usage:
     from tools.kanban_tool import kanban_create_board, kanban_add_task
 """
 
 import json
-import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from common.logging_manager import get_execution_logger
 from tools.registry import registry
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("KanbanTool")
 
 
 class KanbanBoard:

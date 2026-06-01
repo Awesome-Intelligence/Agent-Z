@@ -9,7 +9,7 @@ import json
 import os
 from typing import Optional
 
-from core.skill_manager import BaseSkill, SkillResult, SkillMetadata, SkillParameter
+from agent.skill_manager import BaseSkill, SkillResult, SkillMetadata, SkillParameter
 
 
 class ComputerUseSkill(BaseSkill):

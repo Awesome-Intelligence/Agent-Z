@@ -1,5 +1,5 @@
 """
-执行器基类和通用定义
+Executor base classes and common definitions
 """
 
 from abc import ABC, abstractmethod
@@ -9,10 +9,11 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import Enum
 import uuid
+from common.logging_manager import get_execution_logger
 
 
 class SafetyLevel(str, Enum):
-    """安全级别"""
+    """Safety level"""
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -20,7 +21,7 @@ class SafetyLevel(str, Enum):
 
 
 class ToolCall(BaseModel):
-    """工具调用"""
+    """Tool call"""
     tool_name: str
     parameters: Dict[str, Any] = Field(default_factory=dict)
     reasoning: Optional[str] = None
@@ -31,7 +32,7 @@ class ToolCall(BaseModel):
 
 @dataclass
 class ExecutorConfig:
-    """执行器配置"""
+    """Executor configuration"""
     name: str = "BaseExecutor"
     timeout_seconds: float = 30.0
     allowed_commands: List[str] = field(default_factory=list)
@@ -41,7 +42,7 @@ class ExecutorConfig:
 
 
 class ExecutionResult(BaseModel):
-    """执行结果"""
+    """Execution result"""
     execution_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     status: Literal["pending", "success", "error", "timeout"] = "pending"
     tool_call: ToolCall
@@ -59,52 +60,49 @@ class ExecutionResult(BaseModel):
 
 
 class BaseExecutor(ABC):
-    """执行器抽象基类"""
+    """Abstract base class for executor"""
     
     def __init__(self, config: ExecutorConfig):
         self.config = config
         self._setup_logging()
     
     def _setup_logging(self) -> None:
-        """设置日志"""
-        import logging
-        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        """Set up logging"""
+        self.logger = get_execution_logger(f"{__name__}.{self.__class__.__name__}")
     
     @abstractmethod
     async def execute(self, tool_call: ToolCall) -> ExecutionResult:
         """
-        执行工具调用
+        Execute tool call
         
         Args:
-            tool_call: 工具调用请求
+            tool_call: Tool call request
             
         Returns:
-            ExecutionResult: 执行结果
+            ExecutionResult: Execution result
         """
         pass
     
     @abstractmethod
     async def validate(self, tool_call: ToolCall) -> tuple[bool, Optional[str]]:
         """
-        验证工具调用的安全性
+        Validate safety of tool call
         
         Args:
-            tool_call: 工具调用请求
+            tool_call: Tool call request
             
         Returns:
-            (is_valid, error_message): 是否有效及错误信息
+            (is_valid, error_message): Whether valid and error message
         """
         pass
     
     def _check_safety(self, command: str) -> tuple[bool, Optional[str]]:
-        """检查命令安全性"""
-        # 检查是否在白名单中
+        """Check command safety"""
         if self.config.allowed_commands:
             first_word = command.split()[0] if command.split() else ""
             if first_word not in self.config.allowed_commands:
                 return False, f"Command '{first_word}' not in whitelist"
         
-        # 检查黑名单模式
         for pattern in self.config.blocked_patterns:
             if pattern in command:
                 return False, f"Command contains blocked pattern: {pattern}"
@@ -112,6 +110,6 @@ class BaseExecutor(ABC):
         return True, None
     
     async def _log_execution(self, message: str) -> None:
-        """记录执行日志"""
+        """Log execution"""
         if self.config.enable_logging:
             self.logger.info(message)

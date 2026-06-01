@@ -7,7 +7,7 @@ This module provides backwards compatibility with code that imports AIAgent.
 The core implementation is now in core/agent.py (CustomAgent).
 """
 
-from core.agent import (
+from agent import (
     CustomAgent,
     AgentConfig,
     AgentResponse,

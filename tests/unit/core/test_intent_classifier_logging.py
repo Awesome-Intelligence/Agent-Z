@@ -19,7 +19,7 @@ class TestIntentClassifierLogging(unittest.TestCase):
     def test_intent_classifier_deprecated(self):
         """Test that IntentClassifier raises DeprecationWarning."""
         with self.assertWarns(DeprecationWarning):
-            from core.router import IntentClassifier
+            from agent.router import IntentClassifier
             # This should raise DeprecationWarning
             try:
                 classifier = IntentClassifier()
@@ -32,14 +32,14 @@ class TestSessionLogging(unittest.TestCase):
     
     def test_session_accepts_enable_detailed_logs(self):
         """Test that SessionConfig accepts enable_detailed_logs parameter."""
-        from core.session import SessionConfig, Session
+        from agent.session import SessionConfig, Session
         
         config = SessionConfig(enable_detailed_logs=False)
         self.assertFalse(config.enable_detailed_logs)
     
     def test_session_default_enable_detailed_logs(self):
         """Test that SessionConfig has default enable_detailed_logs=True."""
-        from core.session import SessionConfig
+        from agent.session import SessionConfig
         
         config = SessionConfig()
         self.assertTrue(config.enable_detailed_logs)

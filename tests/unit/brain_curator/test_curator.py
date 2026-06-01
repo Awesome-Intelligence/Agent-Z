@@ -1,9 +1,9 @@
 """Curator 测试"""
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-from brain.trajectory import TrajectoryStatus
-from brain_curator.curator import Curator
-from brain_curator.synthesizer import SynthesizedSkill
+from agent.trajectory import TrajectoryStatus
+from agent.curator.curator import Curator
+from agent.curator.synthesizer import SynthesizedSkill
 
 
 class TestCurator:

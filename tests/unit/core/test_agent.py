@@ -9,7 +9,7 @@ and core response generation capabilities.
 
 import asyncio
 import unittest
-from core import CustomAgent, AgentConfig, AgentResponse
+from agent.agent import CustomAgent, AgentConfig, AgentResponse
 
 
 class TestCustomAgent(unittest.TestCase):
@@ -48,7 +48,7 @@ class TestCustomAgent(unittest.TestCase):
     
     def test_input_classification(self):
         """Test input classification logic."""
-        from core import ExplanationModule
+        from agent.agent import ExplanationModule
         
         module = ExplanationModule(self.agent.config)
         
@@ -65,7 +65,7 @@ class TestCustomAgent(unittest.TestCase):
     
     def test_complexity_assessment(self):
         """Test complexity assessment."""
-        from core import ExplanationModule
+        from agent.agent import ExplanationModule
         
         module = ExplanationModule(self.agent.config)
         

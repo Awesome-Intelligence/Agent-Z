@@ -1,8 +1,8 @@
 """Gateway 单元测试"""
 import pytest
 from unittest.mock import MagicMock, AsyncMock
-from adapter.gateway import Gateway, GatewayConfig, BaseGateway, BaseAdapter
-from adapter.message import StandardMessage, MessageChannel, MessageContent
+from gateway.gateway import Gateway, GatewayConfig, BaseGateway, BaseAdapter
+from gateway.message import StandardMessage, MessageChannel, MessageContent
 
 
 class TestGatewayConfig:

@@ -1,8 +1,8 @@
 """LLM 模块单元测试"""
 import pytest
 from unittest.mock import MagicMock
-from brain.llm.base import BaseLLMProvider, LLMConfig, LLMResponse, Message
-from brain.llm.factory import LLMFactory
+from agent.llm.base import BaseLLMProvider, LLMConfig, LLMResponse, Message
+from agent.llm.factory import LLMFactory
 
 
 class TestLLMConfig:

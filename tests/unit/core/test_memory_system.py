@@ -6,17 +6,17 @@ import tempfile
 import shutil
 from pathlib import Path
 
-from core.memory_system import (
+from agent.memory_system import (
     EnhancedMemorySystem,
     MemoryType,
     MemoryItem
 )
-from core.markdown_memory import (
+from agent.markdown_memory import (
     MarkdownMemoryStore,
     MemoryCurator,
     MemoryEntry
 )
-from core.memory_retrieval import (
+from agent.memory_retrieval import (
     KeywordRetriever,
     HybridRetriever,
     UnifiedMemoryRetriever

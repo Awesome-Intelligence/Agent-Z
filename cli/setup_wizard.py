@@ -98,7 +98,7 @@ def ask_input(question: str, default: str = None, password: bool = False, requir
 
 def get_all_providers():
     """获取所有支持的提供商."""
-    from llm_integration import get_all_providers
+    from agent.llm import get_all_providers
     return get_all_providers()
 
 
@@ -333,11 +333,15 @@ def setup_llm_provider(config: dict) -> dict | None:
     
     provider_info = next((p for p in providers if p["id"] == provider_id), None)
     
+    if not provider_info:
+        ui.print_error(f"未找到提供商: {provider_id}")
+        return None
+    
     new_config = {
         "provider": provider_id,
         "api_key": None,
-        "model": provider_info["default_model"] if provider_info else None,
-        "base_url": provider_info["base_url"] if provider_info else None,
+        "model": provider_info.get("default_model"),
+        "base_url": provider_info.get("base_url"),
     }
     
     if provider_id == "custom":
@@ -345,8 +349,9 @@ def setup_llm_provider(config: dict) -> dict | None:
         if new_config["base_url"] is None:
             return None
     else:
-        current_url = config.get('llm', {}).get('base_url') or provider_info.get('base_url', '')
-        ui.print_substep(f"默认API地址: {current_url or '无'}")
+        default_url = provider_info.get('base_url', '')
+        current_url = config.get('llm', {}).get('base_url') or default_url
+        ui.print_substep(f"默认API地址: `{default_url}`")
         use_custom_url = ask_yes_no("是否使用自定义API地址?", default=False)
         if use_custom_url is None:
             return None
@@ -356,9 +361,9 @@ def setup_llm_provider(config: dict) -> dict | None:
                 return None
             new_config["base_url"] = new_url
     
-    ui.print_substep(f"请设置 {provider_info['name']} API Key")
+    ui.print_substep(f"请设置 {provider_info.get('name')} API Key")
     if provider_info.get("api_key_url"):
-        ui.print_substep(f"获取地址: {provider_info['api_key_url']}")
+        ui.print_substep(f"获取地址: {provider_info.get('api_key_url')}")
     
     current_key = config.get('llm', {}).get('api_key', '')
     if current_key:
@@ -376,13 +381,15 @@ def setup_llm_provider(config: dict) -> dict | None:
         return None
     new_config["api_key"] = api_key
     
-    from llm_integration import get_provider_models
+    from agent.llm import get_provider_models
     current_model = config.get('llm', {}).get('model')
-    models = get_provider_models(provider_id)
+    
+    ui.print_info("正在获取模型列表...")
+    models = get_provider_models(provider_id, api_key)
     
     if models:
         ui.print_header_text("请选择模型:")
-        model_options = [(m["id"], f"{m['name']} - {m['description']}") for m in models]
+        model_options = [(m, m) for m in models]
         current_model_idx = next((i for i, (m_id, _) in enumerate(model_options) if m_id == current_model), 0)
         print(f"\n当前值: {model_options[current_model_idx][1]}")
         
@@ -390,7 +397,7 @@ def setup_llm_provider(config: dict) -> dict | None:
         model_choice = select_option_safe(model_options, default_idx=current_model_idx, current_value=current_model)
         if model_choice is None:
             return None
-        new_config["model"] = models[model_choice]["id"]
+        new_config["model"] = models[model_choice]
     else:
         ui.print_warning("没有可用的模型，请检查API配置")
     

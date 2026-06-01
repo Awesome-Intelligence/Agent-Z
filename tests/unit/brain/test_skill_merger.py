@@ -6,7 +6,7 @@ import pytest
 import tempfile
 import shutil
 from pathlib import Path
-from brain.skills.merger import SkillMerger, SkillInfo, SkillCluster, load_skills_from_directory
+from skills.merger import SkillMerger, SkillInfo, SkillCluster, load_skills_from_directory
 
 
 @pytest.fixture

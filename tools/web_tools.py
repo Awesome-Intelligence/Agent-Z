@@ -22,7 +22,7 @@ from . import ToolResult, register_tool
 def web_search(query: str, limit: int = 5) -> ToolResult:
     """网络搜索"""
     try:
-        from core.config import settings
+        from common.config import settings
         
         api_key = getattr(settings, 'TAVILY_API_KEY', None) or getattr(settings, 'SEARCH_API_KEY', None)
         

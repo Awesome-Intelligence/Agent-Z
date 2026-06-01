@@ -5,105 +5,128 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
----
+***
 
 ## 🎯 项目概述
 
 Handsome Agent 是一个企业级 AI Agent 系统，融合了：
+
 - **OpenClaw** 的多渠道接入能力和工具抽象
 - **Hermes** 的智能决策和自我进化能力
 
 **核心特性**：LLM 驱动的意图识别 + 工具选择、自动学习进化、技能生命周期管理。
 
----
+***
 
-## 🏛️ 架构设计
+## 🏛️ Architecture
 
-### 三层分层架构
+### Three-Tier Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    🚪 接入层 (Interface Layer)              │
+│                    🚪 Access Layer                          │
 │  CLI │ Gateway │ HTTP Adapter │ WebSocket                   │
 └─────────────────────────────┬───────────────────────────────┘
                               │
 ┌─────────────────────────────▼───────────────────────────────┐
-│                    🧠 决策层 (Decision Layer)                 │
-│                                                               │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │  🤖 LLMDrivenDecisionEngine                            │ │
-│  │  LLM 直接理解用户意图 + 选择工具（无预定义意图分类）    │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                                                               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ 💾 Memory     │  │ 📋 Skills    │  │ 📝 Trajectory │      │
-│  │ (记忆管理)    │  │ (技能系统)    │  │ (轨迹记录)    │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
-│                                                               │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │  🔬 Curator (异步后处理)                                │ │
-│  │  轨迹评估 → 技能合成 → 自我进化                         │ │
-│  └─────────────────────────────────────────────────────────┘ │
+│                    🧠 Decision Layer                        │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  🤖 LLMDrivenDecisionEngine                           │  │
+│  │  LLM directly understands intent + selects tools      │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │ 💾 Memory    │  │ 📋 Skills    │  │ 📝 Trajectory│      │
+│  │              │  │              │  │              │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  🔬 Curator (Async Post-Processing)                   │  │
+│  │  Trajectory Evaluation → Skill Synthesis → Evolution  │  │
+│  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────┬───────────────────────────────┘
                               │
 ┌─────────────────────────────▼───────────────────────────────┐
-│                    🏃 执行层 (Execution Layer)              │
+│                    🏃 Execution Layer                       │
 │  Shell Executor │ Docker Executor │ Tool Executor           │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 架构层与目录映射
-
-| 架构层 | 组件 | 目录 |
-|--------|------|------|
-| 🚪 接入层 | Gateway, CLI, HTTP Adapter | `adapter/`, `gateway/`, `cli/` |
-| 🧠 决策层 | LLMDrivenDecisionEngine | `core/llm_tool_selector.py` |
-| 🧠 决策层 | Memory, Skills, Trajectory | `core/`, `brain/` |
-| 🧠 决策层 | AgentLoop (ReAct) | `brain/agent/agent_loop.py` |
-| 🔬 Curator | Curator, Synthesizer | `brain_curator/` |
-| 🏃 执行层 | Shell, Docker Executor | `executor/` |
-| 🛠️ 工具层 | ToolRegistry | `tools/` |
-
----
+***
 
 ## 📁 项目目录结构
 
 ```
 Handsome-Agent/
-├── adapter/                  # 🚪 接入层 - 消息路由、协议适配
-├── agent/                     # 🤖 Agent 模板和提示词
-├── api/                       # 📋 OpenAPI 规范
-├── brain/                     # 🧠 决策层核心
-│   ├── agent/                 #   AgentLoop (ReAct 模式)
-│   ├── llm/                   #   LLM Provider (OpenAI/Claude)
-│   ├── memory/                #   记忆存储 (SQLite/FTS5/Vector)
-│   └── skills/                #   技能系统
-├── brain_curator/             # 🔬 Curator 自我进化
-├── cli/                       # 💬 终端界面
-├── core/                      # 🧠 核心模块
-│   ├── llm_tool_selector.py   #   LLM 驱动的工具选择
-│   ├── session.py             #   会话管理
-│   ├── memory_manager.py      #   记忆管理
-│   └── task_planner.py        #   任务规划
-├── docs/                      # 📚 完整文档系统
-│   ├── index.md               #   文档索引 ← 点击查看全部
-│   ├── architecture/          #   架构文档
-│   ├── guides/                #   使用指南
-│   ├── modules/               #   模块文档
-│   ├── references/            #   参考资料
-│   └── development/           #   开发文档
-├── executor/                  # 🏃 执行层 (Shell/Docker)
-├── gateway/                   # 🚪 网关 (认证/限流)
-├── lightweight/               # ⚡ 轻量版 (<30MB, 零依赖)
-├── llm_integration/           # 🤖 LLM 集成 (25+ 提供商)
-├── plugins/                   # 🔌 插件系统
-├── shared/                    # 📦 共享模块
-├── skills/                    # 🛠️ 用户技能目录
-├── tests/                     # 🧪 测试套件
-└── tools/                     # 🛠️ 工具注册与执行
+│
+├── agent/                    # 🤖 Agent 核心
+│   ├── agent_loop.py        #   Agent Loop（ReAct 模式）
+│   ├── schemas.py           #   数据模型
+│   ├── trajectory.py        #   轨迹记录
+│   ├── memory.py            #   记忆管理
+│   ├── context_engine.py    #   上下文引擎
+│   ├── prompt_builder.py    #   提示词构建
+│   ├── modern_agent.py      #   现代 Agent 实现
+│   ├── llm_tool_selector.py #   LLM 驱动的工具选择器
+│   ├── workspace.py         #   工作空间管理
+│   ├── curator/             #   Curator（自我进化）
+│   ├── llm/                 #   LLM Provider (OpenAI/Claude/DeepSeek等)
+│   └── templates/           #   Agent 模板
+│
+├── skills/                   # 🛠️ 技能系统
+│   ├── matcher.py           #   技能匹配
+│   ├── loader.py            #   技能加载
+│   ├── registry.py          #   技能注册
+│   ├── system/             #   系统内置技能
+│   └── user/               #   用户技能
+│
+├── gateway/                  # 🚪 网关
+│   ├── server.py           #   HTTP 服务器
+│   ├── middleware.py       #   中间件（认证/限流）
+│   └── adapters/           #   渠道适配器
+│
+├── executor/                 # 🏃 执行层
+│   ├── shell.py            #   Shell 执行器
+│   └── docker.py          #   Docker 执行器
+│
+├── tools/                    # 🛠️ 工具定义
+│   ├── registry.py          #   注册表
+│   ├── integrated_tools.py #   集成工具
+│   └── file_tools.py       #   文件工具
+│
+├── common/                   # 📦 基础设施
+│   ├── config.py           #   配置
+│   ├── logging_manager.py  #   日志管理（统一 LayerLogger）
+│   ├── exceptions.py       #   异常
+│   └── logging.py          #   简化日志配置
+│
+├── cli/                      # 💬 CLI
+│   ├── main.py             #   主入口
+│   ├── modern_cli.py       #   现代 CLI 实现
+│   └── setup_wizard.py     #   配置向导
+│
+├── tests/                    # 🧪 测试套件
+│   ├── unit/               #   单元测试
+│   ├── integration/        #   集成测试
+│   └── performance/        #   性能测试
+│
+├── docs/                     # 📚 文档系统
+│   ├── index.md            #   文档索引
+│   ├── architecture/       #   架构文档
+│   ├── guides/             #   使用指南
+│   ├── modules/            #   模块文档
+│   └── references/         #   参考资料
+│
+├── api/                      # 📋 OpenAPI 规范
+│   └── brain_service.yaml  #   网关 HTTP API 的 OpenAPI 规范
+│
+└── workspace/                # 💾 工作空间
+    ├── logs/               #   日志目录
+    └── sessions/           #   会话目录
 ```
 
----
+***
 
 ## 🔑 核心特性
 
@@ -119,16 +142,12 @@ result = await engine.process(
 # → LLM 直接决定使用 read_file
 ```
 
-详情：[LLM 工具选择](docs/architecture/llm-tool-selection.md)
-
 ### 2. 技能系统 (Skills)
 
 - 技能加载、匹配、执行
 - 技能使用追踪（use/view/patch 事件）
 - 生命周期管理（active → stale → archived）
 - 技能合并（相似技能自动聚合）
-
-详情：[Brain Skills](docs/modules/brain/skills.md)
 
 ### 3. 自我进化 (Self-Evolution)
 
@@ -138,43 +157,21 @@ result = await engine.process(
                                            越聊越好用 ✨
 ```
 
-详情：[Curator 模块](docs/modules/brain_curator/README.md)
+### 4. 完整工具生态
 
-### 4. 轻量版 Agent
+| 类别    | 工具                                                      |
+| ----- | ------------------------------------------------------- |
+| 📁 文件 | read\_file, write\_file, list\_directory, search\_files |
+| 🚀 应用 | launch\_app, open\_calculator, open\_notepad            |
+| 💻 终端 | terminal, run\_python                                   |
+| 🔍 网络 | web\_search, web\_extract                               |
+| 🧠 记忆 | memory\_save, memory\_search                            |
 
-零依赖（仅标准库），<30MB，适合移动端/IoT/边缘计算。
-
-```bash
-# 直接运行，无需安装
-python -m lightweight
-```
-
-详情：[轻量版模块](docs/modules/lightweight/README.md)
-
-### 5. 完整工具生态
-
-| 类别 | 工具 |
-|------|------|
-| 📁 文件 | read_file, write_file, list_directory, search_files, open_file |
-| 🚀 应用 | launch_app, open_calculator, open_notepad, open_explorer |
-| 💻 终端 | terminal, run_python |
-| 🔍 网络 | web_search, web_extract |
-| 🧠 记忆 | memory_save, memory_search |
-
-详情：[Tools 模块](docs/modules/tools/README.md)
-
----
+***
 
 ## 🚀 快速开始
 
-### 方式一：轻量版（推荐新手）
-
-```bash
-# 无需安装依赖
-python -m lightweight
-```
-
-### 方式二：完整版
+### 方式一：CLI 交互
 
 ```bash
 # 安装依赖
@@ -190,13 +187,13 @@ python -m cli.main chat
 pytest tests/unit/ -v
 ```
 
-### 方式三：Docker
+### 方式二：Docker
 
 ```bash
 docker-compose up -d
 ```
 
----
+***
 
 ## 📚 文档导航
 
@@ -204,87 +201,62 @@ docker-compose up -d
 
 ### 新手入门
 
-| 文档 | 内容 | 预计时间 |
-|------|------|----------|
-| [快速开始](docs/guides/quick-start.md) | 5分钟快速上手 | 5min |
-| [系统设计](docs/guides/system-design.md) | 设计文档 | 10min |
+| 文档                                   | 内容      | 预计时间  |
+| ------------------------------------ | ------- | ----- |
+| [快速开始](docs/guides/quick-start.md)   | 5分钟快速上手 | 5min  |
+| [系统设计](docs/guides/system-design.md) | 设计文档    | 10min |
 
 ### 架构与设计
 
-| 文档 | 内容 |
-|------|------|
-| [架构设计](docs/architecture/architecture.md) | 三层架构详解 |
-| [LLM 工具选择](docs/architecture/llm-tool-selection.md) | LLM 直接决策 |
-| [迁移指南](docs/guides/migration-guide.md) | 意图识别层迁移 ⚠️ 已废弃 |
+| 文档                                            | 内容             |
+| --------------------------------------------- | -------------- |
+| [架构设计](docs/architecture/architecture.md)     | 三层架构详解         |
+| [重构计划](docs/architecture/restructure-plan.md) | 目录结构重构计划       |
+| [迁移指南](docs/guides/migration-guide.md)        | 意图识别层迁移 ⚠️ 已废弃 |
 
 ### 模块文档
 
-| 模块 | 文档 |
-|------|------|
-| Core | [docs/modules/core/README.md](docs/modules/core/README.md) |
-| Tools | [docs/modules/tools/README.md](docs/modules/tools/README.md) |
-| Brain | [docs/modules/brain/README.md](docs/modules/brain/README.md) |
-| Skills | [docs/modules/brain/skills.md](docs/modules/brain/skills.md) |
-| Curator | [docs/modules/brain_curator/README.md](docs/modules/brain_curator/README.md) |
-| Gateway | [docs/modules/gateway/README.md](docs/modules/gateway/README.md) |
-| Lightweight | [docs/modules/lightweight/README.md](docs/modules/lightweight/README.md) |
-| CLI | [docs/modules/cli/README.md](docs/modules/cli/README.md) |
+| 模块                                        | 文档       |
+| ----------------------------------------- | -------- |
+| [Agent](docs/modules/agent/README.md)     | Agent 核心 |
+| [Skills](docs/modules/skills/README.md)   | 技能系统     |
+| [Gateway](docs/modules/gateway/README.md) | 网关       |
+| [Tools](docs/modules/tools/README.md)     | 工具定义     |
+| [CLI](docs/modules/cli/README.md)         | 命令行界面    |
+| [Common](docs/modules/common/README.md)   | 基础设施     |
 
 ### 参考资料
 
-| 文档 | 内容 |
-|------|------|
-| [LLM 集成](docs/references/llm-integration.md) | 25+ LLM 提供商 |
-| [能力清单](docs/references/capabilities-overview.md) | Agent 能力矩阵 |
-| [测试报告](docs/development/testing-summary.md) | 测试覆盖报告 |
-| [编码规范](.trae/rules/rule.md) | 开发规范 |
+| 文档                                               | 内容          |
+| ------------------------------------------------ | ----------- |
+| [LLM 集成](docs/references/llm-integration.md)     | 25+ LLM 提供商 |
+| [能力清单](docs/references/capabilities-overview.md) | Agent 能力矩阵  |
+| [编码规范](.trae/rules/rule.md)                      | 开发规范        |
 
-### 开发
+***
 
-| 文档 | 内容 |
-|------|------|
-| [API 参考](docs/guides/api-reference.md) | 完整 API 文档 |
-| [部署指南](docs/guides/deployment.md) | Docker/云平台 |
-| [贡献指南](docs/guides/contributing.md) | 如何贡献 |
-
----
-
-## 🧪 测试
+## 🧪 Testing
 
 ```bash
-# 运行所有测试
+# Run all tests
 pytest tests/unit/ -v
 
-# 带覆盖率
+# With coverage
 pytest tests/unit/ --cov=. --cov-report=term-missing
 
-# 特定模块
-pytest tests/unit/brain_curator/ -v
+# Specific modules
+pytest tests/unit/curator/ -v
 pytest tests/unit/tools/ -v
 ```
 
----
+***
 
-## 🐳 Docker 部署
-
-```bash
-# 构建并启动
-docker-compose up -d
-
-# 查看日志
-docker-compose logs -f
-
-# 停止
-docker-compose down
-```
-
----
-
-## 📄 许可证
+## 📄 License
 
 MIT License
 
----
+***
 
-*Handsome Agent - 让 AI 越用越聪明* ✨
-*最后更新: 2026-06-01*
+*Handsome Agent - Making AI smarter with use* ✨
+*Last updated: 2026-06-01*
+*Version: v3.0.0 - Architecture restructuring complete, unified logging system online*

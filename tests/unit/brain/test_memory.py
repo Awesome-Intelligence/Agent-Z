@@ -221,7 +221,7 @@ class TestSummarizer:
     
     def test_summarizer_initialization(self):
         """Test initializing summarizer."""
-        from brain.memory.summarizer import Summarizer
+        from agent.memory_retrieval import Summarizer
         
         summarizer = Summarizer(max_length=1000)
         
@@ -230,7 +230,7 @@ class TestSummarizer:
     
     def test_summarize_short_text(self):
         """Test summarizing short text."""
-        from brain.memory.summarizer import Summarizer
+        from agent.memory_retrieval import Summarizer
         
         summarizer = Summarizer()
         
@@ -242,7 +242,7 @@ class TestSummarizer:
     
     def test_summarize_long_text(self):
         """Test summarizing long text."""
-        from brain.memory.summarizer import Summarizer
+        from agent.memory_retrieval import Summarizer
         
         summarizer = Summarizer(max_length=100)
         
@@ -254,7 +254,7 @@ class TestSummarizer:
     
     def test_summarize_conversation(self):
         """Test summarizing conversation."""
-        from brain.memory.summarizer import Summarizer
+        from agent.memory_retrieval import Summarizer
         
         summarizer = Summarizer()
         

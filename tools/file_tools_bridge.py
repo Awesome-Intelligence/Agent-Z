@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""文件操作工具 — 注册到 Handsome Agent 决策引擎"""
+"""File Tools Bridge - Registered to Handsome Agent Decision Engine"""
 
 import glob as glob_module
 import json
 import os
-import logging
 from typing import Optional
 
 from tools.registry import registry
+from common.logging_manager import get_execution_logger
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("FileToolsBridge")
 
 
 def _read_file(path: str, limit: Optional[int] = None) -> dict:

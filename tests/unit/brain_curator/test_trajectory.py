@@ -2,7 +2,8 @@
 import pytest
 import tempfile
 import shutil
-from brain.trajectory import TrajectoryRecorder, Trajectory, TrajectoryStatus
+from agent.trajectory_recorder import TrajectoryRecorder
+from agent.trajectory import Trajectory, TrajectoryStatus
 
 
 class TestTrajectoryRecorder:

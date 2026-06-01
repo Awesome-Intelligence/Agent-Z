@@ -7,8 +7,8 @@ These tests cover knowledge base loading, input classification, and response gen
 """
 
 import unittest
-from core import AgentConfig
-from advanced_reasoning.module import AdvancedReasoningModule
+from agent.agent import AgentConfig
+from agent.advanced_reasoning.module import AdvancedReasoningModule
 
 
 class TestAdvancedReasoningModule(unittest.TestCase):

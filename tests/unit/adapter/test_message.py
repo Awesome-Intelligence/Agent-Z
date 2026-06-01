@@ -1,6 +1,6 @@
 """Message 单元测试"""
 import pytest
-from adapter.message import (
+from gateway.message import (
     StandardMessage, 
     MessageChannel, 
     MessageContent,

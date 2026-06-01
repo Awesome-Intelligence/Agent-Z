@@ -13,6 +13,15 @@ import os
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
+
+
+class TrajectoryStatus(str, Enum):
+    """轨迹状态枚举"""
+    SUCCESS = "success"
+    FAILURE = "failure"
+    RUNNING = "running"
+    CANCELLED = "cancelled"
 
 
 @dataclass

@@ -1,12 +1,12 @@
 """
-Skills CLI 命令模块
+Skills CLI command module
 
-提供 skills 命令用于管理用户自定义技能:
-- skills install: 从 URL/GitHub 安装技能
-- skills sync: 同步本地 skills 目录
-- skills list: 列出已安装的技能
-- skills uninstall: 卸载技能
-- skills search: 搜索技能 (预留)
+Provides skills commands for managing user-defined skills:
+- skills install: Install skill from URL/GitHub
+- skills sync: Sync local skills directory
+- skills list: List installed skills
+- skills uninstall: Uninstall skill
+- skills search: Search skills (reserved)
 """
 
 import argparse
@@ -17,14 +17,15 @@ import tempfile
 import zipfile
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-import logging
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_access_logger(__name__)
 
 
 def get_skills_dir() -> Path:
     """获取技能目录"""
-    from shared.config import get_skills_dir as config_get_skills_dir
+    from common.config import get_skills_dir as config_get_skills_dir
     return config_get_skills_dir()
 
 
@@ -59,25 +60,25 @@ async def install_from_url(url: str, name: Optional[str] = None) -> bool:
                 os.unlink(tmp_path)
 
     except Exception as e:
-        print(f"❌ 安装失败: {e}")
+        print(f"Installation failed: {e}")
         return False
 
 
 async def install_from_github(repo: str, name: Optional[str] = None) -> bool:
     """
-    从 GitHub 仓库安装技能
+    Install skill from GitHub repository
 
-    支持格式:
+    Supported formats:
     - owner/repo
     - owner/repo/path/to/skill
     - github.com/owner/repo
 
     Args:
-        repo: GitHub 仓库标识
-        name: 可选的技能名称
+        repo: GitHub repository identifier
+        name: Optional skill name
 
     Returns:
-        是否安装成功
+        Whether installation succeeded
     """
     import httpx
 
@@ -85,13 +86,13 @@ async def install_from_github(repo: str, name: Optional[str] = None) -> bool:
 
     parts = repo.split("/")
     if len(parts) < 2:
-        print("❌ 无效的 GitHub 仓库格式，请使用 owner/repo 格式")
+        print("Invalid GitHub repository format, please use owner/repo format")
         return False
 
     owner, repo_name = parts[0], parts[1]
     skill_path = "/".join(parts[2:]) if len(parts) > 2 else ""
 
-    print(f"📥 正在从 GitHub 安装: {owner}/{repo_name}")
+    print(f"Installing from GitHub: {owner}/{repo_name}")
 
     api_url = f"https://api.github.com/repos/{owner}/{repo_name}/contents/{skill_path}"
     if not skill_path:
@@ -131,32 +132,32 @@ async def install_from_github(repo: str, name: Optional[str] = None) -> bool:
 
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
-            print(f"❌ 仓库或路径不存在: {owner}/{repo_name}/{skill_path}")
+            print(f"Repository or path not found: {owner}/{repo_name}/{skill_path}")
         else:
-            print(f"❌ GitHub API 请求失败: {e}")
+            print(f"GitHub API request failed: {e}")
         return False
     except Exception as e:
-        print(f"❌ 安装失败: {e}")
+        print(f"Installation failed: {e}")
         return False
 
 
 async def install_from_archive(archive_path: str, name: Optional[str] = None) -> bool:
     """
-    从归档文件安装技能
+    Install skill from archive file
 
     Args:
-        archive_path: 归档文件路径
-        name: 可选的技能名称
+        archive_path: Archive file path
+        name: Optional skill name
 
     Returns:
-        是否安装成功
+        Whether installation succeeded
     """
     archive_path = Path(archive_path)
     if not archive_path.exists():
-        print(f"❌ 文件不存在: {archive_path}")
+        print(f"File not found: {archive_path}")
         return False
 
-    print(f"📦 正在解压归档: {archive_path}")
+    print(f"Extracting archive: {archive_path}")
 
     try:
         temp_dir = Path(tempfile.mkdtemp())
@@ -226,7 +227,7 @@ async def install_skill_from_dir(skill_dir: Path, name: str) -> bool:
     print(f"📁 安装位置: {target_dir}")
 
     try:
-        from brain.skills import get_skill_telemetry
+        from skills import get_skill_telemetry
         telemetry = get_skill_telemetry()
         telemetry.create_skill_record(
             skill_id=name,
@@ -249,7 +250,7 @@ async def sync_skills() -> bool:
     Returns:
         是否成功
     """
-    from brain.skills import SkillsLoader, get_skill_telemetry
+    from skills import SkillsLoader, get_skill_telemetry
 
     skills_dir = get_skills_dir()
 
@@ -292,7 +293,7 @@ def list_skills() -> bool:
     Returns:
         是否成功
     """
-    from brain.skills import get_skill_telemetry
+    from skills import get_skill_telemetry
 
     skills_dir = get_skills_dir()
 
@@ -366,7 +367,7 @@ def uninstall_skill(name: str) -> bool:
         print(f"✅ 技能 '{name}' 已卸载")
 
         try:
-            from brain.skills import get_skill_telemetry
+            from skills import get_skill_telemetry
             telemetry = get_skill_telemetry()
             telemetry.archive_skill(name)
             print("📊 已从追踪系统中移除")

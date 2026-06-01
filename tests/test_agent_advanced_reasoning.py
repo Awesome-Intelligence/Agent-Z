@@ -25,7 +25,7 @@ class MockLLMProvider:
 
 async def test_agent_with_advanced_reasoning():
     """测试 Agent 集成 Advanced Reasoning"""
-    from core import CustomAgent, AgentConfig, ResponseStrategyRouter, ResponseStrategy
+    from agent.agent import CustomAgent, AgentConfig, ResponseStrategyRouter, ResponseStrategy
     
     print("=" * 60)
     print("测试 Agent 集成 Advanced Reasoning")

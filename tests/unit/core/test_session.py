@@ -19,7 +19,7 @@ class TestMessage:
     
     def test_message_creation(self):
         """Test creating a Message."""
-        from core.session import Message
+        from agent.session import Message
         
         msg = Message(
             role="user",
@@ -35,7 +35,7 @@ class TestMessage:
     
     def test_message_with_metadata(self):
         """Test Message with metadata."""
-        from core.session import Message
+        from agent.session import Message
         
         msg = Message(
             role="assistant",
@@ -47,7 +47,7 @@ class TestMessage:
     
     def test_message_with_tool_call(self):
         """Test Message with tool call information."""
-        from core.session import Message
+        from agent.session import Message
         
         msg = Message(
             role="assistant",
@@ -61,7 +61,7 @@ class TestMessage:
     
     def test_message_timestamp_auto_generated(self):
         """Test that timestamp is auto-generated."""
-        from core.session import Message
+        from agent.session import Message
         import time
         
         before = time.time()
@@ -76,7 +76,7 @@ class TestSessionConfig:
     
     def test_default_config(self):
         """Test default configuration values."""
-        from core.session import SessionConfig
+        from agent.session import SessionConfig
         
         config = SessionConfig()
         
@@ -87,7 +87,7 @@ class TestSessionConfig:
     
     def test_custom_config(self):
         """Test custom configuration values."""
-        from core.session import SessionConfig
+        from agent.session import SessionConfig
         
         config = SessionConfig(
             max_history_length=100,
@@ -108,7 +108,7 @@ class TestFileSessionStore:
     def test_store_creation_with_temp_dir(self):
         """Test creating store with temporary directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import FileSessionStore
+            from agent.session import FileSessionStore
             
             store = FileSessionStore(base_path=tmpdir)
             
@@ -117,7 +117,7 @@ class TestFileSessionStore:
     def test_save_and_load_session(self):
         """Test saving and loading a session."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import FileSessionStore
+            from agent.session import FileSessionStore
             
             store = FileSessionStore(base_path=tmpdir)
             
@@ -140,7 +140,7 @@ class TestFileSessionStore:
     def test_load_nonexistent_session(self):
         """Test loading a session that doesn't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import FileSessionStore
+            from agent.session import FileSessionStore
             
             store = FileSessionStore(base_path=tmpdir)
             
@@ -151,7 +151,7 @@ class TestFileSessionStore:
     def test_delete_session(self):
         """Test deleting a session."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import FileSessionStore
+            from agent.session import FileSessionStore
             
             store = FileSessionStore(base_path=tmpdir)
             
@@ -167,7 +167,7 @@ class TestFileSessionStore:
     def test_list_sessions(self):
         """Test listing all sessions."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import FileSessionStore
+            from agent.session import FileSessionStore
             
             store = FileSessionStore(base_path=tmpdir)
             
@@ -190,7 +190,7 @@ class TestSession:
     def test_create_session(self):
         """Test creating a new session."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import Session, SessionConfig
+            from agent.session import Session, SessionConfig
             
             config = SessionConfig(
                 history_path=tmpdir,
@@ -204,7 +204,7 @@ class TestSession:
     def test_add_message(self):
         """Test adding messages to session."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import Session, SessionConfig
+            from agent.session import Session, SessionConfig
             
             config = SessionConfig(
                 history_path=tmpdir,
@@ -224,7 +224,7 @@ class TestSession:
     def test_message_count(self):
         """Test getting message count."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import Session, SessionConfig
+            from agent.session import Session, SessionConfig
             
             config = SessionConfig(
                 history_path=tmpdir,
@@ -241,7 +241,7 @@ class TestSession:
     def test_get_history(self):
         """Test getting message history."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import Session, SessionConfig
+            from agent.session import Session, SessionConfig
             
             config = SessionConfig(
                 history_path=tmpdir,
@@ -262,7 +262,7 @@ class TestSession:
     def test_get_last_message(self):
         """Test getting the last message."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import Session, SessionConfig
+            from agent.session import Session, SessionConfig
             
             config = SessionConfig(
                 history_path=tmpdir,
@@ -281,7 +281,7 @@ class TestSession:
     def test_context_management(self):
         """Test session context management."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import Session, SessionConfig
+            from agent.session import Session, SessionConfig
             
             config = SessionConfig(
                 history_path=tmpdir,
@@ -306,7 +306,7 @@ class TestSession:
     def test_history_trimming(self):
         """Test that old messages are trimmed when exceeding max."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import Session, SessionConfig
+            from agent.session import Session, SessionConfig
             
             config = SessionConfig(
                 history_path=tmpdir,
@@ -328,7 +328,7 @@ class TestSession:
     def test_clear_session(self):
         """Test clearing session messages and context."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import Session, SessionConfig
+            from agent.session import Session, SessionConfig
             
             config = SessionConfig(
                 history_path=tmpdir,
@@ -347,7 +347,7 @@ class TestSession:
     def test_formatted_history(self):
         """Test getting formatted history for API calls."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import Session, SessionConfig
+            from agent.session import Session, SessionConfig
             
             config = SessionConfig(
                 history_path=tmpdir,
@@ -372,7 +372,7 @@ class TestSession:
     def test_session_stats(self):
         """Test getting session statistics."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import Session, SessionConfig
+            from agent.session import Session, SessionConfig
             
             config = SessionConfig(
                 history_path=tmpdir,
@@ -400,7 +400,7 @@ class TestSessionManager:
     def test_create_session_manager(self):
         """Test creating a session manager."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import SessionManager, SessionConfig
+            from agent.session import SessionManager, SessionConfig
             
             config = SessionConfig(history_path=tmpdir)
             manager = SessionManager(config=config)
@@ -411,7 +411,7 @@ class TestSessionManager:
     def test_create_new_session(self):
         """Test creating a new session."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import SessionManager, SessionConfig
+            from agent.session import SessionManager, SessionConfig
             
             config = SessionConfig(history_path=tmpdir)
             manager = SessionManager(config=config)
@@ -425,7 +425,7 @@ class TestSessionManager:
     def test_create_duplicate_session(self):
         """Test creating a session that already exists."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import SessionManager, SessionConfig
+            from agent.session import SessionManager, SessionConfig
             
             config = SessionConfig(history_path=tmpdir)
             manager = SessionManager(config=config)
@@ -440,7 +440,7 @@ class TestSessionManager:
     def test_get_session(self):
         """Test getting an existing session."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import SessionManager, SessionConfig
+            from agent.session import SessionManager, SessionConfig
             
             config = SessionConfig(history_path=tmpdir)
             manager = SessionManager(config=config)
@@ -455,7 +455,7 @@ class TestSessionManager:
     def test_get_nonexistent_session(self):
         """Test getting a session that doesn't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import SessionManager, SessionConfig
+            from agent.session import SessionManager, SessionConfig
             
             config = SessionConfig(history_path=tmpdir)
             manager = SessionManager(config=config)
@@ -467,7 +467,7 @@ class TestSessionManager:
     def test_delete_session(self):
         """Test deleting a session."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import SessionManager, SessionConfig
+            from agent.session import SessionManager, SessionConfig
             
             config = SessionConfig(history_path=tmpdir)
             manager = SessionManager(config=config)
@@ -481,7 +481,7 @@ class TestSessionManager:
     def test_list_sessions(self):
         """Test listing all sessions."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import SessionManager, SessionConfig
+            from agent.session import SessionManager, SessionConfig
             
             config = SessionConfig(history_path=tmpdir)
             manager = SessionManager(config=config)
@@ -500,7 +500,7 @@ class TestSessionManager:
     def test_get_active_sessions(self):
         """Test getting all active sessions."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.session import SessionManager, SessionConfig
+            from agent.session import SessionManager, SessionConfig
             
             config = SessionConfig(history_path=tmpdir)
             manager = SessionManager(config=config)

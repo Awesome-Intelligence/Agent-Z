@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
 """
-MCP Tool Module - Model Context Protocol 工具
+MCP Tool Module - Model Context Protocol Tool
 
-提供 MCP 集成功能：
-- MCP 客户端连接
-- MCP 工具调用
-- MCP 资源访问
+Provides MCP integration functionality:
+- MCP client connection
+- MCP tool invocation
+- MCP resource access
 
-参考 Hermes Agent 的 mcp_tool.py 实现。
+Based on Hermes Agent's mcp_tool.py implementation.
 
 Usage:
     from tools.mcp_tool import mcp_list_servers, mcp_call_tool
 """
 
 import json
-import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from common.logging_manager import get_execution_logger
 from tools.registry import registry
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("MCPTool")
 
 
 class MCPServerManager:

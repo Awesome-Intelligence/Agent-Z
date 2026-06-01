@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 async def test_todo_adapter():
     """测试 TodoToolkitAdapter"""
-    from core.todo_adapter import get_todo_adapter, TodoToolkitAdapter, ToolCallResult
+    from agent.todo_adapter import get_todo_adapter, TodoToolkitAdapter, ToolCallResult
     
     print("=" * 60)
     print("测试 TodoToolkitAdapter")
@@ -72,8 +72,8 @@ async def test_todo_adapter():
 
 async def test_task_management_handler():
     """测试 Task Management Handler"""
-    from core.router_handlers import task_management_handler
-    from core.todo_adapter import get_todo_adapter
+    from agent.router_handlers import task_management_handler
+    from agent.todo_adapter import get_todo_adapter
     
     print("\n" + "=" * 60)
     print("测试 Task Management Handler")
@@ -134,7 +134,7 @@ async def test_task_management_handler():
     assert "删除" in response, "应该删除任务"
     print("✅ 删除任务测试通过")
     
-    from core.todo_adapter import get_todo_adapter
+    from agent.todo_adapter import get_todo_adapter
     adapter = get_todo_adapter(session_id)
     adapter.call_tool('todo_clear', {})
     
@@ -145,7 +145,7 @@ async def test_task_management_handler():
 
 async def test_intent_classification():
     """测试任务管理意图分类"""
-    from core.router import router
+    from agent.router import router
     
     print("\n" + "=" * 60)
     print("测试 Intent Classification")

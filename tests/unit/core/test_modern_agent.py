@@ -22,7 +22,7 @@ class TestModernAgent:
 
     def test_agent_initialization(self):
         """Test agent initializes correctly."""
-        from core.modern_agent import ModernAgent
+        from agent.modern_agent import ModernAgent
         
         agent = ModernAgent(llm_provider=None)
         
@@ -32,7 +32,7 @@ class TestModernAgent:
 
     def test_agent_with_llm_provider(self):
         """Test agent initialization with LLM provider."""
-        from core.modern_agent import ModernAgent
+        from agent.modern_agent import ModernAgent
         
         mock_llm = MagicMock()
         agent = ModernAgent(llm_provider=mock_llm)
@@ -41,7 +41,7 @@ class TestModernAgent:
 
     def test_agent_without_session(self):
         """Test agent initialization without session."""
-        from core.modern_agent import ModernAgent
+        from agent.modern_agent import ModernAgent
         
         agent = ModernAgent(llm_provider=None, enable_session=False)
         
@@ -54,7 +54,7 @@ class TestModernAgentChat:
     @pytest.mark.asyncio
     async def test_chat_returns_response(self):
         """Test that chat returns a response."""
-        from core.modern_agent import ModernAgent
+        from agent.modern_agent import ModernAgent
         
         agent = ModernAgent(llm_provider=None)
         
@@ -68,7 +68,7 @@ class TestModernAgentChat:
     @pytest.mark.asyncio
     async def test_chat_with_tool_execution(self):
         """Test chat with tool execution."""
-        from core.modern_agent import ModernAgent
+        from agent.modern_agent import ModernAgent
         
         agent = ModernAgent(llm_provider=None)
         
@@ -80,7 +80,7 @@ class TestModernAgentChat:
     @pytest.mark.asyncio
     async def test_chat_empty_input(self):
         """Test chat with empty input."""
-        from core.modern_agent import ModernAgent
+        from agent.modern_agent import ModernAgent
         
         agent = ModernAgent(llm_provider=None)
         
@@ -92,7 +92,7 @@ class TestModernAgentChat:
     @pytest.mark.asyncio
     async def test_chat_records_to_session(self):
         """Test that chat records to session."""
-        from core.modern_agent import ModernAgent
+        from agent.modern_agent import ModernAgent
         
         agent = ModernAgent(llm_provider=None, enable_session=True)
         
@@ -108,7 +108,7 @@ class TestModernAgentToolList:
 
     def test_get_tool_list(self):
         """Test getting list of tools."""
-        from core.modern_agent import ModernAgent
+        from agent.modern_agent import ModernAgent
         
         agent = ModernAgent(llm_provider=None)
         tools = agent.get_tool_list()
@@ -118,7 +118,7 @@ class TestModernAgentToolList:
 
     def test_tool_list_has_required_fields(self):
         """Test that tool list has required fields."""
-        from core.modern_agent import ModernAgent
+        from agent.modern_agent import ModernAgent
         
         agent = ModernAgent(llm_provider=None)
         tools = agent.get_tool_list()
@@ -133,7 +133,7 @@ class TestModernAgentResponse:
 
     def test_response_has_required_fields(self):
         """Test that response has required fields."""
-        from core.modern_agent import ModernAgentResponse
+        from agent.modern_agent import ModernAgentResponse
         
         response = ModernAgentResponse(
             content="Test response",
@@ -147,7 +147,7 @@ class TestModernAgentResponse:
 
     def test_response_defaults(self):
         """Test response default values."""
-        from core.modern_agent import ModernAgentResponse
+        from agent.modern_agent import ModernAgentResponse
         
         response = ModernAgentResponse(content="Test")
         
@@ -161,7 +161,7 @@ class TestModernAgentIntegration:
 
     def test_agent_uses_integrated_engine(self):
         """Test that agent uses integrated engine."""
-        from core.modern_agent import ModernAgent
+        from agent.modern_agent import ModernAgent
         from tools.integrated_tools import get_integrated_engine
         
         agent = ModernAgent(llm_provider=None)
@@ -175,7 +175,7 @@ class TestModernAgentIntegration:
 
     def test_agent_initializes_tools(self):
         """Test that agent initializes tools."""
-        from core.modern_agent import ModernAgent
+        from agent.modern_agent import ModernAgent
         from tools.integrated_tools import initialize_tools
         
         initialize_tools()

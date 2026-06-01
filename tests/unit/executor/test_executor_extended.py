@@ -288,7 +288,7 @@ class TestExecutorConfig:
     
     def test_terminal_config_local(self):
         """测试本地 Terminal 配置"""
-        from shared.config import get_terminal_config
+        from common.config import get_terminal_config
         
         config = get_terminal_config()
         
@@ -297,7 +297,7 @@ class TestExecutorConfig:
     
     def test_terminal_config_docker(self):
         """测试 Docker Terminal 配置"""
-        from shared.config import TerminalConfig
+        from common.config import TerminalConfig
         
         config = TerminalConfig(
             backend="docker",
@@ -309,7 +309,7 @@ class TestExecutorConfig:
     
     def test_terminal_config_ssh(self):
         """测试 SSH Terminal 配置"""
-        from shared.config import TerminalConfig
+        from common.config import TerminalConfig
         
         config = TerminalConfig(
             backend="ssh",

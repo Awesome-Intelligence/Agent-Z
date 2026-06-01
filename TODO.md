@@ -8,16 +8,8 @@
 
 ### 🔴 高优先级
 
-- [ ] **目录结构重构** ⭐ 新增
-  - [ ] 制定详细的重构执行计划
-  - [ ] 创建新目录结构
-  - [ ] 移动文件（不修改代码）
-  - [ ] 修复导入路径
-  - [ ] 测试验证
-  - [ ] 更新 rule.md 约束
-
 - [ ] **完善单元测试**
-  - [ ] 修复剩余 6 个失败的测试
+  - [ ] 修复剩余测试失败问题
   - [ ] 添加集成测试
   - [ ] 添加 E2E 测试
   - [ ] 确保 CI 通过
@@ -47,41 +39,48 @@
 
 ## ✅ 已完成
 
-### 架构设计
-- [x] 架构设计文档
-- [x] 目标目录结构设计（参考 Hermes）
-- [x] TODO.md 任务清单
-- [x] 编码规范 (rule.md)
+### 目录结构重构 ✅ v3.0.0
 
-### 目录结构重构（规划中）
-> 详见 [docs/architecture/restructure-plan.md](docs/architecture/restructure-plan.md)
+**已完成的重构工作**：
+- [x] 删除 `brain/`, `brain_curator/`, `core/`, `shared/`, `adapter/`, `llm_integration/` 目录
+- [x] 重命名 `shared/` → `common/`
+- [x] 合并 `brain_curator/` → `agent/curator/`
+- [x] 合并 `advanced_reasoning/` → `agent/advanced_reasoning/`
+- [x] 合并 `brain/llm/` → `agent/llm/`
+- [x] 删除 `config/`, `logs/`, `sessions/` 目录
+- [x] 更新所有导入路径
+- [x] 更新 docs/index.md
+- [x] 更新 README.md
+- [x] 更新 rule.md
 
-**目标结构**：
+**最终目录结构**：
 ```
 Handsome-Agent/
 ├── agent/                    # 🤖 Agent 核心
-│   ├── agent_loop.py        # Agent Loop
-│   ├── schemas.py           # 数据模型
-│   ├── curator/             # Curator（自我进化）
-│   ├── llm/                 # LLM Provider
-│   └── templates/           # Agent 模板
+│   ├── curator/             #   Curator（自我进化）
+│   ├── llm/                 #   LLM Provider
+│   ├── advanced_reasoning/   #   高级推理
+│   └── templates/           #   模板
 │
-├── skills/                   # 🛠️ 技能系统（用户数据）
+├── skills/                   # 🛠️ 技能系统
 ├── gateway/                  # 🚪 网关
-├── executor/                  # 🏃 执行层
+├── executor/                 # 🏃 执行层
 ├── tools/                    # 🛠️ 工具定义
-├── common/                    # 📦 基础设施
-├── lightweight/              # ⚡ 轻量版（零依赖）
+├── common/                   # 📦 基础设施
 ├── cli/                      # 💬 CLI
 ├── tests/                    # 🧪 测试
 ├── docs/                     # 📚 文档
 └── api/                      # 📋 OpenAPI
 ```
 
+### 架构设计
+- [x] 架构设计文档
+- [x] 目标目录结构设计（参考 Hermes）
+- [x] 编码规范 (rule.md)
+
 ### 决策层
 - [x] Agent Loop (ReAct 实现 + 自我进化集成)
-- [x] LLM Provider 接口
-- [x] OpenAI Provider / Claude Provider
+- [x] LLM Provider 接口 (OpenAI/Claude)
 - [x] Tool Registry
 - [x] 技能系统（匹配、加载、注册、追踪、生命周期、合并）
 - [x] Curator 自我进化（轨迹评估、技能合成）
@@ -94,13 +93,7 @@ Handsome-Agent/
 ### 接入层
 - [x] Gateway 核心接口
 - [x] 标准化消息格式
-- [x] HTTP/WebSocket 适配器
 - [x] CLI 适配器
-
-### 其他
-- [x] 容器化部署 (Docker)
-- [x] OpenAPI 规范
-- [x] 测试套件
 
 ---
 
@@ -120,11 +113,9 @@ Handsome-Agent/
 ## 🚀 快速开始
 
 ```bash
-# 轻量版（无需依赖）
-python -m lightweight
-
-# 完整版
+# CLI 交互
 pip install -r requirements.txt
+python -m cli.main setup
 python -m cli.main chat
 
 # Docker
@@ -136,4 +127,4 @@ pytest tests/unit/ -v
 
 ---
 
-*最后更新: 2026-06-01 - 添加目录结构重构任务*
+*最后更新: 2026-06-01 - v3.0.0 目录结构重构完成*

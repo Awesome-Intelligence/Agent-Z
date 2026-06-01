@@ -8,7 +8,7 @@ import tempfile
 import shutil
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from brain_curator.enhanced_curator import EnhancedCurator, CuratorState, EvaluationResult
+from agent.curator.enhanced_curator import EnhancedCurator, CuratorState, EvaluationResult
 
 
 @pytest.fixture

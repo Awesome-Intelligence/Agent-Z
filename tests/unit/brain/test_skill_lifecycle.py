@@ -7,7 +7,7 @@ import tempfile
 import shutil
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from brain.skills.lifecycle import SkillLifecycleManager, SKILL_STATE_ACTIVE, SKILL_STATE_STALE, SKILL_STATE_ARCHIVED
+from skills.lifecycle import SkillLifecycleManager, SKILL_STATE_ACTIVE, SKILL_STATE_STALE, SKILL_STATE_ARCHIVED
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def temp_skills_dir():
 @pytest.fixture
 def lifecycle_manager(temp_skills_dir):
     """创建生命周期管理器实例"""
-    from brain.skills.telemetry import SkillTelemetry
+    from skills.telemetry import SkillTelemetry
     telemetry = SkillTelemetry(skills_dir=temp_skills_dir)
     return SkillLifecycleManager(
         telemetry=telemetry,

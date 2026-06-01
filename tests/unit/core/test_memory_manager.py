@@ -1,7 +1,7 @@
 """测试记忆管理器"""
 import pytest
 from unittest.mock import Mock
-from core.memory_manager import MemoryManager, build_memory_context_block, sanitize_context
+from agent.memory_manager import MemoryManager
 
 
 class TestMemoryManager:

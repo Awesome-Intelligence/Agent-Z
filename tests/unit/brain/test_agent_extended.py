@@ -10,13 +10,13 @@ class TestAgentLoop:
     @pytest.fixture
     def mock_agent_loop(self):
         """创建模拟的 Agent Loop"""
-        from brain.agent_loop import AgentLoop
+        from agent.agent_loop import AgentLoop
         return AgentLoop
     
     def test_agent_loop_import(self):
         """测试导入 Agent Loop"""
         try:
-            from brain.agent_loop import AgentLoop
+            from agent.agent_loop import AgentLoop
             assert AgentLoop is not None
         except ImportError:
             # 如果模块不存在，跳过测试
@@ -25,7 +25,7 @@ class TestAgentLoop:
     def test_agent_loop_init(self):
         """测试 Agent Loop 初始化"""
         try:
-            from brain.agent_loop import AgentLoop
+            from agent.agent_loop import AgentLoop
             
             loop = AgentLoop()
             assert loop is not None
@@ -35,7 +35,7 @@ class TestAgentLoop:
     def test_agent_loop_run(self):
         """测试 Agent Loop 运行"""
         try:
-            from brain.agent_loop import AgentLoop
+            from agent.agent_loop import AgentLoop
             
             loop = AgentLoop()
             
@@ -56,7 +56,7 @@ class TestAgentLoop:
     def test_agent_loop_stop(self):
         """测试 Agent Loop 停止"""
         try:
-            from brain.agent_loop import AgentLoop
+            from agent.agent_loop import AgentLoop
             
             loop = AgentLoop()
             
@@ -99,7 +99,7 @@ class TestAgentState:
     def test_agent_state_creation(self):
         """测试创建 Agent 状态"""
         try:
-            from brain.agent_state import AgentState
+            from agent.schemas import AgentState
             
             state = AgentState()
             assert state is not None
@@ -110,7 +110,7 @@ class TestAgentState:
     def test_agent_state_transitions(self):
         """测试 Agent 状态转换"""
         try:
-            from brain.agent_state import AgentState
+            from agent.schemas import AgentState
             
             state = AgentState()
             
@@ -126,7 +126,7 @@ class TestMessageHandling:
     def test_message_format(self):
         """测试消息格式"""
         try:
-            from shared.models import Message
+            from common.models import Message
             
             msg = Message(role="user", content="Hello")
             
@@ -138,7 +138,7 @@ class TestMessageHandling:
     def test_message_types(self):
         """测试消息类型"""
         try:
-            from shared.models import Message
+            from common.models import Message
             
             # 用户消息
             user_msg = Message(role="user", content="Test")
@@ -185,7 +185,7 @@ class TestMemoryIntegration:
     def test_memory_provider_import(self):
         """测试导入记忆提供者"""
         try:
-            from brain.memory_provider import MemoryProvider
+            from agent.memory_provider import MemoryProvider
             
             assert MemoryProvider is not None
         except ImportError:
@@ -194,7 +194,7 @@ class TestMemoryIntegration:
     def test_memory_store(self):
         """测试记忆存储"""
         try:
-            from brain.memory import Memory
+            from agent.memory_system import Memory
             
             memory = Memory()
             assert memory is not None
@@ -204,7 +204,7 @@ class TestMemoryIntegration:
     def test_memory_retrieval(self):
         """测试记忆检索"""
         try:
-            from brain.memory_provider import MemoryProvider
+            from agent.memory_provider import MemoryProvider
             
             provider = MemoryProvider()
             
@@ -224,7 +224,7 @@ class TestSessionIntegration:
     def test_session_manager_import(self):
         """测试导入会话管理器"""
         try:
-            from core.session import SessionManager
+            from agent.session import SessionManager
             
             assert SessionManager is not None
         except ImportError:
@@ -233,7 +233,7 @@ class TestSessionIntegration:
     def test_session_creation(self):
         """测试创建会话"""
         try:
-            from core.session import Session
+            from agent.session import Session
             
             session = Session()
             assert session is not None
@@ -243,7 +243,7 @@ class TestSessionIntegration:
     def test_session_id_generation(self):
         """测试会话 ID 生成"""
         try:
-            from core.session import generate_session_id
+            from agent.session import generate_session_id
             
             sid1 = generate_session_id()
             sid2 = generate_session_id()
@@ -261,7 +261,7 @@ class TestErrorHandling:
     def test_exception_hierarchy(self):
         """测试异常层次"""
         try:
-            from core.exceptions import (
+            from common.exceptions import (
                 HandsomeAgentError,
                 BrainServiceError,
                 ExecutorError,
@@ -280,7 +280,7 @@ class TestErrorHandling:
     def test_raise_custom_exception(self):
         """测试抛出自定义异常"""
         try:
-            from core.exceptions import HandsomeAgentError
+            from common.exceptions import HandsomeAgentError
             
             with pytest.raises(HandsomeAgentError):
                 raise HandsomeAgentError("Test error")
@@ -293,7 +293,7 @@ class TestLogging:
     
     def test_log_config(self):
         """测试日志配置"""
-        from shared.config import get_settings
+        from common.config import get_settings
         
         settings = get_settings()
         

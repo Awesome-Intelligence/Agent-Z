@@ -8,7 +8,7 @@
 
 ```
 docs/
-├── index.py                    # 本文档索引
+├── index.md                    # 本文档索引
 ├── CHANGELOG.md               # 变更日志
 │
 ├── architecture/               # 架构文档
@@ -22,7 +22,7 @@ docs/
 │   ├── quick-start.md           # 5分钟快速上手
 │   ├── quick-reference.md       # 命令/API 速查
 │   ├── system-design.md         # 系统设计文档
-│   ├── migration-guide.md      # 移除意图识别层迁移指南
+│   ├── migration-guide.md      # 移除意图识别层迁移指南（已废弃）
 │   ├── api-reference.md        # 完整 API 文档
 │   ├── deployment.md            # Docker/云平台部署指南
 │   ├── mobile-integration.md    # iOS/Android/Flutter 集成
@@ -40,30 +40,22 @@ docs/
 │   └── intent-classification-config.md  # 意图识别配置（**已废弃**，仅供参考）
 │
 └── modules/                     # 模块文档
-    ├── core/                    # 核心模块
+    ├── agent/                   # Agent 模块（核心）
     │   └── README.md
-    ├── agent/                   # Agent 模块
-    │   └── README.md
-    ├── tools/                   # 工具模块
+    ├── skills/                   # 技能系统
     │   └── README.md
     ├── gateway/                 # Gateway 模块
     │   └── README.md
-    ├── lightweight/             # 轻量版模块
+    ├── executor/                # 执行层
     │   └── README.md
-    ├── plugins/                 # 插件模块
+    ├── tools/                   # 工具定义
     │   └── README.md
-    ├── advanced_reasoning/      # 高级推理模块
-    │   └── README.md
-    ├── tests/                   # 测试文档
+    ├── common/                  # 基础设施
     │   └── README.md
     ├── cli/                     # CLI 模块
     │   └── README.md
-    ├── brain/                   # Brain 模块
-    │   ├── README.md            # Brain 概述
-    │   ├── agent-loop.md        # Brain Agent（ReAct Loop）
-    │   └── skills.md            # Brain Skills（技能系统）
-    └── brain_curator/          # Curator 模块
-        └── README.md           # Curator 自我进化
+    └── tests/                   # 测试文档
+        └── README.md
 ```
 
 ---
@@ -80,9 +72,21 @@ docs/
 | 文档 | 内容 |
 |------|------|
 | [Architecture](architecture/architecture.md) | 三层架构设计（Hermes-Brain + OpenClaw-Body） |
-| [Architecture Overview](architecture/overview.md) | 轻量版架构概览 |
+| [Architecture Overview](architecture/overview.md) | 架构概览 |
+| [Restructure Plan](architecture/restructure-plan.md) | 目录结构重构计划 |
 | [LLM Tool Selection](architecture/llm-tool-selection.md) | LLM 驱动的工具选择（已废弃） |
-| [Migration Guide](guides/migration-guide.md) | 移除意图识别层迁移指南 |
+
+### 模块文档
+| 模块 | 文档 |
+|------|------|
+| [Agent](modules/agent/README.md) | Agent 核心（AgentLoop, Curator, LLM） |
+| [Skills](modules/skills/README.md) | 技能系统（匹配、加载、生命周期） |
+| [Gateway](modules/gateway/README.md) | 网关（认证、限流） |
+| [Executor](modules/executor/README.md) | 执行层（Shell/Docker） |
+| [Tools](modules/tools/README.md) | 工具定义 |
+| [Common](modules/common/README.md) | 基础设施（配置、日志、异常） |
+| [CLI](modules/cli/README.md) | 命令行界面 |
+| [Tests](modules/tests/README.md) | 测试文档 |
 
 ### 开发参考
 | 文档 | 内容 |
@@ -91,22 +95,6 @@ docs/
 | [API Reference](guides/api-reference.md) | 完整 API 文档 |
 | [Testing Summary](development/testing-summary.md) | 测试覆盖报告 |
 | [Contributing](guides/contributing.md) | 贡献指南 |
-
-### 模块文档
-| 文档 | 内容 |
-|------|------|
-| [Core Module](modules/core/README.md) | 核心模块（会话、路由、缓存） |
-| [Agent Module](modules/agent/README.md) | Agent 模块（系统提示词、决策引擎） |
-| [Tools Module](modules/tools/README.md) | 工具模块（工具注册、执行） |
-| [Brain Module](modules/brain/README.md) | Brain 模块（LLM、记忆、轨迹） |
-| [Brain Agent](modules/brain/agent-loop.md) | ReAct 模式的 Agent Loop |
-| [Brain Skills](modules/brain/skills.md) | 技能系统（匹配、加载、生命周期） |
-| [Curator Module](modules/brain_curator/README.md) | Curator 自我进化 |
-| [Gateway Module](modules/gateway/README.md) | Gateway 模块（认证、限流） |
-| [Lightweight Module](modules/lightweight/README.md) | 轻量版（<30MB，零依赖） |
-| [CLI Module](modules/cli/README.md) | CLI 终端界面 |
-| [Plugins Module](modules/plugins/README.md) | 插件系统 |
-| [Advanced Reasoning](modules/advanced_reasoning/README.md) | 高级推理模块 |
 
 ### 参考资料
 | 文档 | 内容 |
@@ -121,8 +109,8 @@ docs/
 ## 💡 快速命令
 
 ```bash
-# 轻量版
-python -m lightweight
+# CLI 交互
+python -m cli.main chat
 
 # Gateway
 python -m gateway --no-auth
@@ -131,7 +119,7 @@ python -m gateway --no-auth
 python -m gateway --api-key KEY --rate-limit 100
 
 # 运行测试
-python tests/run_all_tests.py
+python -m pytest tests/unit/ -v
 
 # 代码覆盖率
 python -m pytest tests/unit/ --cov=. --cov-report=term-missing
@@ -143,9 +131,9 @@ python -m pytest tests/unit/ --cov=. --cov-report=term-missing
 
 - [项目 README](../README.md) - 项目概览
 - [TODO.md](../TODO.md) - 开发计划
-- [编码规范](../.trae/rules/rule.md) - 编码规范文档
+- [编码规范](../.trae/rules/rule.md) - 开发规范文档
 
 ---
 
 **最后更新**: 2026-06-01
-**版本**: v2.2.0 - 文档命名统一为 kebab-case
+**版本**: v3.0.0 - 目录结构重构完成

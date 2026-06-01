@@ -122,7 +122,7 @@ class TestToolInvocation:
     
     def test_tool_call_with_invalid_name(self):
         """Test tool call with invalid tool name."""
-        from tools.schema_registry import BaseToolRegistry
+        from tools.schema_registry import SchemaRegistry as BaseToolRegistry
         
         registry = BaseToolRegistry()
         
@@ -188,7 +188,7 @@ class TestToolRegistry:
     
     def test_registry_initialization(self):
         """Test registry initialization."""
-        from tools.schema_registry import BaseToolRegistry
+        from tools.schema_registry import SchemaRegistry as BaseToolRegistry
         
         registry = BaseToolRegistry()
         
@@ -196,7 +196,7 @@ class TestToolRegistry:
     
     def test_register_tool(self):
         """Test registering a tool."""
-        from tools.schema_registry import BaseToolRegistry
+        from tools.schema_registry import SchemaRegistry as BaseToolRegistry
         
         registry = BaseToolRegistry()
         
@@ -212,7 +212,7 @@ class TestToolRegistry:
     
     def test_list_tools(self):
         """Test listing all registered tools."""
-        from tools.schema_registry import BaseToolRegistry
+        from tools.schema_registry import SchemaRegistry as BaseToolRegistry
         
         registry = BaseToolRegistry()
         
@@ -228,7 +228,7 @@ class TestToolRegistry:
     
     def test_unregister_tool(self):
         """Test unregistering a tool."""
-        from tools.schema_registry import BaseToolRegistry
+        from tools.schema_registry import SchemaRegistry as BaseToolRegistry
         
         registry = BaseToolRegistry()
         

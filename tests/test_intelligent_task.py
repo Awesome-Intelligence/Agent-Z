@@ -51,7 +51,7 @@ async def test_task_planner():
     print("测试 1: TaskPlanner - 任务规划器")
     print("=" * 60)
 
-    from core.task_planner import TaskPlanner, TaskComplexity, get_task_planner
+    from agent.task_planner import TaskPlanner, TaskComplexity, get_task_planner
 
     llm = MockLLMProvider()
     
@@ -88,7 +88,7 @@ async def test_task_middleware():
     print("测试 2: TaskPlanningMiddleware - 规划中间件")
     print("=" * 60)
 
-    from core.task_middleware import TaskPlanningMiddleware, IntelligentTaskAgent
+    from agent.task_middleware import TaskPlanningMiddleware, IntelligentTaskAgent
 
     llm = MockLLMProvider()
     
@@ -131,7 +131,7 @@ async def test_intelligent_agent():
     print("测试 3: IntelligentTaskAgent - 智能任务 Agent")
     print("=" * 60)
 
-    from core.task_middleware import IntelligentTaskAgent
+    from agent.task_middleware import IntelligentTaskAgent
 
     llm = MockLLMProvider()
     
@@ -173,7 +173,7 @@ async def test_agent_integration():
     print("测试 4: Agent 集成 - 复杂任务自动规划")
     print("=" * 60)
 
-    from core.agent import CustomAgent, AgentConfig
+    from agent.agent import CustomAgent, AgentConfig
 
     llm = MockLLMProvider()
     

@@ -51,7 +51,7 @@ class TestSkillLoader:
                 json.dump(skill_data, f)
             
             # Load skill
-            from brain.skills.loader import SkillLoader
+            from skills.loader import SkillLoader
             loader = SkillLoader(skills_dir=str(skills_dir))
             skill = loader.load_skill("test_skill")
             
@@ -62,7 +62,7 @@ class TestSkillLoader:
     def test_load_nonexistent_skill(self):
         """Test loading a skill that doesn't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            from brain.skills.loader import SkillLoader
+            from skills.loader import SkillLoader
             loader = SkillLoader(skills_dir=tmpdir)
             
             skill = loader.load_skill("nonexistent_skill")
@@ -80,7 +80,7 @@ class TestSkillLoader:
                 with open(skill_file, 'w') as f:
                     json.dump({"name": skill_name}, f)
             
-            from brain.skills.loader import SkillLoader
+            from skills.loader import SkillLoader
             loader = SkillLoader(skills_dir=str(skills_dir))
             skills = loader.list_skills()
             
@@ -100,7 +100,7 @@ class TestSkillLoader:
             with open(skill_file, 'w') as f:
                 json.dump(skill_data, f)
             
-            from brain.skills.loader import SkillLoader
+            from skills.loader import SkillLoader
             loader = SkillLoader(skills_dir=str(skills_dir))
             
             # First load
@@ -122,7 +122,7 @@ class TestSkillMatcher:
     
     def test_skill_matcher_initialization(self):
         """Test initializing skill matcher."""
-        from brain.skills.matcher import SkillMatcher
+        from skills.matcher import SkillMatcher
         
         matcher = SkillMatcher()
         
@@ -130,7 +130,7 @@ class TestSkillMatcher:
     
     def test_match_by_keyword(self):
         """Test matching skills by keyword."""
-        from brain.skills.matcher import SkillMatcher
+        from skills.matcher import SkillMatcher
         
         matcher = SkillMatcher()
         
@@ -155,7 +155,7 @@ class TestSkillMatcher:
     
     def test_match_by_triggers(self):
         """Test matching skills by triggers."""
-        from brain.skills.matcher import SkillMatcher
+        from skills.matcher import SkillMatcher
         
         matcher = SkillMatcher()
         
@@ -173,7 +173,7 @@ class TestSkillMatcher:
     
     def test_match_confidence_score(self):
         """Test match confidence scoring."""
-        from brain.skills.matcher import SkillMatcher
+        from skills.matcher import SkillMatcher
         
         matcher = SkillMatcher()
         
@@ -204,7 +204,7 @@ class TestSkillMatcher:
     
     def test_no_match(self):
         """Test when no skill matches."""
-        from brain.skills.matcher import SkillMatcher
+        from skills.matcher import SkillMatcher
         
         matcher = SkillMatcher()
         
@@ -227,7 +227,7 @@ class TestSkillRegistry:
     
     def test_registry_initialization(self):
         """Test initializing skill registry."""
-        from brain.skills.registry import SkillRegistry
+        from skills.registry import SkillRegistry
         
         registry = SkillRegistry()
         
@@ -236,7 +236,7 @@ class TestSkillRegistry:
     
     def test_register_skill(self):
         """Test registering a skill."""
-        from brain.skills.registry import SkillRegistry
+        from skills.registry import SkillRegistry
         
         registry = SkillRegistry()
         
@@ -253,7 +253,7 @@ class TestSkillRegistry:
     
     def test_unregister_skill(self):
         """Test unregistering a skill."""
-        from brain.skills.registry import SkillRegistry
+        from skills.registry import SkillRegistry
         
         registry = SkillRegistry()
         
@@ -268,7 +268,7 @@ class TestSkillRegistry:
     
     def test_get_all_skills(self):
         """Test getting all registered skills."""
-        from brain.skills.registry import SkillRegistry
+        from skills.registry import SkillRegistry
         
         registry = SkillRegistry()
         
@@ -286,7 +286,7 @@ class TestSkillRegistry:
     
     def test_search_skills(self):
         """Test searching skills by query."""
-        from brain.skills.registry import SkillRegistry
+        from skills.registry import SkillRegistry
         
         registry = SkillRegistry()
         
@@ -310,7 +310,7 @@ class TestSkillRegistry:
     
     def test_enable_disable_skill(self):
         """Test enabling and disabling skills."""
-        from brain.skills.registry import SkillRegistry
+        from skills.registry import SkillRegistry
         
         registry = SkillRegistry()
         
@@ -326,7 +326,7 @@ class TestSkillRegistry:
     
     def test_skill_priority(self):
         """Test skill priority ordering."""
-        from brain.skills.registry import SkillRegistry
+        from skills.registry import SkillRegistry
         
         registry = SkillRegistry()
         

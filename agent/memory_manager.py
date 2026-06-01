@@ -9,7 +9,8 @@ retrieving, and reflecting on memories.
 
 from typing import List, Dict, Optional, Any
 from .memory_provider import BaseMemoryProvider, MemoryItem
-import logging
+
+from common.logging_manager import get_decision_logger
 
 
 class MemoryManager:
@@ -25,7 +26,7 @@ class MemoryManager:
     
     def __init__(self, provider: BaseMemoryProvider):
         self.provider = provider
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = get_decision_logger(self.__class__.__name__)
     
     async def add_memory(self, session_id: str, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """

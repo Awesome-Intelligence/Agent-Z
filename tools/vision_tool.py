@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Vision Tool Module - 视觉工具
+Vision Tool Module
 
-提供图像处理功能：
-- 图像分析和描述
-- OCR 文字识别
-- 图像内容理解
+Provides image processing functionality:
+- Image analysis and description
+- OCR text recognition
+- Image content understanding
 
-参考 Hermes Agent 的 vision_tools.py 实现。
+Based on Hermes Agent's vision_tools.py implementation.
 
 Usage:
     from tools.vision_tool import analyze_image, extract_text
@@ -15,13 +15,13 @@ Usage:
 
 import base64
 import json
-import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from common.logging_manager import get_execution_logger
 from tools.registry import registry
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("VisionTool")
 
 
 def _encode_image(image_path: str) -> Optional[str]:

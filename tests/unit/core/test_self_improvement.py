@@ -3,8 +3,8 @@ import pytest
 import tempfile
 import os
 from unittest.mock import Mock
-from core.self_improvement import SelfImprovementEngine
-from core.trajectory_recorder import TrajectoryRecorder
+from agent.self_improvement import SelfImprovementEngine
+from agent.trajectory_recorder import TrajectoryRecorder
 
 
 class TestSelfImprovementEngine:

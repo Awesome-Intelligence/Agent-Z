@@ -577,7 +577,7 @@ def print_banner():
     print(f"{Theme.BORDER}│{Colors.RESET}{' ' * (max_width - 2)}{Theme.BORDER}│{Colors.RESET}")
 
     # 获取国际化副标题
-    from core.i18n import get_i18n
+    from common.i18n import get_i18n
     i18n = get_i18n()
     subtitle = i18n.t("subtitle")
     sub_len = len(subtitle)

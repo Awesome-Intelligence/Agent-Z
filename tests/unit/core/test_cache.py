@@ -7,8 +7,8 @@ These tests cover LRU cache implementation and cache key generation.
 """
 
 import unittest
-from core.cache import LRUCache, create_cache_key, hash_config
-from core import AgentConfig
+from common.cache import LRUCache, create_cache_key, hash_config
+from agent.agent import AgentConfig
 
 
 class TestLRUCache(unittest.TestCase):

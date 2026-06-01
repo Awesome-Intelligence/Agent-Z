@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """
-Approval Tool Module - 审批工具
+Approval Tool Module
 
-提供请求用户审批的功能，用于危险操作。
+Provides functionality for requesting user approval for dangerous operations.
 
-参考 Hermes Agent 的 approval_tool.py 实现。
+Based on Hermes Agent's approval_tool.py implementation.
 """
 
 import json
-import logging
 from typing import Dict, Any, Optional
+
+from common.logging_manager import get_execution_logger
 from tools.registry import registry
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("ApprovalTool")
 
 
 def request_approval(

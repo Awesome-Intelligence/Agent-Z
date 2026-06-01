@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-应用程序启动工具 - 提供打开计算器、浏览器等应用程序的功能。
+Application Launcher Tool - Provides functionality to open calculator, browser, etc.
 
-参考 Hermes Agent 的实现。
+Based on Hermes Agent implementation.
 """
 
 import json
 import platform
 import subprocess
 import os
-import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 from tools.registry import registry
+from common.logging_manager import get_execution_logger
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("AppLauncher")
 
 
 # 常见应用程序的Windows路径

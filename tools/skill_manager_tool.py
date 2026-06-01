@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 """
-Skill Manager Tool Module - 技能管理工具
+Skill Manager Tool Module
 
-提供技能注册、发现和执行功能：
-- 技能注册和发现
-- 技能执行接口
-- 技能元数据管理
+Provides skill registration, discovery and execution functionality:
+- Skill registration and discovery
+- Skill execution interface
+- Skill metadata management
 
-参考 Hermes Agent 的 skill_manager_tool.py 和 skills_tool.py 实现。
+Based on Hermes Agent's skill_manager_tool.py and skills_tool.py implementation.
 
 Usage:
     from tools.skill_manager_tool import skill_manage, skills_list, skill_view
 """
 
 import json
-import logging
 import os
 import re
 import shutil
@@ -22,17 +21,18 @@ import tempfile
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
+from common.logging_manager import get_execution_logger
 from tools.registry import registry
 
 
 def tool_error(message: str, success: bool = False) -> str:
-    """简单的工具错误响应函数"""
+    """Simple tool error response function"""
     return json.dumps({
         "success": success,
         "error": message
     }, ensure_ascii=False)
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("SkillManagerTool")
 
 # 技能目录
 def get_skills_dir() -> Path:

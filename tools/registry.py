@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Tool Registry Module - 工具注册表
+Tool Registry Module
 
-中央工具注册表，管理所有可用工具的元数据。
-参考 Hermes Agent 的 registry.py 实现。
+Central tool registry for managing metadata of all available tools.
+Based on Hermes Agent registry.py implementation.
 
-功能：
-- 工具自动发现和注册
-- 工具元数据管理
-- 工具可用性检查（带缓存）
-- 动态模式覆盖支持
+Features:
+- Automatic tool discovery and registration
+- Tool metadata management
+- Tool availability checking (with caching)
+- Dynamic schema override support
 
 Import chain (circular-import safe):
     tools/registry.py  (no imports from model_tools or tool files)
@@ -23,25 +23,26 @@ Import chain (circular-import safe):
 Usage:
     from tools.registry import registry, ToolEntry, discover_builtin_tools
     
-    # 获取所有已注册工具
+    # Get all registered tools
     tools = registry.get_all_tools()
     
-    # 获取工具定义（用于 LLM）
+    # Get tool definitions (for LLM)
     definitions = registry.get_definitions()
     
-    # 执行工具
+    # Execute tool
     result = await registry.execute("tool_name", parameters)
 """
 import ast
 import importlib
 import json
-import logging
 import threading
 import time
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Set, Any
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_execution_logger
+
+logger = get_execution_logger("ToolRegistry")
 
 
 def _is_registry_register_call(node: ast.AST) -> bool:

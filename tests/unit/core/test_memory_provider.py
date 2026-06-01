@@ -1,6 +1,6 @@
 """测试记忆提供者基类"""
 import pytest
-from core.memory_provider import MemoryProvider
+from agent.memory_provider import BaseMemoryProvider
 
 
 class TestMemoryProvider:
@@ -8,7 +8,7 @@ class TestMemoryProvider:
 
     def test_is_available_raises(self):
         """测试 is_available 方法必须被实现"""
-        class MockProvider(MemoryProvider):
+        class MockProvider(BaseMemoryProvider):
             @property
             def name(self):
                 return "mock"

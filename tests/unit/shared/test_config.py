@@ -19,7 +19,7 @@ class TestSettings:
     
     def test_default_settings(self):
         """Test default settings values."""
-        from shared.config import Settings
+        from common.config import Settings
         
         settings = Settings()
         
@@ -51,7 +51,7 @@ class TestSettings:
     
     def test_get_settings_singleton(self):
         """Test that get_settings returns cached singleton."""
-        from shared.config import get_settings
+        from common.config import get_settings
         
         settings1 = get_settings()
         settings2 = get_settings()
@@ -60,7 +60,7 @@ class TestSettings:
     
     def test_allowed_commands_default(self):
         """Test default allowed commands list."""
-        from shared.config import Settings
+        from common.config import Settings
         
         settings = Settings()
         
@@ -71,7 +71,7 @@ class TestSettings:
     
     def test_blocked_patterns_default(self):
         """Test default blocked patterns list."""
-        from shared.config import Settings
+        from common.config import Settings
         
         settings = Settings()
         
@@ -84,7 +84,7 @@ class TestWorkspaceConfiguration:
     
     def test_get_default_handsome_home(self):
         """Test default handsome home directory."""
-        from shared.config import get_default_handsome_home, HANDSOME_HOME
+        from common.config import get_default_handsome_home, HANDSOME_HOME
         
         default_home = get_default_handsome_home()
         
@@ -103,13 +103,13 @@ class TestWorkspaceConfiguration:
                 from shared import config
                 importlib.reload(config)
                 
-                from shared.config import HANDSOME_HOME
+                from common.config import HANDSOME_HOME
                 
                 assert str(HANDSOME_HOME) == str(custom_home)
     
     def test_get_sessions_dir(self):
         """Test sessions directory path."""
-        from shared.config import get_sessions_dir, HANDSOME_HOME
+        from common.config import get_sessions_dir, HANDSOME_HOME
         
         sessions_dir = get_sessions_dir()
         
@@ -117,7 +117,7 @@ class TestWorkspaceConfiguration:
     
     def test_get_memories_dir(self):
         """Test memories directory path."""
-        from shared.config import get_memories_dir, HANDSOME_HOME
+        from common.config import get_memories_dir, HANDSOME_HOME
         
         memories_dir = get_memories_dir()
         
@@ -125,7 +125,7 @@ class TestWorkspaceConfiguration:
     
     def test_get_logs_dir(self):
         """Test logs directory path."""
-        from shared.config import get_logs_dir, HANDSOME_HOME
+        from common.config import get_logs_dir, HANDSOME_HOME
         
         logs_dir = get_logs_dir()
         
@@ -133,7 +133,7 @@ class TestWorkspaceConfiguration:
     
     def test_get_config_dir(self):
         """Test config directory path."""
-        from shared.config import get_config_dir, HANDSOME_HOME
+        from common.config import get_config_dir, HANDSOME_HOME
         
         config_dir = get_config_dir()
         
@@ -154,7 +154,7 @@ class TestEnsureWorkspaceDirs:
                 from shared import config
                 importlib.reload(config)
                 
-                from shared.config import ensure_workspace_dirs, get_sessions_dir, get_memories_dir
+                from common.config import ensure_workspace_dirs, get_sessions_dir, get_memories_dir
                 
                 ensure_workspace_dirs()
                 
@@ -172,7 +172,7 @@ class TestEnsureWorkspaceDirs:
                 from shared import config
                 importlib.reload(config)
                 
-                from shared.config import ensure_workspace_dirs
+                from common.config import ensure_workspace_dirs
                 
                 # First call
                 ensure_workspace_dirs()
@@ -188,7 +188,7 @@ class TestDatabasePath:
     
     def test_default_db_path(self):
         """Test default database path."""
-        from shared.config import Settings, HANDSOME_HOME
+        from common.config import Settings, HANDSOME_HOME
         
         settings = Settings()
         
@@ -198,7 +198,7 @@ class TestDatabasePath:
     def test_custom_db_path(self):
         """Test custom database path."""
         # This test verifies db_path is constructed from HANDSOME_HOME
-        from shared.config import Settings, HANDSOME_HOME
+        from common.config import Settings, HANDSOME_HOME
         
         settings = Settings()
         

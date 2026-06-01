@@ -10,7 +10,8 @@ context compression, summarization, and retrieval.
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
-import logging
+
+from common.logging_manager import get_decision_logger
 
 
 @dataclass
@@ -93,7 +94,7 @@ class SimpleContextEngine(ContextEngine):
     
     def __init__(self):
         self.messages: List[ContextMessage] = []
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = get_decision_logger(self.__class__.__name__)
     
     def compress(self, messages: List[ContextMessage], max_tokens: int) -> List[ContextMessage]:
         """Return messages as-is without compression."""
@@ -136,7 +137,7 @@ class TruncatingContextEngine(ContextEngine):
     def __init__(self, default_max_tokens: int = 8192):
         self.messages: List[ContextMessage] = []
         self.default_max_tokens = default_max_tokens
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = get_decision_logger(self.__class__.__name__)
     
     def _count_tokens(self, messages: List[ContextMessage]) -> int:
         """Count total tokens in messages."""

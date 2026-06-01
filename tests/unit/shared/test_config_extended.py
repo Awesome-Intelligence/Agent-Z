@@ -3,7 +3,7 @@ import pytest
 import os
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from shared.config import (
+from common.config import (
     Settings,
     LLMProviderConfig,
     ModelConfig,
