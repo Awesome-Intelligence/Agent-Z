@@ -215,9 +215,9 @@ pytest -k "not slow" -v
 
 ## 📚 更多资源
 
-- [DESIGN.md](DESIGN.md) - 系统设计文档
-- [STATE_OF_ART.md](STATE_OF_ART.md) - 业界最佳实践
-- [REFERENCES.md](REFERENCES.md) - 参考项目
+- [System Design](system-design.md) - 系统设计文档
+- [State of Art Research](../../references/state-of-art-research.md) - 业界最佳实践
+- [Acknowledgements](../../references/acknowledgements.md) - 参考项目
 - [lightweight/DESIGN.md](lightweight/DESIGN.md) - 轻量版设计
 - [gateway/DESIGN.md](gateway/DESIGN.md) - 网关设计
 
