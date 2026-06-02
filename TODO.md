@@ -27,7 +27,62 @@ jiuwenswarm 的 Rail 机制：
 - [ ] **jiuwen的todo能力是不是也可以作为一个子层**
 - [ ] 可以让agent持续不断地思考，像人一样（让用户配置一个便宜的小模型，或者本地的模型）**
 
-### 🟡 中优先级
+### � 循环流程完善（对齐 Hermes）
+
+> 参考 Hermes `agent/conversation_loop.py` 的完整循环实现
+
+#### 🔴 高优先级 - 核心循环机制
+
+- [ ] **实现循环机制**
+  - [ ] 将单次 `engine.process()` 改为 `while` 循环
+  - [ ] 支持多轮工具调用直到任务完成
+  - [ ] 循环条件：`api_call_count < max_iterations and iteration_budget.remaining > 0`
+
+- [ ] **迭代预算控制 (IterationBudget)**
+  - [ ] 创建 `IterationBudget` 类
+  - [ ] 控制最大迭代次数，防止无限循环
+  - [ ] 支持 grace call（预算耗尽后给一次额外机会）
+
+- [ ] **中断处理机制**
+  - [ ] 实现 `interrupt_requested` 检查
+  - [ ] 支持用户中断正在执行的 Agent
+  - [ ] 中断后优雅退出循环
+
+#### 🟡 中优先级 - 错误处理与优化
+
+- [ ] **上下文压缩 (Context Compression)**
+  - [ ] Preflight compression：对话前检查是否超限
+  - [ ] 循环内压缩：压缩过长的对话历史
+  - [ ] `estimate_request_tokens_rough()` 估算 token 数量
+
+- [ ] **重试机制**
+  - [ ] `invalid_tool_retries`：工具调用失败重试
+  - [ ] `invalid_json_retries`：JSON 解析失败重试
+  - [ ] `empty_content_retries`：空响应重试
+  - [ ] `incomplete_scratchpad_retries`：不完整思考重试
+
+- [ ] **并发工具执行**
+  - [ ] 实现 `execute_tool_calls_concurrent()`
+  - [ ] 多个不相关工具并行执行
+  - [ ] 工具延迟 (`tool_delay`) 配置
+
+#### 🟢 低优先级 - 高级功能
+
+- [ ] **外部内存预取**
+  - [ ] `MemoryManager.prefetch_all()` 在工具执行前预取
+  - [ ] 缓存预取结果避免重复调用
+
+- [ ] **插件系统**
+  - [ ] `pre_llm_call` 钩子：LLM 调用前处理
+  - [ ] `on_session_end` 钩子：会话结束处理
+  - [ ] 插件上下文注入
+
+- [ ] **技能/记忆 Nudge**
+  - [ ] `skill_nudge_interval`：周期性提示更新技能
+  - [ ] `memory_nudge_interval`：周期性提示更新记忆
+  - [ ] Background Review：后台异步执行
+
+### � 中优先级
 
 - [ ] setup里的选项内容排序，emoj、排版、高度太低
 
@@ -140,4 +195,7 @@ pytest tests/unit/ -v
 
 ---
 
-*最后更新: 2026-06-01 - v3.0.0 目录结构重构完成*
+
+
+
+*最后更新: 2026-06-02 - 增加 Hermes 循环流程对齐任务*

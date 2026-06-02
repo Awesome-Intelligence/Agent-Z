@@ -25,12 +25,13 @@ from tools.integrated_tools import (
     initialize_tools
 )
 from common.logging_manager import (
-    get_access_logger,
     get_decision_logger,
-    get_execution_logger,
     get_llm_logger,
-    get_tool_logger
+    set_log_level,
 )
+
+from agent.curator.trajectory_recorder import TrajectoryRecorder
+from agent.curator import Curator, SkillWriter
 
 
 class ActionType(Enum):
@@ -69,7 +70,9 @@ class Agent:
         llm_provider=None,
         enable_session: bool = True,
         session_id: Optional[str] = None,
-        force_new_session: bool = False
+        force_new_session: bool = False,
+        enable_curator: bool = True,
+        debug_logs: bool = False
     ):
         """
         Args:
@@ -77,17 +80,23 @@ class Agent:
             enable_session: Enable session management
             session_id: Session ID (if resuming session). Use "last" for latest session
             force_new_session: Force create a new session even if today's session exists
+            enable_curator: Enable Curator for self-improvement
+            debug_logs: Enable DEBUG level logging for Trajectory and Curator
         """
+        if debug_logs:
+            set_log_level("detailed")
+            logging.getLogger("TrajectoryRecorder").setLevel(logging.DEBUG)
+            logging.getLogger("Curator").setLevel(logging.DEBUG)
+        
         httpx_logger = logging.getLogger("httpx")
         httpx_logger.setLevel(logging.WARNING)
         
         self.llm_provider = llm_provider
         self.enable_session = enable_session
+        self.enable_curator = enable_curator
         
-        self._access_logger = get_access_logger("Agent")
         self._decision_logger = get_decision_logger("Agent")
-        self._execution_logger = get_execution_logger("Agent")
-        self._tool_logger = get_tool_logger("Agent")
+        self._llm_logger = get_llm_logger("Agent")
         
         self.engine = get_integrated_engine(llm_provider=llm_provider)
         
@@ -96,12 +105,64 @@ class Agent:
             if session_id == "last" or session_id is None and not force_new_session:
                 self._session = session_manager.get_or_create_today_session()
                 if session_manager.get_latest_today_session():
-                    self._access_logger.info(f"Continuing today's session: {self._session.session_id}")
+                    self._decision_logger.info(f"Continuing today's session: {self._session.session_id}")
                 else:
-                    self._access_logger.info(f"Created new session: {self._session.session_id}")
+                    self._decision_logger.info(f"Created new session: {self._session.session_id}")
             else:
                 self._session = session_manager.create_session(session_id)
-                self._access_logger.info(f"Resumed session: {session_id}")
+                self._decision_logger.info(f"Resumed session: {session_id}")
+        
+        self._init_trajectory_and_curator()
+    
+    def _init_trajectory_and_curator(self):
+        """初始化 TrajectoryRecorder 和 Curator"""
+        self._trajectory_recorder = TrajectoryRecorder()
+        
+        session_id = self._session.session_id if self._session else "default"
+        self._trajectory_recorder.initialize(session_id)
+        
+        self._curator = None
+        if self.enable_curator:
+            try:
+                self._curator = Curator(
+                    trajectory_recorder=self._trajectory_recorder,
+                    skill_writer=SkillWriter(),
+                    enable_auto_learn=True
+                )
+                self._decision_logger.info("Curator enabled for self-improvement")
+            except Exception as e:
+                self._decision_logger.warning(f"Failed to initialize Curator: {e}")
+    
+    async def _process_trajectory_async(self, response: AgentResponse):
+        """异步处理轨迹（让 Curator 分析）"""
+        trajectory_metadata = {
+            'trajectory_id': f"traj_{self._session.session_id if self._session else 'unknown'}",
+            'session_id': self._session.session_id if self._session else 'unknown',
+            'confidence_score': response.confidence_score,
+            'execution_time': response.execution_time,
+            'success': response.confidence_score > 0.5,
+            'tool_used': response.tool_used,
+        }
+        
+        if self._curator and self.enable_curator:
+            try:
+                trajectory = self._trajectory_recorder.get_trajectory()
+                if trajectory:
+                    result = await self._curator.process_trajectory({
+                        **trajectory_metadata,
+                        'trajectory': trajectory,
+                    })
+                    trajectory_metadata['curator_result'] = {
+                        'skill_synthesized': result is not None,
+                        'skill_name': result.name if result else None,
+                    }
+                    self._decision_logger.debug("Trajectory processed by Curator")
+            except Exception as e:
+                self._decision_logger.warning(f"Failed to process trajectory with Curator: {e}")
+                trajectory_metadata['curator_error'] = str(e)
+        
+        self._trajectory_recorder.save_trajectory(metadata=trajectory_metadata)
+        self._decision_logger.debug(f"Trajectory saved to {self._trajectory_recorder._save_path}")
     
     async def _should_use_react(self, user_input: str) -> bool:
         """
@@ -166,7 +227,7 @@ Respond with ONLY the JSON object."""
         from agent.react import ReActLoop, ReActContext
         from agent.rails import get_rail_manager, TaskEventRail
         
-        self._access_logger.info(f"[/✅Task] 使用 ReAct 模式")
+        self._decision_logger.info(f"[/✅Task] 使用 ReAct 模式")
         
         session_id = self._session.session_id if self._session else "default"
         
@@ -204,7 +265,7 @@ Respond with ONLY the JSON object."""
         if isinstance(final_result, dict):
             final_result = json.dumps(final_result, ensure_ascii=False)
         
-        self._access_logger.info(
+        self._decision_logger.info(
             f"[/✅Task] ReAct 完成，迭代 {iterations} 次"
         )
         
@@ -261,7 +322,9 @@ Respond with ONLY the JSON object."""
         import time
         start_time = time.time()
         
-        self._access_logger.info(f"User input: {user_input[:50]}...")
+        self._decision_logger.info(f"User input: {user_input[:50]}...")
+        
+        self._trajectory_recorder.add_human_message(user_input)
         
         history = conversation_history
         if not history and self._session:
@@ -283,7 +346,17 @@ Respond with ONLY the JSON object."""
             tool_name = result['tool']
             tool_result = result['result']
             
-            self._tool_logger.info(f"Executed tool: {tool_name}")
+            self._decision_logger.info(f"Executed tool: {tool_name}")
+            
+            self._trajectory_recorder.add_tool_call(
+                tool_name=tool_name,
+                arguments=result.get('parameters', {}),
+                reasoning=result.get('reasoning', '')
+            )
+            self._trajectory_recorder.add_tool_response(
+                tool_name=tool_name,
+                content=tool_result
+            )
             
             if self.llm_provider:
                 final_response = await self._summarize_with_llm(
@@ -343,9 +416,13 @@ Respond with ONLY the JSON object."""
         if self._session:
             self._session.add_message('assistant', final_response)
         
+        self._trajectory_recorder.add_gpt_message(final_response)
+        
         response_obj.execution_time = time.time() - start_time
         
-        self._access_logger.info(f"Response generated in {response_obj.execution_time:.2f}s")
+        self._decision_logger.info(f"Response generated in {response_obj.execution_time:.2f}s")
+        
+        await self._process_trajectory_async(response_obj)
         
         return response_obj
     

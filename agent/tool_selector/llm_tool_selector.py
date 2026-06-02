@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from common.logging_manager import get_decision_logger, get_execution_logger, get_llm_logger
+from common.logging_manager import get_decision_logger, get_llm_logger
 
 
 @dataclass
@@ -535,7 +535,7 @@ class ToolExecutionEngine:
 
     def __init__(self):
         self.tools: Dict[str, ToolDefinition] = {}
-        self.logger = get_execution_logger(self.__class__.__name__)
+        self.logger = get_decision_logger(self.__class__.__name__, sublayer="tool_select")
 
     def register_tool(self, tool: ToolDefinition):
         """注册工具及其处理器"""

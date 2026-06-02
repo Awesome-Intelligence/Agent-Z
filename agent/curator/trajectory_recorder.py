@@ -35,7 +35,7 @@ class TrajectoryRecorder:
         self._save_path: str = ""
         self._enabled: bool = True
 
-    def initialize(self, session_id: str, save_path: str = "~/.handsome-agent/trajectories"):
+    def initialize(self, session_id: str, save_path: str = "~/.handsome_agent/trajectories"):
         """初始化轨迹记录器"""
         self._current_session_id = session_id
         self._save_path = os.path.expanduser(save_path)
@@ -112,8 +112,13 @@ class TrajectoryRecorder:
         """获取当前轨迹"""
         return self._trajectories.copy()
 
-    def save_trajectory(self, filename: Optional[str] = None) -> str:
-        """保存轨迹到文件"""
+    def save_trajectory(self, filename: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> str:
+        """保存轨迹到文件
+        
+        Args:
+            filename: 文件名（可选，默认自动生成）
+            metadata: 元数据（包含 confidence_score、execution_time 等）
+        """
         if not self._trajectories:
             logger.warning("No trajectory to save")
             return ""
@@ -126,6 +131,14 @@ class TrajectoryRecorder:
         
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
+                if metadata:
+                    metadata_entry = {
+                        "_type": "metadata",
+                        "timestamp": time.time(),
+                        **metadata
+                    }
+                    f.write(json.dumps(metadata_entry, ensure_ascii=False) + "\n")
+                
                 for entry in self._trajectories:
                     f.write(json.dumps(entry, ensure_ascii=False) + "\n")
             

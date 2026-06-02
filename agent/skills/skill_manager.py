@@ -51,7 +51,7 @@ try:
 except ImportError:
     YAML_AVAILABLE = False
 
-from common.logging_manager import get_decision_logger, get_execution_logger
+from common.logging_manager import get_decision_logger
 
 
 @dataclass
@@ -162,8 +162,6 @@ class SkillManager:
         self.skill_paths: Dict[str, str] = {}  # skill_id -> directory path
         self._explanation_depth = explanation_depth
         self._decision_logger = get_decision_logger("SkillManager")
-        self._execution_logger = get_execution_logger("SkillManager")
-        self._detailed_logger = get_execution_logger("SkillManager")
         
         # 渐进式发现相关
         self._skill_usage_history: List[Dict[str, Any]] = []
@@ -533,16 +531,13 @@ class SkillManager:
     
     async def execute_skill(self, skill_id: str, **kwargs) -> SkillResult:
         """Execute a skill by ID."""
-        decision = self._decision_logger
-        execution = self._execution_logger
-        
         if self._explanation_depth == 'detailed':
-            execution.debug(f"execute_skill() 尝试执行技能: {skill_id}")
+            self._decision_logger.debug(f"execute_skill() 尝试执行技能: {skill_id}")
         
         skill = self.get_skill(skill_id)
         
         if not skill:
-            execution.warning(f"技能未找到: {skill_id}")
+            self._decision_logger.warning(f"技能未找到: {skill_id}")
             return SkillResult(
                 success=False,
                 output="",
@@ -554,7 +549,7 @@ class SkillManager:
         
         if not skill.validate_parameters(**kwargs):
             required_params = [p.name for p in metadata.parameters if p.required]
-            execution.warning(f"{skill_class}.validate_parameters() 失败，缺少必需参数: {', '.join(required_params)}")
+            self._decision_logger.warning(f"{skill_class}.validate_parameters() 失败，缺少必需参数: {', '.join(required_params)}")
             return SkillResult(
                 success=False,
                 output="",
@@ -562,8 +557,8 @@ class SkillManager:
             )
         
         if self._explanation_depth == 'detailed':
-            execution.debug(f"{skill_class}.validate_parameters() 验证通过")
-            execution.debug(f"{skill_class}.execute() 开始执行...")
+            self._decision_logger.debug(f"{skill_class}.validate_parameters() 验证通过")
+            self._decision_logger.debug(f"{skill_class}.execute() 开始执行...")
         
         try:
             result = await skill.execute(**kwargs)
@@ -572,16 +567,16 @@ class SkillManager:
             
             if result.success:
                 if self._explanation_depth == 'detailed':
-                    execution.debug(f"{skill_class}.execute() 执行成功")
-                decision.summary(f"✅ 技能 {skill_class} 执行成功")
+                    self._decision_logger.debug(f"{skill_class}.execute() 执行成功")
+                self._decision_logger.summary(f"✅ 技能 {skill_class} 执行成功")
             else:
-                decision.warning(f"{skill_class}.execute() 执行失败: {result.error}")
+                self._decision_logger.warning(f"{skill_class}.execute() 执行失败: {result.error}")
             
             return result
             
         except Exception as e:
             self.record_usage(skill_id, False)
-            decision.error(f"{skill_class}.execute() 执行异常: {str(e)}")
+            self._decision_logger.error(f"{skill_class}.execute() 执行异常: {str(e)}")
             return SkillResult(
                 success=False,
                 output="",

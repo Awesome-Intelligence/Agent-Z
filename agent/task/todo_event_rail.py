@@ -17,8 +17,8 @@ from typing import Dict, Any, Optional, Callable, List
 from datetime import datetime
 from enum import Enum
 
-from common.logging_manager import get_tool_logger, get_task_logger
-from agent.todo_toolkit import (
+from common.logging_manager import get_task_logger
+from .todo_toolkit import (
     TodoToolkit, TaskEvent, TaskEventLog, 
     TaskStatus, get_todo_toolkit
 )
@@ -50,8 +50,7 @@ class TaskEventRail:
     
     def __init__(self, session_id: str):
         self.session_id = session_id
-        self._logger = get_tool_logger("TaskEventRail")
-        self._task_logger = get_task_logger("TaskEvent")
+        self._task_logger = get_task_logger("TaskEventRail")
         
         self._event_log = TaskEventLog(session_id)
         self._toolkit = get_todo_toolkit(session_id)
@@ -84,7 +83,7 @@ class TaskEventRail:
     
     def pause(self) -> None:
         """暂停任务执行"""
-        self._logger.info(f"📋 [任务层] 任务执行已暂停")
+        self._task_logger.info(f"📋 [任务层] 任务执行已暂停")
         self._get_pause_event(self.session_id).clear()
         self._log_event(TaskEvent(
             event_type="agent.paused",
@@ -93,7 +92,7 @@ class TaskEventRail:
     
     def resume(self) -> None:
         """恢复任务执行"""
-        self._logger.info(f"📋 [任务层] 任务执行已恢复")
+        self._task_logger.info(f"📋 [任务层] 任务执行已恢复")
         self._set_abort_flag(self.session_id, False)
         self._get_pause_event(self.session_id).set()
         self._log_event(TaskEvent(
@@ -103,7 +102,7 @@ class TaskEventRail:
     
     def abort(self) -> None:
         """中止任务执行（不可恢复）"""
-        self._logger.warning(f"📋 [任务层] 任务执行已被中止")
+        self._task_logger.warning(f"📋 [任务层] 任务执行已被中止")
         self._set_abort_flag(self.session_id, True)
         self._get_pause_event(self.session_id).set()
         self._log_event(TaskEvent(
@@ -125,7 +124,7 @@ class TaskEventRail:
         await pause_event.wait()
         
         if self._get_abort_flag(self.session_id):
-            self._logger.warning(f"📋 [任务层] 检测到中止请求，正在终止...")
+            self._task_logger.warning(f"📋 [任务层] 检测到中止请求，正在终止...")
             raise asyncio.CancelledError("Agent abort requested")
     
     def _log_event(self, event: TaskEvent) -> None:
@@ -135,7 +134,7 @@ class TaskEventRail:
     def log_tool_call(self, tool_name: str, args: Dict[str, Any]) -> None:
         """记录工具调用"""
         if self._is_todo_tool(tool_name):
-            self._logger.debug(f"📋 [任务层] 工具调用: {tool_name}({args})")
+            self._task_logger.debug(f"📋 [任务层] 工具调用: {tool_name}({args})")
             
             event_type = self._get_todo_event_type(tool_name)
             self._log_event(TaskEvent(
@@ -147,7 +146,7 @@ class TaskEventRail:
     def log_tool_result(self, tool_name: str, result: Any) -> None:
         """记录工具结果"""
         if self._is_todo_tool(tool_name):
-            self._logger.debug(f"📋 [任务层] 工具结果: {tool_name} -> {str(result)[:100]}")
+            self._task_logger.debug(f"📋 [任务层] 工具结果: {tool_name} -> {str(result)[:100]}")
             
             event_type = self._get_todo_event_type(tool_name)
             self._log_event(TaskEvent(
@@ -245,16 +244,16 @@ class TaskCheckpoint:
     async def __aenter__(self) -> "TaskCheckpoint":
         """进入检查点"""
         self._entered = True
-        self.rail._logger.debug(f"📋 [任务层] 进入检查点: {self.checkpoint_name}")
+        self.rail._task_logger.debug(f"📋 [任务层] 进入检查点: {self.checkpoint_name}")
         await self.rail.wait_for_checkpoint()
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """退出检查点"""
         if exc_type is asyncio.CancelledError:
-            self.rail._logger.warning(f"📋 [任务层] 检查点 {self.checkpoint_name} 被中断")
+            self.rail._task_logger.warning(f"📋 [任务层] 检查点 {self.checkpoint_name} 被中断")
             raise
-        self.rail._logger.debug(f"📋 [任务层] 退出检查点: {self.checkpoint_name}")
+        self.rail._task_logger.debug(f"📋 [任务层] 退出检查点: {self.checkpoint_name}")
     
     def checkpoint(self, name: str) -> "TaskCheckpoint":
         """创建子检查点"""

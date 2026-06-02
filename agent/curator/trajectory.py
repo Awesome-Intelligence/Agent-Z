@@ -113,7 +113,9 @@ class TrajectoryManager:
     Inspired by Hermes Agent's trajectory.py
     """
     
-    def __init__(self, base_path: str = "./trajectories"):
+    def __init__(self, base_path: str = None):
+        if base_path is None:
+            base_path = os.path.join(os.path.expanduser("~"), ".handsome_agent", "trajectories")
         self.base_path = base_path
         os.makedirs(base_path, exist_ok=True)
     

@@ -1,5 +1,5 @@
 """brain.curator - 后处理层模块"""
-from agent.trajectory import TrajectoryStatus
+from .trajectory import TrajectoryStatus
 from .evaluator import TrajectoryEvaluator, TrajectoryStep, EvaluationReport, EvaluationResult
 from .synthesizer import SkillSynthesizer, SynthesizedSkill
 from .writer import SkillWriter
