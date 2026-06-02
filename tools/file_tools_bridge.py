@@ -4,6 +4,7 @@
 import glob as glob_module
 import json
 import os
+from pathlib import Path
 from typing import Optional
 
 from tools.registry import registry
@@ -11,13 +12,22 @@ from common.logging_manager import get_execution_logger
 
 logger = get_execution_logger("FileToolsBridge")
 
+DEFAULT_WORKSPACE_DIR = Path.home() / ".handsome_agent"
+
+
+def _resolve_workspace_path(path: str) -> str:
+    if os.path.isabs(path):
+        return path
+    return str(DEFAULT_WORKSPACE_DIR / path)
+
 
 def _read_file(path: str, limit: Optional[int] = None) -> dict:
     try:
-        if not os.path.exists(path):
-            return {"success": False, "output": "", "error": f"文件不存在: {path}"}
+        resolved_path = _resolve_workspace_path(path)
+        if not os.path.exists(resolved_path):
+            return {"success": False, "output": "", "error": f"文件不存在: {resolved_path}"}
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(resolved_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         if limit and limit > 0:
@@ -33,27 +43,29 @@ def _read_file(path: str, limit: Optional[int] = None) -> dict:
 
 def _write_file(path: str, content: str, append: bool = False) -> dict:
     try:
-        dirname = os.path.dirname(path)
+        resolved_path = _resolve_workspace_path(path)
+        dirname = os.path.dirname(resolved_path)
         if dirname:
             os.makedirs(dirname, exist_ok=True)
 
         mode = "a" if append else "w"
-        with open(path, mode, encoding="utf-8") as f:
+        with open(resolved_path, mode, encoding="utf-8") as f:
             f.write(content)
 
         action = "追加" if append else "写入"
-        return {"success": True, "output": f"成功{action}文件: {path}", "error": None}
+        return {"success": True, "output": f"成功{action}文件: {resolved_path}", "error": None}
     except Exception as e:
         return {"success": False, "output": "", "error": str(e)}
 
 
 def _list_directory(path: str = ".", show_all: bool = False) -> dict:
     try:
+        resolved_path = _resolve_workspace_path(path)
         items = []
-        for item in os.listdir(path):
+        for item in os.listdir(resolved_path):
             if not show_all and item.startswith("."):
                 continue
-            full_path = os.path.join(path, item)
+            full_path = os.path.join(resolved_path, item)
             if os.path.isdir(full_path):
                 items.append(f"[DIR]  {item}/")
             else:
@@ -72,9 +84,10 @@ def _search_files(
     pattern: str, path: str = ".", file_glob: Optional[str] = None, limit: int = 20
 ) -> dict:
     try:
+        resolved_path = _resolve_workspace_path(path)
         matches = []
         pattern_lower = pattern.lower()
-        search_path = os.path.join(path, "**")
+        search_path = os.path.join(resolved_path, "**")
         glob_pattern = os.path.join(search_path, file_glob if file_glob else "*")
 
         for file_path in glob_module.glob(glob_pattern, recursive=True):
