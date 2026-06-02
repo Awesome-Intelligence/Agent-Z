@@ -71,9 +71,17 @@ Handsome-Agent/
 │   │   └── markdown_memory.py
 │   ├── skills/              #   🧠 Decision - 📋 Skills - 技能管理
 │   │   └── skill_manager.py
-│   ├── task/               #   🧠 Decision - Task - 任务管理
+│   ├── task/               #   🧠 Decision - ✅ Task - 任务管理
 │   │   ├── task_planner.py
 │   │   └── task_executor.py
+│   ├── rails/               #   Rail 拦截器（可插拔的 before/after 钩子）
+│   │   ├── rail.py          #   Rail 基类
+│   │   ├── manager.py       #   Rail 管理器
+│   │   ├── task_event_rail.py #   任务事件 Rail
+│   │   └── examples.py      #   Rail 示例
+│   ├── react/               #   ReAct 执行引擎（LLM 驱动的循环模式）
+│   │   ├── loop.py          #   ReAct 循环引擎
+│   │   └── context.py       #   执行上下文
 │   ├── tool_selector/       #   🧠 Decision - 🔧 ToolSelect - 工具选择
 │   │   └── llm_tool_selector.py
 │   └── templates/           #   Agent 模板

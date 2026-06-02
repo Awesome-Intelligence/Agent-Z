@@ -30,6 +30,8 @@
 | 🧠 Decision | 🤖 LLM | agent/llm/claude_provider.py | Claude 提供商 |
 | 🧠 Decision | 🤖 LLM | agent/llm/llm_web_search.py | 网络搜索 |
 | 🧠 Decision | 🔧 ToolSelect | agent/tool_selector/llm_tool_selector.py | 工具选择器 |
+| 🧠 Decision | ✅ Task | agent/task/task_planner.py | 任务规划 |
+| 🧠 Decision | ✅ Task | agent/task/task_executor.py | 任务执行 |
 | 🧠 Decision | 💾 Memory | agent/session.py | 会话管理 |
 | 🧠 Decision | 💾 Memory | agent/memory/markdown_memory.py | 记忆存储 |
 | 🧠 Decision | 📋 Skills | agent/skills/skill_manager.py | 技能管理 |
@@ -37,6 +39,11 @@
 | 🧠 Decision | 🔬 Curator | agent/curator/trajectory.py | 轨迹记录 |
 | 🧠 Decision | 📊 Context | agent/context/context_engine.py | 上下文引擎 |
 | 🧠 Decision | 📊 Context | agent/context/prompt_builder.py | 提示词构建 |
+| 🧠 Decision | (无固定子层) | agent/rails/rail.py | Rail 基类 |
+| 🧠 Decision | (无固定子层) | agent/rails/manager.py | Rail 管理器 |
+| 🧠 Decision | (无固定子层) | agent/rails/task_event_rail.py | 任务事件 Rail |
+| 🧠 Decision | (无固定子层) | agent/react/loop.py | ReAct 循环引擎 |
+| 🧠 Decision | (无固定子层) | agent/react/context.py | ReAct 上下文 |
 | 🏃 Execution | 🛠️ ToolExec | tools/registry.py | 工具注册表 |
 | 🏃 Execution | 🛠️ ToolExec | tools/integrated_tools.py | 集成工具 |
 | 🏃 Execution | 🐚 ShellExec | executor/shell.py | Shell 执行器 |

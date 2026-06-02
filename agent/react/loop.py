@@ -96,7 +96,7 @@ class ReActLoop:
         self.rails = rails or []
         self.max_iterations = max_iterations
         
-        self.logger = get_task_logger("ReActLoop")
+        self.logger = get_task_logger("ReActLoop", sublayer="task")
         self._state = LoopState.RUNNING
         self._steps: List[StepResult] = []
     
@@ -120,7 +120,7 @@ class ReActLoop:
         Returns:
             执行结果字典
         """
-        self.logger.info(f"[/✅Task] ReAct 循环开始: {context.task_description[:50]}...")
+        self.logger.info(f"ReAct 循环开始: {context.task_description[:50]}...")
         
         self._state = LoopState.RUNNING
         self._steps.clear()
@@ -129,11 +129,11 @@ class ReActLoop:
             context.increment_iteration()
             
             if context.remaining_iterations <= 0:
-                self.logger.warning(f"[/✅Task] 达到最大迭代次数 {self.max_iterations}")
+                self.logger.warning(f"达到最大迭代次数 {self.max_iterations}")
                 break
             
             self.logger.debug(
-                f"[/✅Task] 迭代 {context.current_iteration}/{self.max_iterations}"
+                f"迭代 {context.current_iteration}/{self.max_iterations}"
             )
             
             try:
@@ -143,11 +143,11 @@ class ReActLoop:
                 if step_result.action in ("direct_response", "ask_clarification"):
                     self._state = LoopState.COMPLETED
                     self.logger.info(
-                        f"[/✅Task] 循环完成，迭代次数: {context.current_iteration}"
+                        f"循环完成，迭代次数: {context.current_iteration}"
                     )
                     
             except Exception as e:
-                self.logger.error(f"[/✅Task] 步骤执行错误: {e}")
+                self.logger.error(f"步骤执行错误: {e}")
                 self._steps.append(StepResult(
                     step=context.current_iteration,
                     action="error",
@@ -172,7 +172,7 @@ class ReActLoop:
             
             if rail_result and not rail_result.allowed:
                 self.logger.warning(
-                    f"[/✅Task] Rail 阻止工具调用: {decision.tool_name}"
+                    f"Rail 阻止工具调用: {decision.tool_name}"
                 )
                 return StepResult(
                     step=context.current_iteration,
@@ -269,15 +269,15 @@ Respond with ONLY the JSON object, no other text."""
 
         try:
             response = await self.llm.generate(prompt)
-            response = response.strip()
+            content = response.content if hasattr(response, 'content') else str(response)
             
-            if response.startswith("```"):
-                response = response.split("```")[1]
-                if response.startswith("json"):
-                    response = response[4:]
-                response = response.strip()
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+                content = content.strip()
             
-            result = json.loads(response)
+            result = json.loads(content)
             
             return Decision(
                 action=result.get("action", "direct_response"),
@@ -289,7 +289,7 @@ Respond with ONLY the JSON object, no other text."""
             )
             
         except Exception as e:
-            self.logger.error(f"[/✅Task] LLM 决策失败: {e}")
+            self.logger.error(f"LLM 决策失败: {e}")
             return Decision(
                 action="direct_response",
                 content=f"处理出错: {str(e)}"
@@ -319,14 +319,18 @@ Respond with ONLY the JSON object, no other text."""
         context: "ReActContext"
     ) -> Any:
         """执行工具"""
-        self.logger.info(f"[/✅Task] 执行工具: {tool_name}")
+        self.logger.info(f"执行工具: {tool_name}")
         
         handler = context.tool_handlers.get(tool_name)
         if not handler:
             return {"error": f"Tool '{tool_name}' not found"}
         
         try:
+            import inspect
             result = handler(parameters)
+            
+            if inspect.iscoroutine(result):
+                result = await result
             
             if isinstance(result, str):
                 try:
@@ -337,7 +341,7 @@ Respond with ONLY the JSON object, no other text."""
             return result
             
         except Exception as e:
-            self.logger.error(f"[/✅Task] 工具执行错误: {e}")
+            self.logger.error(f"工具执行错误: {e}")
             return {"success": False, "error": str(e)}
     
     async def _trigger_before_tool(
@@ -353,7 +357,7 @@ Respond with ONLY the JSON object, no other text."""
                     if result and hasattr(result, "allowed") and not result.allowed:
                         return result
                 except Exception as e:
-                    self.logger.error(f"[/✅Task] Rail before_tool_call 错误: {e}")
+                    self.logger.error(f"Rail before_tool_call 错误: {e}")
         return None
     
     async def _trigger_after_tool(
@@ -368,7 +372,7 @@ Respond with ONLY the JSON object, no other text."""
                 try:
                     await rail.after_tool_call(tool_name, args, result)
                 except Exception as e:
-                    self.logger.error(f"[/✅Task] Rail after_tool_call 错误: {e}")
+                    self.logger.error(f"Rail after_tool_call 错误: {e}")
     
     def _is_error_result(self, result: Any) -> bool:
         """判断结果是否为错误"""
@@ -405,18 +409,18 @@ Respond with ONLY the JSON object, no other text."""
     def pause(self) -> None:
         """暂停循环"""
         self._state = LoopState.PAUSED
-        self.logger.info("[/✅Task] 循环已暂停")
+        self.logger.info("循环已暂停")
     
     def resume(self) -> None:
         """恢复循环"""
         if self._state == LoopState.PAUSED:
             self._state = LoopState.RUNNING
-            self.logger.info("[/✅Task] 循环已恢复")
+            self.logger.info("循环已恢复")
     
     def abort(self) -> None:
         """中止循环"""
         self._state = LoopState.ABORTED
-        self.logger.warning("[/✅Task] 循环已中止")
+        self.logger.warning("循环已中止")
 
 
 __all__ = ["ReActLoop", "LoopState", "StepResult", "Decision"]
