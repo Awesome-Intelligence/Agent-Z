@@ -156,7 +156,7 @@ class Agent:
                         'skill_synthesized': result is not None,
                         'skill_name': result.name if result else None,
                     }
-                    self._decision_logger.debug("Trajectory processed by Curator")
+                    self._decision_logger.info("Trajectory processed by Curator")
             except Exception as e:
                 self._decision_logger.warning(f"Failed to process trajectory with Curator: {e}")
                 trajectory_metadata['curator_error'] = str(e)
@@ -478,8 +478,16 @@ Please provide a natural language response to the user based on the tool result.
             
             if conversation_history:
                 messages.extend(conversation_history)
+                self._decision_logger.info(
+                    f"Context Assembly: direct_response with {len(conversation_history)} history messages"
+                )
             
             messages.append({"role": "user", "content": user_input})
+            
+            self._decision_logger.info(
+                f"Context Assembly: total messages={len(messages)}, "
+                f"prompt chars={len(system_prompt)}"
+            )
             
             response = await self.llm_provider.generate(user_input, messages=messages)
             return response
@@ -490,7 +498,7 @@ Please provide a natural language response to the user based on the tool result.
     
     def _build_identity_prompt(self) -> str:
         """构建 Agent 身份提示词"""
-        from agent.llm_tool_selector import AgentDefinitionLoader
+        from agent.tool_selector.llm_tool_selector import AgentDefinitionLoader
         
         loader = AgentDefinitionLoader()
         identity = loader.get_identity_summary()

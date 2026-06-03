@@ -20,6 +20,14 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from agent.agent import Agent, AgentResponse
+from agent.context.compression_commands import (
+    is_compression_command,
+    parse_compression_command,
+    handle_compress_command,
+    handle_usage_command,
+    handle_status_command,
+)
+from agent.context.compression_integration import CompressionIntegration
 from tools.integrated_tools import initialize_tools
 
 CONFIG_FILE = os.path.expanduser("~/.handsome_agent/config.json")
@@ -58,7 +66,19 @@ def print_header(title: str, subtitle: str = ""):
 
 async def interactive_mode(agent: Agent):
     """交互模式"""
-    
+
+    # 初始化压缩集成器
+    compression_integration = None
+    if hasattr(agent, 'llm_provider') and agent.llm_provider:
+        try:
+            compression_integration = CompressionIntegration(
+                session_id=agent._session.session_id if agent._session else "cli",
+                model="gpt-4o",
+                llm_client=agent.llm_provider,
+            )
+        except Exception as e:
+            print(f"⚠️  Compression integration failed: {e}")
+
     # 显示会话摘要（如果继续现有会话）
     if agent._session and agent._session.messages:
         print_header("Previous Conversation", agent._session.session_id)
@@ -70,16 +90,48 @@ async def interactive_mode(agent: Agent):
         print()
     
     print_header("Interactive Mode", "Type 'quit' or 'exit' to end")
+
+    print("  Commands:")
+    print("    /compress              - 手动压缩上下文")
+    print("    /compress --focus=X    - 聚焦压缩（保留特定主题）")
+    print("    /usage                 - 显示 Token 使用统计")
+    print("    /compression-status    - 显示压缩功能状态")
+    print("    quit/exit              - 退出程序")
+    print()
     
     while True:
         try:
             user_input = input("\n🤔 You: ").strip()
-            
+
             if user_input.lower() in ['quit', 'exit', 'q']:
                 print("\n👋 Goodbye!")
                 break
-            
+
             if not user_input:
+                continue
+
+            # 处理压缩命令
+            if is_compression_command(user_input):
+                command, args = parse_compression_command(user_input)
+                if command == "/compress":
+                    result = handle_compress_command(
+                        agent._session.session_id if agent._session else "cli",
+                        args,
+                        compression_integration,
+                    )
+                    print(f"\n📦 {result.get('message', '压缩命令执行完成')}")
+                elif command == "/usage":
+                    result = handle_usage_command(
+                        agent._session.session_id if agent._session else "cli",
+                        compression_integration,
+                    )
+                    print(f"\n{result.get('message', '')}")
+                elif command == "/compression-status":
+                    result = handle_status_command(
+                        agent._session.session_id if agent._session else "cli",
+                        compression_integration,
+                    )
+                    print(f"\n{result.get('message', '')}")
                 continue
             
             # 显示正在处理的提示

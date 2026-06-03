@@ -84,6 +84,177 @@ jiuwenswarm 的 Rail 机制：
 
 ### 🟡 中优先级
 
+- [ ] **上下文压缩 Rail (ContextCompressionRail)**
+  
+  > 基于 Rail 机制的上下文压缩实现，参考 Hermes 的 ContextCompressor
+  
+  #### 📐 设计方案
+  
+  **目标**：通过 Rail 机制将上下文压缩插入到 Agent 执行流程中
+  
+  **核心组件**：
+  ```
+  agent/rails/
+  ├── rail.py                    # Rail 基类 (已有)
+  ├── manager.py                 # Rail 管理器 (已有)
+  ├── context_compression_rail.py # ⭐ 上下文压缩 Rail (新增)
+  └── ...
+  
+  agent/context/
+  ├── context_engine.py          # ContextEngine 基类 (已有)
+  ├── context_compressor.py      # ⭐ 压缩引擎实现 (新增)
+  └── token_estimator.py        # ⭐ Token 估算器 (新增)
+  
+  common/
+  ├── redact.py                  # ⭐ 敏感信息脱敏 (新增)
+  └── ...
+  ```
+  
+  **压缩算法（5阶段）**：
+  1. **预压缩修剪** (no LLM) → 工具输出摘要化、去重、截断
+  2. **头部保护** → 系统提示 + 前 N 条消息
+  3. **尾部保护** (token预算) → 最近 ~20K tokens
+  4. **中间摘要化** (LLM) → 结构化摘要模板
+  5. **工具对修复** → 修复孤立的 tool_call/result 对
+  
+  **Rail Hook 触发点**：
+  | Hook | 用途 |
+  |------|------|
+  | `before_llm_call` | 检查 token 预算，判断是否需要压缩 |
+  | `after_llm_call` | 获取实际 token 使用量，触发压缩 |
+  | `on_checkpoint` | 在关键节点主动触发压缩 |
+  
+  #### 📋 实现步骤
+  
+  **阶段 1：基础架构 (核心)**
+  - [x] 1.1 创建 `common/redact.py` - 敏感信息脱敏模块 ✅
+    - [x] `redact_sensitive_text()` - 脱敏 API keys, tokens, passwords
+    - [x] `redact_messages()` - 批量消息脱敏
+    - [x] `redact_json()` - JSON 对象递归脱敏
+    - [x] 支持多种密钥格式检测
+  - [x] 1.2 创建 `agent/context/token_estimator.py` - Token 估算器 ✅
+    - [x] `estimate_messages_tokens_rough()` - 粗略估算
+    - [x] `estimate_request_tokens_rough()` - 完整请求估算
+    - [x] `get_model_context_length()` - 模型上下文长度
+    - [x] `TokenBudget` 类 - Token 预算追踪
+  - [x] 1.3 创建 `agent/context/context_compressor.py` - 压缩引擎 ✅
+    - [x] `ContextCompressor` 类（继承 ContextEngine）
+    - [x] `_prune_old_tool_results()` - 工具输出修剪
+    - [x] `_generate_summary()` - LLM 摘要生成
+    - [x] `_sanitize_tool_pairs()` - 工具对修复
+    - [x] `compress()` - 主压缩入口
+  
+  **阶段 2：Rail 实现**
+  - [x] 2.1 创建 `agent/rails/context_compression_rail.py` ✅
+    - [x] `ContextCompressionRail` 类（继承 Rail）
+    - [x] `before_llm_call()` - 预检查
+    - [x] `after_llm_call()` - 压缩触发
+    - [x] `on_checkpoint()` - 主动压缩点
+  - [x] 2.2 更新 `agent/rails/manager.py` ✅
+    - [x] 添加压缩 Rail 注册支持
+    - [x] 添加压缩状态查询接口
+  
+  **阶段 3：集成与优化**
+  - [x] 3.1 更新 Agent 主循环集成压缩 Rail ✅
+    - [x] `CompressedReActLoop` - 带压缩的 ReAct 循环
+    - [x] `CompressionAwareReActLoop` - 压缩感知的 ReAct 循环
+    - [x] 迭代后自动检查压缩
+  - [x] 3.2 添加配置文件支持 ✅
+    - [x] `CompressionConfig` - 压缩配置类
+    - [x] `compression_config.py` - 配置模块
+    - [x] 支持环境变量配置 (`HANDSOME_COMPRESSION_*`)
+  - [x] 3.3 Anti-thrashing 保护 ✅
+    - [x] 跟踪压缩效率
+    - [x] 连续低效压缩后自动回退
+    - [x] 压缩失败冷却期
+  
+  **阶段 4：CLI 命令**
+  - [x] 4.1 添加 `/compress` 命令 ✅
+    - [x] 手动触发压缩
+    - [x] 支持 `--focus` 参数
+  - [x] 4.2 添加压缩状态查询 ✅
+    - [x] `/usage` - 显示 Token 使用统计
+    - [x] `/compression-status` - 显示压缩状态
+
+### 🔵 待增强功能 (对齐 Hermes)
+
+> 参考 `e:\hermes-agent-study\agent\prompt_builder.py` 和 `context_engine.py`
+
+#### 🔴 高优先级 - 上下文拼装 (Context Assembly)
+
+> 对标 Hermes 的完整上下文拼装实现 ✅ Phase 1 已完成
+
+**目标**：让 Handsome Agent 的上下文拼装与 Hermes 一样完善
+
+**架构设计**：
+```
+ContextBuilder (💾 Context)     # 上下文构建
+    ├── AgentDefinitionLoader  # 加载 Agent 定义
+    ├── build_system_prompt()  # 构建系统提示词
+    └── _build_guidance()     # 5 类指导性文本
+
+LLMToolSelector (🔧 ToolSelect) # 工具选择
+    ├── register_tool()        # 工具注册
+    ├── select_tool()         # 工具选择
+    └── execute()             # 工具执行
+```
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| **创建 ContextBuilder 模块** | ✅ 完成 | 独立的上下文构建器 |
+| **添加指导性文本** | ✅ 完成 | 5 类指导文本（参考 Hermes） |
+| **LLMToolSelector 简化** | ✅ 完成 | 移除上下文拼装逻辑，改为委托 |
+| **增强 guidance 内容** | ✅ 完成 | 参考 Hermes 完善所有 guidance |
+| **Prompt 注入检测** | 🟡 中优先级 | 危险模式扫描 |
+| **上下文文件扫描** | 🟡 中优先级 | .handsome.md 等文件 |
+| **模型特定指导** | 🟢 低优先级 | GPT/Gemini 专用指导 |
+| **三层架构优化** | 🟢 低优先级 | stable/context/volatile |
+
+**已完成的功能**：
+- ✅ Memory Usage - 记忆使用规范
+- ✅ Session Search - 跨会话搜索指导
+- ✅ Skills - 技能保存和维护指导
+- ✅ Tool-Use Enforcement - 工具使用纪律
+- ✅ Act Without Asking - 主动行动原则
+
+**文档位置**：`docs/modules/context-compression.md` (上下文拼装 + 上下文压缩)
+
+#### 🔴 高优先级
+
+- [ ] **迭代摘要更新 (Iterative Summary)**
+  - [ ] 实现 `_previous_summary` 状态追踪
+  - [ ] 支持基于前一次摘要的增量更新
+  - [ ] 避免重复信息丢失
+
+- [ ] **聚焦压缩 (Focus Topic)**
+  - [ ] `_generate_summary()` 中使用 focus_topic 参数
+  - [ ] CLI 命令 `/compress --focus=X` 实际生效
+  - [ ] 保留特定主题的详细信息
+
+- [ ] **更完整的摘要模板 (12 字段)**
+  - [ ] 添加 `## Constraints & Preferences`
+  - [ ] 添加 `## In Progress`
+  - [ ] 添加 `## Blocked`
+  - [ ] 添加 `## Resolved Questions`
+  - [ ] 添加 `## Relevant Files`
+  - [ ] 添加 `## Critical Context`
+
+#### 🟡 中优先级
+
+- [ ] **辅助模型摘要**
+  - [ ] 实现 `auxiliary_client` 模块
+  - [ ] 支持便宜的辅助模型 (如 GPT-4o-mini)
+  - [ ] 配置 `summary_model` 参数
+
+- [ ] **增强图片处理**
+  - [ ] 支持 base64 截图处理
+  - [ ] 实现多种图片 placeholder 格式
+  - [ ] 精确计算图片 token
+
+- [ ] **更详细的安全前导语 (Preamble)**
+  - [ ] 添加防注入提示
+  - [ ] 明确标注摘要为参考内容
+
 - [ ] setup里的选项内容排序，emoj、排版、高度太低
 
 - [ ] **梦境能力（Dream Capability）**
@@ -246,4 +417,4 @@ pytest tests/unit/ -v
 
 
 
-*最后更新: 2026-06-02 - 增加 Hermes 循环流程对齐任务*
+*最后更新: 2026-06-02 - 对齐 Hermes 待增强功能清单*

@@ -34,6 +34,16 @@ class ToolDefinition:
     handler: Optional[Callable] = None
     category: str = "general"
     examples: List[str] = field(default_factory=list)
+    # 🏃 Execution - 🛠️ ToolExec - 工具标识（类型图标）
+    emoji: str = "🔧"  # 默认图标，会被显示为 🔧(🔧)
+    
+    def get_display_name(self) -> str:
+        """获取带 emoji 的显示名称
+        
+        格式: 🔧(类型图标)工具名
+        例如: 🔧(📁)read_file
+        """
+        return f"🔧({self.emoji}){self.name}"
 
 
 @dataclass
@@ -173,11 +183,12 @@ class LLMToolSelector:
     """
     LLM 直接驱动的工具选择器
 
-    工作流程：
-    1. 构建工具 Schema（给 LLM 看）
-    2. 构建上下文（给 LLM 参考）
-    3. LLM 直接决策选择工具
-    4. 如果没有 LLM，使用关键词回退
+    职责：
+    1. 工具注册与管理
+    2. 工具选择（让 LLM 决定使用哪个工具）
+    3. 工具执行
+    
+    注意：上下文构建已分离到 ContextBuilder
     """
 
     def __init__(self, llm_provider=None):
@@ -187,9 +198,10 @@ class LLMToolSelector:
         """
         self.llm_provider = llm_provider
         self.tools: Dict[str, ToolDefinition] = {}
-        self.logger = get_decision_logger(self.__class__.__name__)
+        # 🧠 Decision - [/🔧ToolSelect] - 使用 tool_select 子层
+        self.logger = get_decision_logger(self.__class__.__name__, sublayer="tool_select")
         
-        self.agent_loader = AgentDefinitionLoader()
+        # 工具选择器不负责上下文构建，移除了 AgentDefinitionLoader
 
     def register_tool(self, tool: ToolDefinition):
         """注册工具"""
@@ -213,60 +225,15 @@ class LLMToolSelector:
         return schema
 
     def _build_system_prompt(self, conversation_history: Optional[List[Dict]] = None) -> str:
-        """构建系统提示词（包含 Agent 定义）"""
-        tools_schema = json.dumps(self.get_tools_schema(), ensure_ascii=False, indent=2)
-
-        history_context = ""
-        if conversation_history:
-            recent = conversation_history[-6:]
-            history_context = "\n\nRecent conversation:\n"
-            for msg in recent:
-                role = msg.get('role', 'unknown')
-                content = msg.get('content', '')[:200]
-                history_context += f"- {role}: {content}\n"
-
-        identity_summary = self.agent_loader.get_identity_summary()
-        capabilities_summary = self.agent_loader.get_capabilities_summary()
-        user_summary = self.agent_loader.get_user_summary()
-
-        prompt = f"""{identity_summary}
-
-{capabilities_summary}
-
-User Profile:
-{user_summary if user_summary else "User information not configured. Provide general assistance."}
-
-Available tools:
-{tools_schema}
-
-{history_context}
-
-Your task:
-1. Understand the user's request based on your identity and capabilities
-2. Consider the user's background and preferences
-3. Decide if you need to use a tool or respond directly
-4. If using a tool, select the most appropriate one and provide parameters
-5. Stay within your capabilities - do not attempt actions you cannot perform
-
-Decision rules:
-- Use a tool ONLY when necessary (e.g., need external data, execute commands, access files)
-- For general knowledge questions, greetings, or conversations, respond directly
-- If unsure about parameters, use reasonable defaults or ask for clarification
-- If the request is outside your capabilities, politely explain and suggest alternatives
-- Personalize your response based on the user's background and preferences
-
-Response format (JSON):
-{{
-    "action": "use_tool" or "direct_response" or "ask_clarification",
-    "selected_tool": "tool_name" (if action is "use_tool"),
-    "parameters": {{}} (tool parameters if action is "use_tool"),
-    "reasoning": "why you made this decision",
-    "confidence": 0.0-1.0
-}}
-
-Respond with ONLY the JSON object, no other text."""
-
-        return prompt
+        """构建系统提示词（包含 Agent 定义）
+        
+        注意：此方法已重定向到 ContextBuilder
+        """
+        from agent.context.context_builder import ContextBuilder
+        
+        # 🧠 Decision - [/🔧ToolSelect] - 委托给 ContextBuilder
+        context_builder = ContextBuilder(tools=self.tools)
+        return context_builder.build_system_prompt(conversation_history)
 
     def _keyword_fallback(self, user_input: str) -> ToolSelectionResult:
         """
@@ -576,7 +543,8 @@ class ToolExecutionEngine:
             }
 
         try:
-            self.logger.info(f"Executing tool: {tool_name}")
+            # 🏃 Execution - 🛠️ ToolExec - 使用带 emoji 的工具名称
+            self.logger.info(f"Executing tool: {tool.get_display_name()}")
             result = await tool.handler(parameters, context or {})
 
             return {
@@ -626,7 +594,9 @@ class LLMDrivenDecisionEngine:
         parameters: Dict[str, Any],
         handler: Optional[Callable] = None,
         category: str = "general",
-        examples: Optional[List[str]] = None
+        examples: Optional[List[str]] = None,
+        # 🏃 Execution - 🛠️ ToolExec - 工具标识
+        emoji: str = "🔧"
     ):
         """注册工具"""
         tool = ToolDefinition(
@@ -635,7 +605,8 @@ class LLMDrivenDecisionEngine:
             parameters=parameters,
             handler=handler,
             category=category,
-            examples=examples or []
+            examples=examples or [],
+            emoji=emoji
         )
 
         self.tool_selector.register_tool(tool)

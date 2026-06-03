@@ -15,16 +15,18 @@ if TYPE_CHECKING:
     from agent.agent import AgentResponse
 
 from tools.registry import registry, ToolEntry
+from agent.tool_selector.llm_tool_selector import LLMToolSelector
 from agent.tool_selector import LLMDrivenDecisionEngine, ToolDefinition
 from common.logging_manager import get_decision_logger
 
 
 class Tool:
     """Tool definition"""
-    def __init__(self, name: str, description: str = "", category: str = "general"):
+    def __init__(self, name: str, description: str = "", category: str = "general", emoji: str = "🔧"):
         self.name = name
         self.description = description
         self.category = category
+        self.emoji = emoji
 
 logger = get_decision_logger(__name__)
 
@@ -81,7 +83,9 @@ def register_integrated_tools(engine: LLMDrivenDecisionEngine):
                 parameters=param_schema,
                 handler=create_tool_adapter(tool_entry),
                 category=tool_entry.toolset,
-                examples=[]
+                examples=[],
+                # 🏃 Execution - 🛠️ ToolExec - 传递 emoji 标识
+                emoji=tool_entry.emoji if hasattr(tool_entry, 'emoji') else "🔧"
             )
     
     logger.info(f"Registered {len(engine.tool_selector.tools)} integrated tools")
@@ -133,7 +137,8 @@ def get_all_tools_as_simplified() -> List[Tool]:
                 name=tool_name,
                 description=tool_entry.description or schema.get("description", ""),
                 parameters=param_schema,
-                handler=create_handler(tool_entry) if tool_entry.handler else None
+                handler=create_handler(tool_entry) if tool_entry.handler else None,
+                emoji=tool_entry.emoji if hasattr(tool_entry, 'emoji') else "🔧"
             )
             tools_list.append(tool)
     
