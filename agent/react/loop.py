@@ -89,16 +89,22 @@ class ReActLoop:
         llm_provider,
         session_id: str,
         rails: Optional[List["Rail"]] = None,
-        max_iterations: int = 20
+        max_iterations: int = 20,
+        tools: Optional[Dict[str, Any]] = None
     ):
         self.llm = llm_provider
         self.session_id = session_id
         self.rails = rails or []
         self.max_iterations = max_iterations
-        
+        self.tools = tools or {}
+
         self.logger = get_task_logger("ReActLoop", sublayer="task")
         self._state = LoopState.RUNNING
         self._steps: List[StepResult] = []
+
+        # 初始化统一的 ContextBuilder（复用上下文拼装逻辑）
+        from agent.context import ContextBuilder
+        self._context_builder = ContextBuilder(tools=self.tools)
     
     @property
     def state(self) -> LoopState:
@@ -227,58 +233,25 @@ class ReActLoop:
     
     async def _llm_decide(self, context: "ReActContext") -> Decision:
         """LLM 决策下一步"""
-        
-        tools_schema = json.dumps(context.get_tools_schema(), ensure_ascii=False, indent=2)
-        todo_guide = self._get_todo_guide()
-        recent_history = context.get_recent_messages(4)
-        
-        history_str = "\n".join(
-            f"- {m['role']}: {m['content']}"
-            for m in recent_history
-        ) if recent_history else "(无历史记录)"
-        
-        prompt = f"""你是一个任务执行助手。当前任务是：{context.task_description}
 
-对话历史：
-{history_str}
-
-可用工具：
-{tools_schema}
-
-{todo_guide}
-
-请根据当前任务和对话历史，决定下一步行动：
-
-规则：
-- 如果任务复杂（3+ 步骤），使用 todo_* 工具管理任务
-- 如果需要多个操作，按顺序逐个完成
-- 如果遇到问题，先尝试解决，解决不了再询问用户
-- 完成任务后给出简洁的总结
-
-返回 JSON 格式：
-{{
-    "action": "use_tool" 或 "direct_response" 或 "ask_clarification",
-    "tool_name": "工具名" (仅当 action 为 use_tool 时),
-    "parameters": {{}} (仅当 action 为 use_tool 时),
-    "reasoning": "决策理由",
-    "content": "直接回答的内容" (仅当 action 为 direct_response 时),
-    "questions": ["问题1", "问题2"] (仅当 action 为 ask_clarification 时)
-}}
-
-Respond with ONLY the JSON object, no other text."""
+        # 使用统一的 ContextBuilder 构建提示词
+        prompt = self._context_builder.build_react_decision_prompt(
+            task_description=context.task_description,
+            conversation_history=context.conversation_history
+        )
 
         try:
             response = await self.llm.generate(prompt)
             content = response.content if hasattr(response, 'content') else str(response)
-            
+
             if content.startswith("```"):
                 content = content.split("```")[1]
                 if content.startswith("json"):
                     content = content[4:]
                 content = content.strip()
-            
+
             result = json.loads(content)
-            
+
             return Decision(
                 action=result.get("action", "direct_response"),
                 tool_name=result.get("tool_name"),
@@ -287,31 +260,14 @@ Respond with ONLY the JSON object, no other text."""
                 content=result.get("content"),
                 questions=result.get("questions", [])
             )
-            
+
         except Exception as e:
             self.logger.error(f"LLM 决策失败: {e}")
             return Decision(
                 action="direct_response",
                 content=f"处理出错: {str(e)}"
             )
-    
-    def _get_todo_guide(self) -> str:
-        """获取 Todo 工具使用指南"""
-        return """
-任务管理工具（当任务复杂时使用）：
-- todo_create: 创建任务列表，开始复杂任务时使用
-- todo_add: 添加新任务到列表
-- todo_complete: 标记任务完成
-- todo_list: 查看当前任务列表
-- todo_cancel: 取消任务
 
-示例场景：
-- 用户说"帮我做一个博客系统" → 使用 todo_create 创建任务列表
-- 用户说"再添加一个用户管理功能" → 使用 todo_add
-- 完成一个步骤后 → 使用 todo_complete
-- 想查看进度 → 使用 todo_list
-"""
-    
     async def _execute_tool(
         self,
         tool_name: str,

@@ -65,6 +65,7 @@ class CompressedReActLoop(ReActLoop):
         rails: Optional[List] = None,
         max_iterations: int = 20,
         compression_integration: Optional[CompressionIntegration] = None,
+        tools: Optional[Dict[str, Any]] = None,
     ):
         """
         Args:
@@ -74,12 +75,14 @@ class CompressedReActLoop(ReActLoop):
             rails: Rail 列表
             max_iterations: 最大迭代次数
             compression_integration: 压缩集成器（可选）
+            tools: 工具字典 {name: ToolDefinition}
         """
         super().__init__(
             llm_provider=llm_provider,
             session_id=session_id,
             rails=rails,
             max_iterations=max_iterations,
+            tools=tools,
         )
 
         self.model = model
@@ -131,7 +134,12 @@ class CompressedReActLoop(ReActLoop):
                 f"{len(messages)} -> {len(compressed_messages)} messages"
             )
 
-        response = await self.llm.generate(self._build_decision_prompt(context))
+        response = await self.llm.generate(
+            self._context_builder.build_react_decision_prompt(
+                task_description=context.task_description,
+                conversation_history=context.conversation_history
+            )
+        )
         content = response.content if hasattr(response, 'content') else str(response)
 
         await self._compression_integration.after_llm_call(messages, response)
@@ -159,52 +167,6 @@ class CompressedReActLoop(ReActLoop):
                 action="direct_response",
                 content=f"处理出错: {str(e)}"
             )
-
-    def _build_decision_prompt(self, context: "ReActContext") -> str:
-        """构建决策提示"""
-        tools_schema = context.get_tools_schema()
-        tools_str = ""
-        if tools_schema:
-            import json
-            tools_str = json.dumps(tools_schema, ensure_ascii=False, indent=2)
-
-        todo_guide = self._get_todo_guide()
-        recent_history = context.get_recent_messages(4)
-
-        history_str = "\n".join(
-            f"- {m['role']}: {m['content']}"
-            for m in recent_history
-        ) if recent_history else "(无历史记录)"
-
-        return f"""你是一个任务执行助手。当前任务是：{context.task_description}
-
-对话历史：
-{history_str}
-
-可用工具：
-{tools_str}
-
-{todo_guide}
-
-请根据当前任务和对话历史，决定下一步行动：
-
-规则：
-- 如果任务复杂（3+ 步骤），使用 todo_* 工具管理任务
-- 如果需要多个操作，按顺序逐个完成
-- 如果遇到问题，先尝试解决，解决不了再询问用户
-- 完成任务后给出简洁的总结
-
-返回 JSON 格式：
-{{
-    "action": "use_tool" 或 "direct_response" 或 "ask_clarification",
-    "tool_name": "工具名" (仅当 action 为 use_tool 时),
-    "parameters": {{}} (仅当 action 为 use_tool 时),
-    "reasoning": "决策理由",
-    "content": "直接回答的内容" (仅当 action 为 direct_response 时),
-    "questions": ["问题1", "问题2"] (仅当 action 为 ask_clarification 时)
-}}
-
-Respond with ONLY the JSON object, no other text."""
 
     async def _execute_step(self, context: "ReActContext") -> StepResult:
         """执行单个步骤"""

@@ -97,9 +97,18 @@ class Agent:
         
         self._decision_logger = get_decision_logger("Agent")
         self._llm_logger = get_llm_logger("Agent")
-        
+
         self.engine = get_integrated_engine(llm_provider=llm_provider)
-        
+
+        # 初始化统一的 ContextBuilder（所有模式共用）
+        from agent.context import ContextBuilder
+        tools_dict = {t.name: t for t in self.engine.tool_selector.tools.values()}
+        self._context_builder = ContextBuilder(tools=tools_dict)
+
+        # 初始化 ContextCompressor（所有模式共用压缩功能）
+        from agent.context_compressor import SummaryCompressor
+        self._context_compressor = SummaryCompressor(recent_messages=10)
+
         self._session: Optional[Session] = None
         if self.enable_session:
             if session_id == "last" or session_id is None and not force_new_session:
@@ -239,22 +248,36 @@ Respond with ONLY the JSON object."""
         except Exception as e:
             self._decision_logger.warning(f"Rail 初始化失败: {e}")
         
+        # 复用已初始化的 ContextBuilder 中的工具字典
         loop = ReActLoop(
             llm_provider=self.llm_provider,
             session_id=session_id,
-            rails=rails
+            rails=rails,
+            tools=self._context_builder.tools
         )
-        
+
+        # 如果有历史消息，先检查是否需要压缩
+        compressed_history = conversation_history
+        if conversation_history and len(conversation_history) > 10:
+            result = await self._context_compressor.compress(
+                conversation_history,
+                max_messages=10
+            )
+            compressed_history = result.compressed_messages
+            self._decision_logger.info(
+                f"Context Compression: {result.original_count} -> {result.compressed_count} messages"
+            )
+
         tools = self.engine.tool_selector.get_tools_schema()
         tool_handlers = {
             t.name: t.handler for t in self.engine.tool_selector.tools.values()
         }
-        
+
         context = ReActContext(
             task_description=user_input,
             tools=tools,
             tool_handlers=tool_handlers,
-            conversation_history=conversation_history
+            conversation_history=compressed_history
         )
         
         result = await loop.run(context)
@@ -470,46 +493,44 @@ Please provide a natural language response to the user based on the tool result.
         user_input: str,
         conversation_history: Optional[List[Dict]] = None
     ) -> str:
-        """使用对话历史生成直接回复"""
+        """使用对话历史生成直接回复（使用统一的 ContextBuilder + 压缩）"""
         try:
-            messages = []
-            system_prompt = self._build_identity_prompt()
-            messages.append({"role": "system", "content": system_prompt})
-            
-            if conversation_history:
-                messages.extend(conversation_history)
-                self._decision_logger.info(
-                    f"Context Assembly: direct_response with {len(conversation_history)} history messages"
+            # 如果有历史消息，先检查是否需要压缩
+            compressed_history = conversation_history
+            if conversation_history and len(conversation_history) > 10:
+                result = await self._context_compressor.compress(
+                    conversation_history,
+                    max_messages=10
                 )
-            
-            messages.append({"role": "user", "content": user_input})
-            
-            self._decision_logger.info(
-                f"Context Assembly: total messages={len(messages)}, "
-                f"prompt chars={len(system_prompt)}"
+                compressed_history = result.compressed_messages
+                self._decision_logger.info(
+                    f"Context Compression: {result.original_count} -> {result.compressed_count} messages"
+                )
+
+            # 使用统一的 ContextBuilder 构建系统提示词
+            system_prompt = self._context_builder.build_system_prompt(
+                conversation_history=compressed_history,
+                include_tools=False
             )
-            
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_input}
+            ]
+
+            self._decision_logger.info(
+                f"Context Assembly: direct_response - "
+                f"prompt chars={len(system_prompt)}, "
+                f"history msgs={len(compressed_history) if compressed_history else 0}"
+            )
+
             response = await self.llm_provider.generate(user_input, messages=messages)
             return response
         except Exception as e:
             logger.error(f"Failed to generate with history: {e}")
             response = await self.llm_provider.generate(user_input)
             return response
-    
-    def _build_identity_prompt(self) -> str:
-        """构建 Agent 身份提示词"""
-        from agent.tool_selector.llm_tool_selector import AgentDefinitionLoader
-        
-        loader = AgentDefinitionLoader()
-        identity = loader.get_identity_summary()
-        capabilities = loader.get_capabilities_summary()
-        
-        return f"""{identity}
 
-{capabilities}
-
-Please respond naturally based on your identity and capabilities. When asked "who are you" or "你是谁", introduce yourself as Handsome Agent."""
-    
     async def _generate_clarification_response(
         self,
         user_input: str,

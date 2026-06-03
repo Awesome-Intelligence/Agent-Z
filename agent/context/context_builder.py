@@ -400,5 +400,101 @@ When you need to use a tool, format your response as XML tags.
 IMPORTANT: Always wrap tool calls in the XML tags exactly as shown above.
 """
 
+    def build_react_decision_prompt(
+        self,
+        task_description: str,
+        conversation_history: Optional[List[Dict]] = None,
+        todo_guide: Optional[str] = None
+    ) -> str:
+        """
+        构建 ReAct 决策提示词（供 ReActLoop 使用）
+
+        统一的决策提示词构建逻辑，替代原本分散在各处的硬编码拼接。
+
+        Args:
+            task_description: 当前任务描述
+            conversation_history: 对话历史
+            todo_guide: Todo 工具使用指南（可选）
+
+        Returns:
+            完整的决策提示词
+        """
+        # 加载基础定义
+        identity = self.agent_loader.get_identity_summary()
+        capabilities = self.agent_loader.get_capabilities_summary()
+
+        # 构建历史消息字符串
+        history_msg_count = 0
+        history_str = "(无历史记录)"
+        if conversation_history:
+            recent = conversation_history[-4:]
+            history_msg_count = len(recent)
+            history_lines = []
+            for msg in recent:
+                role = msg.get('role', 'unknown')
+                content = msg.get('content', '')[:200]
+                history_lines.append(f"- {role}: {content}")
+            history_str = "\n".join(history_lines) if history_lines else "(无历史记录)"
+
+        # 构建工具列表
+        tools_schema = ""
+        if self.tools:
+            tools_schema = json.dumps(self.get_tools_schema(), ensure_ascii=False, indent=2)
+
+        # Todo 指南（如果没有提供，使用默认）
+        if todo_guide is None:
+            todo_guide = self._get_default_todo_guide()
+
+        self.logger.info(
+            f"Context Assembly: ReAct decision - "
+            f"task={len(task_description)} chars, "
+            f"history={history_msg_count} messages, "
+            f"tools={len(self.tools)}"
+        )
+
+        return f"""{identity}
+
+{capabilities}
+
+## Current Task
+{task_description}
+
+## Recent Conversation
+{history_str}
+
+## Available Tools
+{tools_schema}
+
+{todo_guide}
+
+Please decide the next action based on the current task and conversation history.
+
+Return JSON format:
+{{
+    "action": "use_tool" or "direct_response" or "ask_clarification",
+    "tool_name": "tool_name" (only when action is use_tool),
+    "parameters": {{}} (only when action is use_tool),
+    "reasoning": "decision reason",
+    "content": "response content" (only when action is direct_response),
+    "questions": ["question1", "question2"] (only when action is ask_clarification)
+}}
+
+Respond with ONLY the JSON object, no other text."""
+
+    def _get_default_todo_guide(self) -> str:
+        """获取默认的 Todo 工具使用指南"""
+        return """## Task Management Tools (use when task is complex)
+- todo_create: Create task list when starting complex tasks
+- todo_add: Add new task to list
+- todo_complete: Mark task as complete
+- todo_list: View current task list
+- todo_cancel: Cancel task
+
+## Rules
+- If task requires 3+ steps, use todo_* tools to manage the task
+- If multiple operations needed, complete them sequentially
+- If encountering problems, try to solve first, ask user only if cannot resolve
+- After completing task, provide concise summary"""
+
 
 __all__ = ["ContextBuilder", "AgentDefinitionLoader"]

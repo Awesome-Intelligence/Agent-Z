@@ -72,7 +72,11 @@ class ReActContext:
         self.conversation_history = conversation_history or []
         self.max_iterations = max_iterations
         
-        self._messages: List[Message] = []
+        # 初始化 _messages，从 conversation_history 合并历史消息
+        self._messages: List[Message] = [
+            Message(role=msg['role'], content=msg['content'])
+            for msg in (conversation_history or [])
+        ]
         self._tool_calls: List[ToolCall] = []
         self._custom_data: Dict[str, Any] = kwargs
         
