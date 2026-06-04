@@ -7,15 +7,31 @@ This module provides an adapter that allows external programs to
 communicate with the AIAgent using the ACP (Agent Communication Protocol).
 
 Inspired by Hermes Agent's ACP adapter design.
+
+For the full ACP implementation, see agent/acp/ directory.
 """
+
+# 🧠 Decision - 💾 Memory - ACP Adapter
 
 import json
 import asyncio
+import uuid
+import time
 from typing import Dict, List, Optional, Any, Callable
-from dataclasses import dataclass
-from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 
 from .ai_agent import AIAgent, AgentResponse
+
+
+# Try to use the new ACP module
+try:
+    from agent.acp.session import SessionManager
+    from agent.acp.adapter import ACPServer as _ACPServer
+    ACP_AVAILABLE = True
+except ImportError:
+    ACP_AVAILABLE = False
+    _ACPServer = None
+    SessionManager = None
 
 
 @dataclass

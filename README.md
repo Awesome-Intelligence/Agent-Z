@@ -84,6 +84,11 @@ Handsome-Agent/
 │   │   └── context.py       #   执行上下文
 │   ├── tool_selector/       #   🧠 Decision - 🔧 ToolSelect - 工具选择
 │   │   └── llm_tool_selector.py
+│   ├── acp/                  #   🧠 Decision - 💾 Memory - Agent 通信协议
+│   │   ├── adapter.py       #   ACP 服务器
+│   │   ├── session.py       #   会话管理
+│   │   ├── transport.py     #   传输层 (stdio/HTTP/WebSocket)
+│   │   └── tools.py         #   ACP 工具
 │   └── templates/           #   Agent 模板
 │
 ├── tools/                    # 🏃 Execution - 🛠️ ToolExec - 工具定义
@@ -143,7 +148,11 @@ Handsome-Agent/
 ├── docs/                     # 文档
 │   └── flows.md             #   用户交互流程详解
 │
-├── api/                      # OpenAPI 规范
+├── api/                      # 🚪 Access - OpenAI-compatible API Server
+│   ├── __init__.py          #   API 模块入口
+│   ├── api_server.py        #   OpenAI 兼容 API 服务器适配器
+│   ├── server.py            #   API Server CLI
+│   └── brain_service.yaml   #   OpenAPI 规范文档
 └── workspace/                # 工作空间
 ```
 
@@ -154,10 +163,12 @@ Handsome-Agent/
 | agent/ | 🧠 Decision | 🤖 LLM | LLM 集成 |
 | agent/session.py | 🧠 Decision | 💾 Memory | 会话管理 |
 | agent/curator/ | 🧠 Decision | 🔬 Curator | 自我进化 |
+| agent/acp/ | 🧠 Decision | 💾 Memory | Agent 通信协议 |
 | tools/ | 🏃 Execution | 🛠️ ToolExec | 工具执行 |
 | executor/shell.py | 🏃 Execution | 🐚 ShellExec | Shell 执行 |
 | executor/docker.py | 🏃 Execution | 🐳 DockerExec | Docker 执行 |
 | gateway/ | 🚪 Access | 🚪 Gateway | 网关 |
+| api/ | 🚪 Access | 🛠️ ToolExec | OpenAI-compatible API |
 | cli/ | 🚪 Access | 💬 CLI | 命令行 |
 | common/ | 🔧 System | - | 基础设施 |
 
