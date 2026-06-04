@@ -12,6 +12,9 @@ Features:
 - Tail protection by token budget (~20K tokens of recent context)
 - Middle turn summarization via LLM
 - Tool call/result pair integrity maintenance
+- Enhanced error handling with hierarchical classification
+- Layered cooldown mechanism
+- Smart LLM fallback with recovery
 
 Import chain:
     agent/context/context_engine.py  (base class)
@@ -26,7 +29,8 @@ import json
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional, Set, Tuple
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Tuple, NamedTuple
 
 from agent.context.token_estimator import (
     estimate_messages_tokens_rough,
@@ -38,6 +42,240 @@ from common.logging_manager import get_decision_logger
 from agent.context.context_engine import ContextEngine, ContextMessage
 
 logger = get_decision_logger(__name__, sublayer="context")
+
+
+# ============================================================================
+# Error Classification System (错误分类系统)
+# ============================================================================
+
+class CompressionErrorType(str, Enum):
+    """Compression error types with hierarchical classification."""
+    
+    # Fatal errors (配置错误，无法通过重试恢复)
+    NO_PROVIDER = "no_provider"           # 无 LLM provider 配置
+    RATE_LIMITED = "rate_limited"         # 限流
+    
+    # Model errors (模型相关，可通过回退恢复)
+    MODEL_NOT_FOUND = "model_not_found"  # 模型不存在
+    MODEL_UNAVAILABLE = "model_unavailable"  # 模型不可用 (503)
+    
+    # Temporary errors (临时性错误，可通过重试恢复)
+    TIMEOUT = "timeout"                   # 超时
+    CONNECTION_ERROR = "connection_error"  # 连接错误
+    STREAMING_CLOSED = "streaming_closed"  # 流式响应中断
+    JSON_DECODE_ERROR = "json_decode_error"  # JSON 解析失败
+    
+    # Unknown errors (未知错误)
+    UNKNOWN = "unknown"
+
+
+class ErrorClassification(NamedTuple):
+    """Result of error classification."""
+    error_type: CompressionErrorType
+    status_code: Optional[int]
+    error_message: str
+    can_retry: bool
+    should_fallback: bool
+    cooldown_seconds: int
+    reason: str
+
+
+# Cooldown times for different error types (分层冷却时间)
+_ERROR_COOLDOWNS = {
+    CompressionErrorType.NO_PROVIDER: 600,         # 配置错误，长时冷却
+    CompressionErrorType.RATE_LIMITED: 120,         # 限流，中时长冷却
+    CompressionErrorType.MODEL_NOT_FOUND: 0,        # 模型不存在，无需冷却
+    CompressionErrorType.MODEL_UNAVAILABLE: 60,     # 模型不可用
+    CompressionErrorType.TIMEOUT: 60,              # 超时
+    CompressionErrorType.CONNECTION_ERROR: 60,    # 连接错误
+    CompressionErrorType.STREAMING_CLOSED: 30,     # 流式中断，短时冷却
+    CompressionErrorType.JSON_DECODE_ERROR: 30,    # JSON 解析失败，短时冷却
+    CompressionErrorType.UNKNOWN: 60,              # 未知错误
+}
+
+
+# Status codes mapped to error types
+_ERROR_STATUS_CODES = {
+    404: CompressionErrorType.MODEL_NOT_FOUND,
+    408: CompressionErrorType.TIMEOUT,
+    429: CompressionErrorType.RATE_LIMITED,
+    500: CompressionErrorType.MODEL_UNAVAILABLE,
+    502: CompressionErrorType.CONNECTION_ERROR,
+    503: CompressionErrorType.MODEL_UNAVAILABLE,
+    504: CompressionErrorType.TIMEOUT,
+}
+
+
+# Error message patterns for classification
+_ERROR_PATTERNS = {
+    CompressionErrorType.MODEL_NOT_FOUND: [
+        "model_not_found",
+        "does not exist",
+        "no available channel",
+        "model.*not.*found",
+        "invalid.*model",
+    ],
+    CompressionErrorType.MODEL_UNAVAILABLE: [
+        "model.*unavailable",
+        "service.*unavailable",
+        "503",
+    ],
+    CompressionErrorType.TIMEOUT: [
+        "timeout",
+        "timed out",
+        "request.*timeout",
+    ],
+    CompressionErrorType.CONNECTION_ERROR: [
+        "connection.*error",
+        "connection.*refused",
+        "network.*error",
+        "name or service not known",
+    ],
+    CompressionErrorType.STREAMING_CLOSED: [
+        "incomplete chunked read",
+        "peer closed connection",
+        "response ended prematurely",
+        "unexpected eof",
+        "chunksize*",
+    ],
+    CompressionErrorType.JSON_DECODE_ERROR: [
+        "expecting value",
+        "json.*decode",
+        "invalid json",
+    ],
+    CompressionErrorType.RATE_LIMITED: [
+        "rate.*limit",
+        "too.*many.*request",
+        "quota.*exceeded",
+    ],
+}
+
+
+def _is_connection_error(exception: Exception) -> bool:
+    """
+    Check if exception is a connection-related error.
+    
+    Covers httpcore, httpx, and standard library socket errors.
+    """
+    import sys
+    
+    err_str = str(exception).lower()
+    
+    # Check exception types
+    exc_type = type(exception).__name__.lower()
+    if exc_type in {
+        "connectionerror", "connecterror", "connecttimeout",
+        "pooltimeout", "timeouterror", "readtimeout", "writetimeout",
+    }:
+        return True
+    
+    # Check error message content
+    connection_patterns = [
+        "connection", "timeout", "network", "socket",
+        "resolve", "dns", "refused", "reset", "broken",
+        "incomplete", "chunksize", "eof", "closed", "peer",
+    ]
+    return any(p in err_str for p in connection_patterns)
+
+
+def classify_compression_error(exception: Exception) -> ErrorClassification:
+    """
+    Classify a compression error into hierarchical categories.
+    
+    Returns an ErrorClassification with:
+    - error_type: The classified error type
+    - status_code: HTTP status code if available
+    - error_message: Sanitized error message
+    - can_retry: Whether the error allows retry
+    - should_fallback: Whether to fallback to main model
+    - cooldown_seconds: Cooling time before retry
+    - reason: Human-readable reason
+    """
+    err_str = str(exception).lower()
+    err_type_name = type(exception).__name__.lower()
+    
+    # Extract status code from exception
+    status_code = (
+        getattr(exception, "status_code", None)
+        or getattr(getattr(exception, "response", None), "status_code", None)
+        or 0
+    )
+    if isinstance(status_code, str):
+        try:
+            status_code = int(status_code)
+        except (ValueError, TypeError):
+            status_code = 0
+    
+    # Check if it's a RuntimeError with "no provider" message
+    if isinstance(exception, RuntimeError) or err_type_name == "runtimeerror":
+        if "no provider" in err_str or "no.*provider" in err_str:
+            return ErrorClassification(
+                error_type=CompressionErrorType.NO_PROVIDER,
+                status_code=None,
+                error_message="No LLM provider configured for compression",
+                can_retry=False,
+                should_fallback=False,
+                cooldown_seconds=_ERROR_COOLDOWNS[CompressionErrorType.NO_PROVIDER],
+                reason="No provider available - compression unavailable"
+            )
+    
+    # Check status codes first (优先级最高)
+    if status_code in _ERROR_STATUS_CODES:
+        error_type = _ERROR_STATUS_CODES[status_code]
+        return ErrorClassification(
+            error_type=error_type,
+            status_code=status_code,
+            error_message=err_str[:200],
+            can_retry=True,
+            should_fallback=True,
+            cooldown_seconds=_ERROR_COOLDOWNS[error_type],
+            reason=f"HTTP {status_code}: {error_type.value}"
+        )
+    
+    # Check error message patterns
+    for error_type, patterns in _ERROR_PATTERNS.items():
+        for pattern in patterns:
+            if re.search(pattern, err_str, re.IGNORECASE):
+                return ErrorClassification(
+                    error_type=error_type,
+                    status_code=status_code if status_code else None,
+                    error_message=err_str[:200],
+                    can_retry=True,
+                    should_fallback=error_type in {
+                        CompressionErrorType.MODEL_NOT_FOUND,
+                        CompressionErrorType.MODEL_UNAVAILABLE,
+                        CompressionErrorType.TIMEOUT,
+                        CompressionErrorType.CONNECTION_ERROR,
+                        CompressionErrorType.STREAMING_CLOSED,
+                        CompressionErrorType.JSON_DECODE_ERROR,
+                    },
+                    cooldown_seconds=_ERROR_COOLDOWNS[error_type],
+                    reason=f"Matched pattern '{pattern}': {error_type.value}"
+                )
+    
+    # Check for connection errors using helper
+    if _is_connection_error(exception):
+        return ErrorClassification(
+            error_type=CompressionErrorType.CONNECTION_ERROR,
+            status_code=status_code if status_code else None,
+            error_message=err_str[:200],
+            can_retry=True,
+            should_fallback=True,
+            cooldown_seconds=_ERROR_COOLDOWNS[CompressionErrorType.CONNECTION_ERROR],
+            reason="Connection error detected"
+        )
+    
+    # Default to unknown error
+    return ErrorClassification(
+        error_type=CompressionErrorType.UNKNOWN,
+        status_code=status_code if status_code else None,
+        error_message=err_str[:200],
+        can_retry=True,
+        should_fallback=True,
+        cooldown_seconds=_ERROR_COOLDOWNS[CompressionErrorType.UNKNOWN],
+        reason="Unknown error type"
+    )
+
 
 SUMMARY_PREFIX = (
     "[CONTEXT COMPACTION - REFERENCE ONLY] Earlier turns were compacted "
@@ -55,9 +293,13 @@ SUMMARY_PREFIX = (
     "config, etc.) may reflect work described here - avoid repeating it:"
 )
 
-_MIN_SUMMARY_TOKENS = 500
+# ═══════════════════════════════════════════════════════════════════════════════
+# 摘要参数 (直接采用 Hermes Agent 的科学测算值)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_MIN_SUMMARY_TOKENS = 2000
 _SUMMARY_RATIO = 0.20
-_SUMMARY_TOKENS_CEILING = 4000
+_SUMMARY_TOKENS_CEILING = 12000
 _PRUNED_TOOL_PLACEHOLDER = "[Old tool output cleared to save context space]"
 _CHARS_PER_TOKEN = 4
 _IMAGE_TOKEN_ESTIMATE = 1600
@@ -495,7 +737,8 @@ class ContextCompressor(ContextEngine):
     def __init__(
         self,
         model: str = "gpt-4",
-        threshold_percent: float = 0.50,
+        # threshold_percent: 当上下文使用达到此比例时触发压缩 (Hermes: 0.75)
+        threshold_percent: float = 0.75,
         protect_first_n: int = 3,
         protect_last_n: int = 10,
         summary_target_ratio: float = 0.20,
@@ -518,9 +761,10 @@ class ContextCompressor(ContextEngine):
         self.llm_client = llm_client
 
         self.context_length = self._get_model_context_length(model)
+        # threshold_tokens: 触发压缩的绝对 token 数 (Hermes MINIMUM_CONTEXT_LENGTH: 8192)
         self.threshold_tokens = max(
             int(self.context_length * threshold_percent),
-            8000,
+            8192,  # Hermes MINIMUM_CONTEXT_LENGTH
         )
         self.compression_count = 0
 
@@ -538,7 +782,15 @@ class ContextCompressor(ContextEngine):
         self._last_summary_dropped_count: int = 0
         self._last_summary_fallback_used: bool = False
         self._last_compress_aborted: bool = False
-
+        
+        # Enhanced error handling state variables
+        self._summary_model_fallen_back: bool = False  # 是否已回退到主模型
+        self._last_aux_model_failure_error: Optional[str] = None  # 辅助模型最后错误
+        self._last_aux_model_failure_model: Optional[str] = None  # 失败的辅助模型名
+        
+        # 可配置的 summary_model (用于压缩的辅助模型)
+        self._config_summary_model: str = summary_model or ""
+        
         self.logger = get_decision_logger(self.__class__.__name__, sublayer="context")
 
         if not quiet_mode:
@@ -724,11 +976,14 @@ class ContextCompressor(ContextEngine):
         budget = int(content_tokens * _SUMMARY_RATIO)
         return max(_MIN_SUMMARY_TOKENS, min(budget, self.max_summary_tokens))
 
-    _CONTENT_MAX = 3000
-    _CONTENT_HEAD = 2000
-    _CONTENT_TAIL = 500
-    _TOOL_ARGS_MAX = 800
-    _TOOL_ARGS_HEAD = 600
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 内容截断参数 (直接采用 Hermes Agent 的科学测算值)
+    # ═══════════════════════════════════════════════════════════════════════════
+    _CONTENT_MAX = 6000
+    _CONTENT_HEAD = 4000
+    _CONTENT_TAIL = 1500
+    _TOOL_ARGS_MAX = 1500
+    _TOOL_ARGS_HEAD = 1200
 
     def _serialize_for_summary(self, turns: List[Dict[str, Any]]) -> str:
         """Serialize conversation turns into labeled text for the summarizer."""
@@ -769,7 +1024,7 @@ class ContextCompressor(ContextEngine):
         return "\n\n".join(parts)
 
     def _generate_summary(self, turns_to_summarize: List[Dict[str, Any]], focus_topic: str = None) -> Optional[str]:
-        """Generate a structured summary of conversation turns."""
+        """Generate a structured summary of conversation turns with enhanced error handling."""
         now = time.monotonic()
         if now < self._summary_failure_cooldown_until:
             self.logger.debug(
@@ -780,6 +1035,8 @@ class ContextCompressor(ContextEngine):
 
         if self.llm_client is None:
             self.logger.warning("No LLM client configured for compression summarization")
+            self._last_summary_error = "No LLM client configured"
+            self._summary_failure_cooldown_until = time.monotonic() + _SUMMARY_FAILURE_COOLDOWN_SECONDS
             return None
 
         summary_budget = self._compute_summary_budget(turns_to_summarize)
@@ -791,6 +1048,8 @@ class ContextCompressor(ContextEngine):
             "compact record of prior work. "
             "Produce only the structured summary; do not add a greeting, "
             "preamble, or prefix. "
+            "Write the summary in the same language the user was using in the "
+            "conversation. "
             "NEVER include API keys, tokens, passwords, secrets, credentials, "
             "or connection strings in the summary - replace any that appear "
             "with [REDACTED]."
@@ -809,12 +1068,6 @@ class ContextCompressor(ContextEngine):
 [Numbered list of concrete actions taken - include tool used, target, and outcome.
 Format: N. ACTION target - outcome [tool: name]]
 
-## In Progress
-[Actions currently being executed or about to start]
-
-## Blocked
-[Any actions that cannot proceed due to missing information, errors, or dependencies]
-
 ## Active State
 [Current working state - include:
 - Working directory and branch
@@ -822,14 +1075,20 @@ Format: N. ACTION target - outcome [tool: name]]
 - Test status
 - Any running processes]
 
+## In Progress
+[Work currently underway - what was being done when compaction fired]
+
+## Blocked
+[Any blockers, errors, or issues not yet resolved. Include exact error messages.]
+
 ## Key Decisions
 [Important technical decisions and WHY they were made]
 
 ## Resolved Questions
-[Questions the user asked that were ALREADY answered]
+[Questions the user asked that were ALREADY answered - include the answer so it is not repeated]
 
 ## Pending User Asks
-[Questions or requests from the user that have NOT yet been answered]
+[Questions or requests from the user that have NOT yet been answered. If none, write "None."]
 
 ## Relevant Files
 [Files read, modified, or created - with brief note on each]
@@ -838,14 +1097,14 @@ Format: N. ACTION target - outcome [tool: name]]
 [What remains to be done - framed as context, not instructions]
 
 ## Critical Context
-[Any critical information that must NOT be lost during compression: API keys, config values, specific file paths, etc.]
+[Any specific values, error messages, configuration details, or data that would be lost without explicit preservation. NEVER include API keys, tokens, passwords, or credentials - write [REDACTED] instead.]
 
-Target ~{summary_budget} tokens. Be CONCRETE - include file paths, command outputs, error messages. Avoid vague descriptions."""
+Target ~{summary_budget} tokens. Be CONCRETE - include file paths, command outputs, error messages, line numbers, and specific values. Avoid vague descriptions."""
 
         if self._previous_summary:
             prompt = f"""{_summarizer_preamble}
 
-You are updating a context compaction summary. A previous compaction produced the summary below. New conversation turns have occurred since then.
+You are updating a context compaction summary. A previous compaction produced the summary below. New conversation turns have occurred since then and need to be incorporated.
 
 PREVIOUS SUMMARY:
 {self._previous_summary}
@@ -853,13 +1112,13 @@ PREVIOUS SUMMARY:
 NEW TURNS TO INCORPORATE:
 {content_to_summarize}
 
-Update the summary. PRESERVE all existing information that is still relevant. ADD new completed actions to the numbered list. CRITICAL: Update "## Active Task" to reflect the user's most recent unfulfilled request.
+Update the summary using this exact structure. PRESERVE all existing information that is still relevant. ADD new completed actions to the numbered list (continue numbering). Move items from "In Progress" to "Completed Actions" when done. Move answered questions to "Resolved Questions". Update "Active State" to reflect current state. Remove information only if it is clearly obsolete. CRITICAL: Update "## Active Task" to reflect the user's most recent unfulfilled request.
 
 {_template_sections}"""
         else:
             prompt = f"""{_summarizer_preamble}
 
-Create a structured checkpoint summary for the conversation.
+Create a structured checkpoint summary for the conversation after earlier turns are compacted. The summary should preserve enough detail for continuity without re-reading the original turns.
 
 TURNS TO SUMMARIZE:
 {content_to_summarize}
@@ -872,7 +1131,7 @@ Use this exact structure:
             prompt += f"""
 
 FOCUS TOPIC: "{focus_topic}"
-Prioritise preserving all information related to the focus topic above."""
+The user has requested that this compaction PRIORITISE preserving all information related to the focus topic above. For content related to "{focus_topic}", include full detail. For content NOT related to the focus topic, summarise more aggressively."""
 
         try:
             import asyncio
@@ -894,16 +1153,71 @@ Prioritise preserving all information related to the focus topic above."""
             self._previous_summary = summary
             self._summary_failure_cooldown_until = 0.0
             self._last_summary_error = None
+            self._summary_model_fallen_back = False
             return f"{SUMMARY_PREFIX}\n{summary}"
 
         except Exception as e:
-            self._summary_failure_cooldown_until = time.monotonic() + 60
-            self._last_summary_error = str(e).strip() or e.__class__.__name__
-            self.logger.warning(
-                "Failed to generate context summary: %s. "
-                "Further summary attempts paused for 60 seconds.",
-                e,
-            )
+            # 使用增强的错误分类
+            classification = classify_compression_error(e)
+            
+            # 记录错误信息供外部查看
+            err_text = str(e).strip() or e.__class__.__name__
+            if len(err_text) > 220:
+                err_text = err_text[:217].rstrip() + "..."
+            self._last_summary_error = err_text
+            
+            # 记录辅助模型失败信息
+            if self._config_summary_model and self._config_summary_model != self.model:
+                self._last_aux_model_failure_error = err_text
+                self._last_aux_model_failure_model = self._config_summary_model
+            
+            # 检查是否应该回退到主模型
+            if classification.should_fallback and self._config_summary_model:
+                if not self._summary_model_fallen_back:
+                    self.logger.info(
+                        "Compression failed with summary model '%s' (%s). "
+                        "Falling back to main model '%s' for compression.",
+                        self._config_summary_model,
+                        classification.reason,
+                        self.model,
+                    )
+                    # 回退到主模型，清除摘要模型配置
+                    self._config_summary_model = ""
+                    self._summary_model_fallen_back = True
+                    self._summary_failure_cooldown_until = 0.0  # 无需冷却，立即重试
+                    # 递归调用（使用主模型）
+                    return self._generate_summary(turns_to_summarize, focus_topic=focus_topic)
+            
+            # 不能重试或已回退过，设置分层冷却
+            if not classification.can_retry or self._summary_model_fallen_back:
+                self._summary_failure_cooldown_until = time.monotonic() + classification.cooldown_seconds
+                self.logger.warning(
+                    "Summary generation failed: %s. "
+                    "Cooldown: %d seconds.",
+                    classification.reason,
+                    classification.cooldown_seconds,
+                )
+            else:
+                # 通用错误：先尝试主模型回退
+                if self._config_summary_model and not self._summary_model_fallen_back:
+                    self._config_summary_model = ""
+                    self._summary_model_fallen_back = True
+                    self._summary_failure_cooldown_until = 0.0
+                    self.logger.info(
+                        "Compression failed with '%s'. Falling back to main model.",
+                        self.model,
+                    )
+                    return self._generate_summary(turns_to_summarize, focus_topic=focus_topic)
+                
+                # 进入冷却
+                self._summary_failure_cooldown_until = time.monotonic() + classification.cooldown_seconds
+                self.logger.warning(
+                    "Failed to generate context summary: %s. "
+                    "Cooldown: %d seconds.",
+                    err_text,
+                    classification.cooldown_seconds,
+                )
+            
             return None
 
     def _sanitize_tool_pairs(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
