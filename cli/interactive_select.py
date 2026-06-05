@@ -126,7 +126,9 @@ def _select_with_inquirer(
         if isinstance(opt, tuple):
             opt_id, opt_label = opt
             is_current = (current_value is not None and opt_id == current_value)
-            label = f"[*] {opt_label}" if is_current else f"    {opt_label}"
+            # 使用固定宽度前缀，与 checkbox 保持一致
+            prefix = "◉ " if is_current else "  "
+            label = f"{prefix}{opt_label}"
         else:
             label = str(opt)
             opt_id = label
@@ -178,14 +180,23 @@ def checkbox_with_inquirer(
             return None
 
     # inquirer.Checkbox 使用简单的字符串列表
-    # choices 格式: 字符串或 (value, name) 元组
-    # 返回: 选中的字符串列表
+    # choices 格式: 字符串或 (label, value) 元组
+    # 返回: 选中的字符串列表（value）
+    
+    # 确保 choices 格式正确: (label, value)
+    choices = []
+    for opt in options:
+        if isinstance(opt, tuple):
+            # (value, label) -> (label, value)
+            choices.append((opt[1], opt[0]))
+        else:
+            choices.append(opt)
     
     questions = [
         inquirer.Checkbox(
             'choices',
             message=title or "请选择",
-            choices=options,
+            choices=choices,
         )
     ]
 
@@ -198,9 +209,9 @@ def checkbox_with_inquirer(
     finally:
         _show_cursor()
 
-    # result['choices'] 返回选中的字符串列表（value）
+    # result['choices'] 返回选中的 (label, value) 元组列表，需要提取 value
     if result and 'choices' in result:
-        return result['choices']
+        return [item[1] for item in result['choices']]
     return None
 
 

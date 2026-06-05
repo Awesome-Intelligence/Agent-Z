@@ -25,6 +25,8 @@ setup:
   common:
     yes_no_yes: "[Y/n]"
     yes_no_no: "[y/N]"
+    yes: "是"
+    no: "否"
     quit_hint: "(输入 q 返回上一级)"
     enter_to_default: "(直接回车使用默认值: {default})"
     cancel: "已取消"
@@ -195,6 +197,14 @@ setup:
     vision_tools: "启用 Vision Tools Debug？"
     moa_tools: "启用 MOA Tools Debug？"
     image_tools: "启用 Image Tools Debug？"
+
+  # Platforms (Messaging Gateways)
+  platforms:
+    reconfigure: "重新配置 {platform}？"
+    add_allowed_users: "现在添加允许的用户？"
+    use_home_channel: "使用你的用户 ID ({user_id}) 作为主频道？"
+    install_espeak: "现在安装 espeak-ng？"
+    add_credential: "添加额外的凭证用于故障转移？"
 
   # Skills Hub
   skills_hub:

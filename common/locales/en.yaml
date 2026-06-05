@@ -33,6 +33,8 @@ setup:
   common:
     yes_no_yes: "Y/n"
     yes_no_no: "y/N"
+    yes: "Yes"
+    no: "No"
     quit_hint: "(input q to go back)"
     enter_to_default: "(press Enter to use default: {default})"
     cancel: "Cancelled"
@@ -203,6 +205,14 @@ setup:
     vision_tools: "Enable Vision Tools Debug?"
     moa_tools: "Enable MOA Tools Debug?"
     image_tools: "Enable Image Tools Debug?"
+
+  # Platforms (Messaging Gateways)
+  platforms:
+    reconfigure: "Reconfigure {platform}?"
+    add_allowed_users: "Add allowed users now?"
+    use_home_channel: "Use your user ID ({user_id}) as the home channel?"
+    install_espeak: "Install espeak-ng now?"
+    add_credential: "Add extra credentials for failover?"
 
   # Skills Hub
   skills_hub:
@@ -393,6 +403,17 @@ menu:
     title: "📱 Communication & Voice"
     hint: "Messaging, TTS, STT"
   system:
+    title: "⚙️ System Settings"
+    hint: "Agent, Terminal, Memory, Language"
+  tools:
+    title: "🛠️ Tools & Extensions"
+    hint: "Web search, browser, etc."
+  preferences:
+    title: "💡 System Preferences"
+    hint: "Response detail, caching"
+  auxiliary:
+    title: "🔧 Auxiliary Functions"
+    hint: "View current configuration"
     title: "⚙️ System Settings"
     hint: "Agent, Terminal, Memory, Language"
   tools:

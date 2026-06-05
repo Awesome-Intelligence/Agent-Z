@@ -244,6 +244,23 @@ def ask_yes_no(question: str, default: bool = True) -> bool | None:
             return None
 
 
+def ask_yes_no_options(question: str, default: bool = True) -> bool | None:
+    """使用选项列表询问是/否（替代 ask_yes_no）."""
+    yes_label = t("setup.common.yes")
+    no_label = t("setup.common.no")
+    
+    options = [
+        (yes_label, "yes"),
+        (no_label, "no"),
+    ]
+    default_idx = 0 if default else 1
+    
+    choice = ask_choice(question, options, default=default_idx)
+    if choice is None:
+        return None
+    return options[choice][1] == "yes"
+
+
 def ask_choice(question: str, options: list, default: int = 0, current_value: str = None) -> int | None:
     """让用户从选项中选择 - 不显示重复的 logo."""
     print()
@@ -641,7 +658,7 @@ def _setup_api_key_provider(provider_id: str, config: dict) -> dict | None:
     
     if current_key:
         ui.print_info(f"{t('setup.summary.configured')} API Key: {current_key[:4]}...{current_key[-4:]}")
-        reuse = ask_yes_no("Keep existing API Key?", default=True)
+        reuse = ask_yes_no(t("setup.llm.reuse_key"), default=True)
         if reuse is None:
             return None
         if reuse:
@@ -661,7 +678,7 @@ def _setup_api_key_provider(provider_id: str, config: dict) -> dict | None:
     base_url = provider_info.get('base_url', '')
     use_custom_url = False
     if base_url:
-        use_custom_url = ask_yes_no("Use custom API URL?", default=False)
+        use_custom_url = ask_yes_no(t("setup.llm.custom_url"), default=False)
     
     custom_url = None
     if use_custom_url:
@@ -744,7 +761,7 @@ def _setup_openrouter_provider(provider_id: str, config: dict) -> dict | None:
     
     if current_key:
         ui.print_info(f"{t('setup.summary.configured')} API Key: {current_key[:4]}...{current_key[-4:]}")
-        reuse = ask_yes_no("Keep existing API Key?", default=True)
+        reuse = ask_yes_no(t("setup.llm.reuse_key"), default=True)
         if reuse is None:
             return None
         if reuse:
@@ -973,7 +990,7 @@ def setup_terminal(config: dict) -> dict | None:
             return None
         new_config["docker_image"] = image
         # 提示容器资源配置
-        if ask_yes_no(t("setup.terminal.configure_resources"), default=False):
+        if ask_yes_no_options(t("setup.terminal.configure_resources"), default=False):
             _prompt_container_resources(config)
             # 重新构建 new_config 以包含最新值
             new_config = config.get('terminal', {}).copy()
@@ -1013,7 +1030,7 @@ def setup_terminal(config: dict) -> dict | None:
             return None
         new_config["modal_image"] = image
         # 提示容器资源配置
-        if ask_yes_no(t("setup.terminal.configure_resources"), default=False):
+        if ask_yes_no_options(t("setup.terminal.configure_resources"), default=False):
             _prompt_container_resources(config)
             # 重新构建 new_config 以包含最新值
             new_config = config.get('terminal', {}).copy()
@@ -1137,7 +1154,7 @@ def setup_session_reset(config: dict) -> dict | None:
             minutes = 1440
         new_config["idle_minutes"] = minutes
     
-    notify = ask_yes_no(t("setup.session_reset.send_notification"), default=session_reset.get('notify', True))
+    notify = ask_yes_no_options(t("setup.session_reset.send_notification"), default=session_reset.get('notify', True))
     if notify is None:
         return None
     new_config["notify"] = notify
@@ -1220,7 +1237,7 @@ def setup_compression(config: dict) -> dict | None:
     
     compression = config.get('compression', {})
     
-    enabled = ask_yes_no(t("setup.compression.enable"), default=compression.get('enabled', True))
+    enabled = ask_yes_no_options(t("setup.compression.enable"), default=compression.get('enabled', True))
     if enabled is None:
         return None
     
@@ -1257,7 +1274,7 @@ def setup_stt(config: dict) -> dict | None:
     
     stt = config.get('stt', {})
     
-    enabled = ask_yes_no(t("setup.stt.enable"), default=stt.get('enabled', False))
+    enabled = ask_yes_no_options(t("setup.stt.enable"), default=stt.get('enabled', False))
     if enabled is None:
         return None
     
@@ -1313,7 +1330,7 @@ def _install_neutts_deps() -> bool:
         else:
             print_info("安装方式: sudo apt install espeak-ng")
         print()
-        if ask_yes_no("Install espeak-ng now?", default=False):
+        if ask_yes_no(t("setup.platforms.install_espeak"), default=False):
             try:
                 if sys.platform == "darwin":
                     subprocess.run(["brew", "install", "espeak-ng"], check=True)
@@ -1407,7 +1424,7 @@ def setup_tts(config: dict) -> dict | None:
     choices.append(t("setup.tts.keep_current", provider=current_label))
     keep_current_idx = len(choices) - 1
     
-    provider_idx = ask_choice(t("setup.tts.select_provider"), choices, default=current_idx if current_idx < keep_current_idx else keep_current_idx)
+    provider_idx = ask_choice(t("setup.tts.select_provider"), choices, default=current_idx if current_idx < keep_current_idx else keep_current_idx, current_value=current_provider)
     
     if provider_idx == keep_current_idx:
         print_info(t("setup.tts.keep_current", provider=current_label))
@@ -1428,7 +1445,7 @@ def setup_tts(config: dict) -> dict | None:
             print_info("  • Python package: neutts (~50MB install + ~300MB model on first use)")
             print_info("  • System package: espeak-ng (phonemizer)")
             print()
-            if ask_yes_no(t("setup.tts.install_now"), default=True):
+            if ask_yes_no_options(t("setup.tts.install_now"), default=True):
                 if not _install_neutts_deps():
                     print_warning(t("setup.tts.install_failed"))
                     new_config["provider"] = "edge"
@@ -1443,7 +1460,7 @@ def setup_tts(config: dict) -> dict | None:
             print_info(t("setup.tts.kittentts_description"))
             print_info("Voices: Jasper, Bella, Luna, Bruno, Rosie, Hugo, Kiki, Leo")
             print()
-            if ask_yes_no(t("setup.tts.install_now"), default=True):
+            if ask_yes_no_options(t("setup.tts.install_now"), default=True):
                 if not _install_kittentts_deps():
                     print_warning("KittenTTS installation incomplete. Falling back to Edge TTS.")
                     new_config["provider"] = "edge"
@@ -1567,19 +1584,19 @@ def setup_browser(config: dict) -> dict | None:
     
     browser = config.get('browser', {})
     
-    enabled = ask_yes_no(t("setup.browser.enable"), default=browser.get('enabled', False))
+    enabled = ask_yes_no_options(t("setup.browser.enable"), default=browser.get('enabled', False))
     if enabled is None:
         return None
     
     new_config = {"enabled": enabled}
     
     if enabled:
-        proxies = ask_yes_no(t("setup.browser.residential_proxy"), default=browser.get('proxies', True))
+        proxies = ask_yes_no_options(t("setup.browser.residential_proxy"), default=browser.get('proxies', True))
         if proxies is None:
             return None
         new_config["proxies"] = proxies
         
-        stealth = ask_yes_no(t("setup.browser.stealth_mode"), default=browser.get('advanced_stealth', False))
+        stealth = ask_yes_no_options(t("setup.browser.stealth_mode"), default=browser.get('advanced_stealth', False))
         if stealth is None:
             return None
         new_config["advanced_stealth"] = stealth
@@ -1607,19 +1624,19 @@ def setup_debug(config: dict) -> dict | None:
     
     debug = config.get('debug_tools', {})
     
-    web_debug = ask_yes_no(t("setup.debug.web_tools"), default=debug.get('web_tools', False))
+    web_debug = ask_yes_no_options(t("setup.debug.web_tools"), default=debug.get('web_tools', False))
     if web_debug is None:
         return None
     
-    vision_debug = ask_yes_no(t("setup.debug.vision_tools"), default=debug.get('vision_tools', False))
+    vision_debug = ask_yes_no_options(t("setup.debug.vision_tools"), default=debug.get('vision_tools', False))
     if vision_debug is None:
         return None
     
-    moa_debug = ask_yes_no(t("setup.debug.moa_tools"), default=debug.get('moa_tools', False))
+    moa_debug = ask_yes_no_options(t("setup.debug.moa_tools"), default=debug.get('moa_tools', False))
     if moa_debug is None:
         return None
     
-    image_debug = ask_yes_no(t("setup.debug.image_tools"), default=debug.get('image_tools', False))
+    image_debug = ask_yes_no_options(t("setup.debug.image_tools"), default=debug.get('image_tools', False))
     if image_debug is None:
         return None
     
@@ -1647,7 +1664,7 @@ def setup_skills_hub(config: dict) -> dict | None:
         ui.print_info(t("setup.skills_hub.token_configured"))
         ui.print_info(t("setup.skills_hub.token_hint", suffix=current_token[-4:] if len(current_token) > 4 else current_token))
         
-        reuse = ask_yes_no(t("setup.skills_hub.keep_token"), default=True)
+        reuse = ask_yes_no_options(t("setup.skills_hub.keep_token"), default=True)
         if reuse is None:
             return None
         if reuse:
@@ -1742,7 +1759,7 @@ def setup_caching(config: dict) -> dict | None:
     prefs = config.get('preferences', {})
     current_caching = prefs.get('enable_caching', True)
     
-    use_caching = ask_yes_no(t("setup.preferences.caching.enable"), default=current_caching)
+    use_caching = ask_yes_no_options(t("setup.preferences.caching.enable"), default=current_caching)
     if use_caching is None:
         return None
     
@@ -1780,11 +1797,11 @@ def _setup_telegram():
     existing = os.environ.get('TELEGRAM_BOT_TOKEN', '')
     if existing:
         print_info("Telegram: " + t("setup.summary.configured"))
-        if not ask_yes_no("Reconfigure Telegram?", default=False):
+        if not ask_yes_no(t("setup.platforms.reconfigure", platform="Telegram"), default=False):
             # Check missing allowlist on existing config
             if not os.environ.get('TELEGRAM_ALLOWED_USERS'):
                 print_warning("⚠️  Telegram has no user allowlist - anyone can use your bot!")
-                if ask_yes_no("Add allowed users now?", default=True):
+                if ask_yes_no(t("setup.platforms.add_allowed_users"), default=True):
                     print_info("   To find your Telegram user ID: message @userinfobot")
                     allowed_users = prompt("Allowed user IDs (comma-separated)")
                     if allowed_users:
@@ -1831,7 +1848,7 @@ def _setup_telegram():
 
     first_user_id = allowed_users.split(",")[0].strip() if allowed_users else ""
     if first_user_id:
-        if ask_yes_no(f"Use your user ID ({first_user_id}) as the home channel?", default=True):
+        if ask_yes_no(t("setup.platforms.use_home_channel", user_id=first_user_id), default=True):
             _save_env_value('TELEGRAM_HOME_CHANNEL', first_user_id)
             print_success(f"Telegram home channel set to {first_user_id}")
         else:
@@ -1851,7 +1868,7 @@ def _setup_slack():
     existing = os.environ.get('SLACK_BOT_TOKEN', '')
     if existing:
         print_info("Slack: " + t("setup.summary.configured"))
-        if not ask_yes_no("Reconfigure Slack?", default=False):
+        if not ask_yes_no(t("setup.platforms.reconfigure", platform="Slack"), default=False):
             return
 
     print_info("Steps to create a Slack app:")
@@ -1905,7 +1922,7 @@ def _setup_discord():
     existing = os.environ.get('DISCORD_BOT_TOKEN', '')
     if existing:
         print_info("Discord: " + t("setup.summary.configured"))
-        if not ask_yes_no("Reconfigure Discord?", default=False):
+        if not ask_yes_no(t("setup.platforms.reconfigure", platform="Discord"), default=False):
             return
 
     print_info("Steps to create a Discord app:")
@@ -1944,7 +1961,7 @@ def _setup_whatsapp():
     existing = os.environ.get('WHATSAPP_ACCESS_TOKEN', '')
     if existing:
         print_info("WhatsApp: " + t("setup.summary.configured"))
-        if not ask_yes_no("Reconfigure WhatsApp?", default=False):
+        if not ask_yes_no(t("setup.platforms.reconfigure", platform="WhatsApp"), default=False):
             return
 
     print_info("WhatsApp Business API Setup:")
@@ -2044,7 +2061,11 @@ def setup_tools(config: dict, first_install: bool = False):
     else:
         print_info(t("setup.summary.not_configured"))
 
-    if ask_yes_no(t("setup.tools.web_search.prompt"), default=False):
+    if ask_yes_no_options(t("setup.tools.web_search.prompt"), default=False):
+        provider_names = ["exa", "tavily", "firecrawl", "searxng"]
+        current_provider = os.environ.get('WEB_SEARCH_PROVIDER', '')
+        current_idx = provider_names.index(current_provider) if current_provider in provider_names else 0
+        
         web_provider = ask_choice(
             t("setup.tools.web_search.select_provider"),
             [
@@ -2053,13 +2074,14 @@ def setup_tools(config: dict, first_install: bool = False):
                 ("firecrawl", t("setup.tools.web_search.providers.firecrawl")),
                 ("searxng", t("setup.tools.web_search.providers.searxng")),
             ],
-            default=0
+            default=current_idx,
+            current_value=current_provider if current_provider else None
         )
         if web_provider is None:
             return
 
-        provider_names = ["exa", "tavily", "firecrawl", "searxng"]
         selected = provider_names[web_provider]
+        _save_env_value('WEB_SEARCH_PROVIDER', selected)
 
         if selected == "exa":
             api_key = ask_input("Exa API Key", password=True, required=True)
@@ -2094,7 +2116,11 @@ def setup_tools(config: dict, first_install: bool = False):
     else:
         print_info(t("setup.summary.not_configured"))
 
-    if ask_yes_no(t("setup.tools.browser_automation.prompt"), default=False):
+    if ask_yes_no_options(t("setup.tools.browser_automation.prompt"), default=False):
+        provider_names = ["browserbase", "camofox", "local"]
+        current_provider = os.environ.get('BROWSER_AUTOMATION_PROVIDER', '')
+        current_idx = provider_names.index(current_provider) if current_provider in provider_names else 0
+        
         browser_provider = ask_choice(
             t("setup.tools.browser_automation.select_provider"),
             [
@@ -2102,13 +2128,14 @@ def setup_tools(config: dict, first_install: bool = False):
                 ("camofox", t("setup.tools.browser_automation.providers.camofox")),
                 ("local", t("setup.tools.browser_automation.providers.local")),
             ],
-            default=0
+            default=current_idx,
+            current_value=current_provider if current_provider else None
         )
         if browser_provider is None:
             return
 
-        provider_names = ["browserbase", "camofox", "local"]
         selected = provider_names[browser_provider]
+        _save_env_value('BROWSER_AUTOMATION_PROVIDER', selected)
 
         if selected == "browserbase":
             api_key = ask_input("Browserbase API Key", password=True, required=True)
@@ -2136,17 +2163,24 @@ def setup_tools(config: dict, first_install: bool = False):
     else:
         print_info(t("setup.summary.not_configured"))
 
-    if ask_yes_no(t("setup.tools.image_generation.prompt"), default=False):
+    if ask_yes_no_options(t("setup.tools.image_generation.prompt"), default=False):
+        provider_names = ["fal", "openai"]
+        current_provider = os.environ.get('IMAGE_GENERATION_PROVIDER', '')
+        current_idx = provider_names.index(current_provider) if current_provider in provider_names else 0
+        
         image_provider = ask_choice(
             t("setup.tools.image_generation.select_provider"),
             [
                 ("fal", t("setup.tools.image_generation.providers.fal")),
                 ("openai", t("setup.tools.image_generation.providers.openai")),
             ],
-            default=0
+            default=current_idx,
+            current_value=current_provider if current_provider else None
         )
         if image_provider is None:
             return
+        
+        _save_env_value('IMAGE_GENERATION_PROVIDER', provider_names[image_provider])
 
         if image_provider == 0:
             api_key = ask_input("Fal API Key", password=True, required=True)
@@ -2190,7 +2224,7 @@ def setup_credential_pool(config: dict):
     )
     print()
 
-    if ask_yes_no("添加额外的凭证用于故障转移?", default=False):
+    if ask_yes_no(t("setup.platforms.add_credential"), default=False):
         api_key = prompt("Additional API key for same provider", password=True)
         if api_key:
             # 保存到 pool
@@ -2212,11 +2246,18 @@ def setup_credential_pool(config: dict):
     ]
     current_strategy = config.get('credential_pool_strategies', {}).get(provider, 'fill_first')
     default_idx = {"fill_first": 0, "round_robin": 1, "random": 2}.get(current_strategy, 0)
+    
+    strategy_options = [
+        ("fill_first", strategy_labels[0]),
+        ("round_robin", strategy_labels[1]),
+        ("random", strategy_labels[2]),
+    ]
 
     strategy_idx = ask_choice(
         "Select same-provider rotation strategy:",
-        strategy_labels,
-        default=default_idx
+        strategy_options,
+        default=default_idx,
+        current_value=current_strategy
     )
 
     strategy_value = ["fill_first", "round_robin", "random"][strategy_idx]
@@ -2244,12 +2285,15 @@ def setup_vision(config: dict) -> dict | None:
         return {}
 
     # Vision options
+    current_vision = config.get('auxiliary', {}).get('vision', {}).get('provider', 'skip')
+    current_idx = {"openrouter": 0, "openai_compatible": 1, "skip": 2}.get(current_vision, 2)
+    
     vision_choices = [
-        t("setup.vision.options.openrouter"),
-        t("setup.vision.options.openai_compatible"),
-        t("setup.vision.options.skip"),
+        ("openrouter", t("setup.vision.options.openrouter")),
+        ("openai_compatible", t("setup.vision.options.openai_compatible")),
+        ("skip", t("setup.vision.options.skip")),
     ]
-    vision_idx = ask_choice(t("setup.vision.prompt"), vision_choices, default=2)
+    vision_idx = ask_choice(t("setup.vision.prompt"), vision_choices, default=2, current_value=current_vision)
 
     if vision_idx == 0:  # OpenRouter
         api_key = ask_input(t("setup.vision.openrouter_key"), password=True, required=True)
@@ -2272,9 +2316,11 @@ def setup_vision(config: dict) -> dict | None:
                 # Select vision model
                 if is_native_openai:
                     oai_vision_models = ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"]
+                    current_model = os.environ.get('AUXILIARY_VISION_MODEL', 'gpt-4o-mini')
+                    current_idx = oai_vision_models.index(current_model) if current_model in oai_vision_models else 1
                     vm_choices = [(m, m) for m in oai_vision_models]
                     vm_choices.append(("custom", "Custom model"))
-                    vm_idx = ask_choice(t("setup.vision.vision_model"), vm_choices, default=1)
+                    vm_idx = ask_choice(t("setup.vision.vision_model"), vm_choices, default=1, current_value=current_model)
                     if vm_idx is None:
                         return None
                     if vm_idx < len(oai_vision_models):
@@ -2375,7 +2421,7 @@ def run_full_setup_wizard():
     from cli.banner import print_setup_summary as _print_summary
     _print_summary(_build_config_status(config))
 
-    save_ask = ask_yes_no(t("setup.full_config.save_prompt"), default=True)
+    save_ask = ask_yes_no_options(t("setup.full_config.save_prompt"), default=True)
     if save_ask is None or not save_ask:
         return None
 
@@ -2471,7 +2517,7 @@ def run_quick_config_wizard():
         remaining = len(important_sections) - i
         if remaining > 0:
             ui.print_info(t("setup.quick_config.remaining", count=remaining))
-            continue_config = ask_yes_no(t("setup.quick_config.continue_prompt"), default=True)
+            continue_config = ask_yes_no_options(t("setup.quick_config.continue_prompt"), default=True)
             if continue_config is None or not continue_config:
                 ui.print_info(t("setup.common.cancel"))
                 return
@@ -2650,7 +2696,14 @@ def _translate_menu(key: str, fallback: str) -> str:
         
         # Hint 提示文本
         "使用推荐配置，快速完成设置": t("menu.quick.hint"),
+        "快速配置或重置所有设置": t("menu.quick_start.hint"),
         "清空配置，重新开始": t("menu.reset_all.hint"),
+        "大模型、视觉、参数、意图识别": t("menu.ai.hint"),
+        "消息平台、TTS、STT": t("menu.communication.hint"),
+        "Agent、Terminal、记忆、语言": t("menu.system.hint"),
+        "Web 搜索、浏览器等": t("menu.tools.hint"),
+        "响应详细程度、缓存": t("menu.preferences.hint"),
+        "查看当前配置": t("menu.auxiliary.hint"),
         "选择 AI 提供商和模型": t("menu.llm.hint"),
         "图片理解能力配置": t("menu.vision.hint"),
         "max_tokens、temperature 等": t("menu.model.hint"),

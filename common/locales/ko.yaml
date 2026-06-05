@@ -25,6 +25,8 @@ setup:
   common:
     yes_no_yes: "[Y/n]"
     yes_no_no: "[y/N]"
+    yes: "예"
+    no: "아니오"
     quit_hint: "(q 입력하여 돌아가기)"
     enter_to_default: "(Enter로 기본값 사용: {default})"
     cancel: "취소됨"
@@ -195,6 +197,14 @@ setup:
     vision_tools: "Vision Tools 디버그를 활성화하시겠습니까？"
     moa_tools: "MOA Tools 디버그를 활성화하시겠습니까？"
     image_tools: "Image Tools 디버그를 활성화하시겠습니까？"
+
+  # Platforms (Messaging Gateways)
+  platforms:
+    reconfigure: "{platform}을(를) 다시 설정하시겠습니까？"
+    add_allowed_users: "허용된 사용자를 추가하시겠습니까？"
+    use_home_channel: "사용자 ID ({user_id})를 홈 채널로 사용하시겠습니까？"
+    install_espeak: "espeak-ng을(를) 지금 설치하시겠습니까？"
+    add_credential: "장애 조치용 추가 자격 증명을 추가하시겠습니까？"
 
   # Skills Hub
   skills_hub:

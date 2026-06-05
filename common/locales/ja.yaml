@@ -25,6 +25,8 @@ setup:
   common:
     yes_no_yes: "[Y/n]"
     yes_no_no: "[y/N]"
+    yes: "はい"
+    no: "いいえ"
     quit_hint: "(q を入力して戻る)"
     enter_to_default: "(Enter でデフォルトを使用: {default})"
     cancel: "キャンセルしました"
@@ -195,6 +197,14 @@ setup:
     vision_tools: "Vision Tools デバッグを有効にしますか？"
     moa_tools: "MOA Tools デバッグを有効にしますか？"
     image_tools: "Image Tools デバッグを有効にしますか？"
+
+  # Platforms (Messaging Gateways)
+  platforms:
+    reconfigure: "{platform} を再設定しますか？"
+    add_allowed_users: "許可されたユーザーを追加しますか？"
+    use_home_channel: "あなたのユーザーID ({user_id}) をホームチャンネルとして使用しますか？"
+    install_espeak: "espeak-ng をインストールしますか？"
+    add_credential: "フェイルオーバー用の追加認証情報を追加しますか？"
 
   # Skills Hub
   skills_hub:
