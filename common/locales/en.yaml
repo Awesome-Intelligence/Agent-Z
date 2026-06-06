@@ -33,8 +33,8 @@ setup:
   common:
     yes_no_yes: "Y/n"
     yes_no_no: "y/N"
-    yes: "Yes"
-    no: "No"
+    "yes": "Yes"
+    "no": "No"
     quit_hint: "(input q to go back)"
     enter_to_default: "(press Enter to use default: {default})"
     cancel: "Cancelled"
@@ -99,6 +99,17 @@ setup:
     singularity_image: "Singularity Image"
     using_modal: "Using Modal Cloud environment"
     modal_image: "Modal Image"
+
+  # Workspace Config
+  workspace:
+    title: "📁 Workspace Configuration"
+    description: "Set the workspace directory for Handsome Agent, containing config, sessions, memories, etc."
+    current: "Current path"
+    change_prompt: "Do you want to change the workspace path?"
+    new_path: "Enter new workspace path"
+    directory_not_empty: "⚠️  Target directory exists and is not empty"
+    confirm_overwrite: "Continue using this directory?"
+    using_default: "Use default path"
 
   # Agent Settings
   agent:
@@ -179,6 +190,7 @@ setup:
     installing: "Installing dependencies..."
     first_use_download: "Model will be downloaded on first use (~300MB)"
     voice: "Select TTS Voice:"
+    select_voice: "Select TTS Voice:"
     voices:
       alloy: "Alloy - neutral"
       echo: "Echo - male voice"
@@ -270,6 +282,7 @@ setup:
     guide: "Guide: {url}"
     configured: "Currently configured: {platforms}"
     select_platform: "Select platform:"
+    select_voice: "Select TTS Voice:"
 
   # Tools Configuration
   tools:
@@ -460,6 +473,9 @@ menu:
   terminal:
     label: "💻 Terminal Backend"
     hint: "Command execution environment"
+  workspace:
+    label: "📁 Workspace"
+    hint: "Configure workspace directory"
   memory:
     label: "🧠 Memory System"
     hint: "Vector database configuration"

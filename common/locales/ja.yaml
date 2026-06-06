@@ -25,8 +25,8 @@ setup:
   common:
     yes_no_yes: "[Y/n]"
     yes_no_no: "[y/N]"
-    yes: "はい"
-    no: "いいえ"
+    "yes": "はい"
+    "no": "いいえ"
     quit_hint: "(q を入力して戻る)"
     enter_to_default: "(Enter でデフォルトを使用: {default})"
     cancel: "キャンセルしました"
@@ -91,6 +91,17 @@ setup:
     singularity_image: "Singularity Image"
     using_modal: "Modal Cloud 環境を使用"
     modal_image: "Modal Image"
+
+  # Workspace Config
+  workspace:
+    title: "📁 ワークスペース設定"
+    description: "Handsome Agent のワークスペースディレクトリを設定します。設定、セッション、メモリなどのファイルを含みます。"
+    current: "現在のパス"
+    change_prompt: "ワークスペースパスを変更しますか？"
+    new_path: "新しいワークスペースパスを入力"
+    directory_not_empty: "⚠️  対象ディレクトリは既に存在し、空ではありません"
+    confirm_overwrite: "このディレクトリを引き続き使用しますか？"
+    using_default: "デフォルトパスを使用"
 
   # Agent Settings
   agent:
@@ -262,6 +273,7 @@ setup:
     guide: "ガイド: {url}"
     configured: "現在設定済み: {platforms}"
     select_platform: "プラットフォームを選択："
+    select_voice: "TTS 音色を選択："
 
   # Tools Configuration
   tools:
@@ -441,6 +453,9 @@ menu:
   terminal:
     label: "💻 ターミナルバックエンド"
     hint: "コマンド実行環境"
+  workspace:
+    label: "📁 ワークスペース"
+    hint: "ワークスペースディレクトリ設定"
   memory:
     label: "🧠 メモリシステム"
     hint: "ベクトルデータベース設定"

@@ -25,8 +25,8 @@ setup:
   common:
     yes_no_yes: "[Y/n]"
     yes_no_no: "[y/N]"
-    yes: "예"
-    no: "아니오"
+    "yes": "예"
+    "no": "아니오"
     quit_hint: "(q 입력하여 돌아가기)"
     enter_to_default: "(Enter로 기본값 사용: {default})"
     cancel: "취소됨"
@@ -91,6 +91,17 @@ setup:
     singularity_image: "Singularity Image"
     using_modal: "Modal Cloud 환경 사용"
     modal_image: "Modal Image"
+
+  # Workspace Config
+  workspace:
+    title: "📁 작업 공간 설정"
+    description: "Handsome Agent의 작업 공간 디렉토리를 설정합니다. 설정, 세션, 메모리 등의 파일을 포함합니다."
+    current: "현재 경로"
+    change_prompt: "작업 공간 경로를 변경하시겠습니까?"
+    new_path: "새 작업 공간 경로 입력"
+    directory_not_empty: "⚠️  대상 디렉토리가 이미 존재하며 비어 있지 않습니다"
+    confirm_overwrite: "이 디렉토리를 계속 사용하시겠습니까?"
+    using_default: "기본 경로 사용"
 
   # Agent Settings
   agent:
@@ -262,6 +273,7 @@ setup:
     guide: "가이드: {url}"
     configured: "현재 설정됨: {platforms}"
     select_platform: "플랫폼 선택："
+    select_voice: "TTS 음성 선택："
 
   # Tools Configuration
   tools:
@@ -441,6 +453,9 @@ menu:
   terminal:
     label: "💻 터미널 백엔드"
     hint: "명령 실행 환경"
+  workspace:
+    label: "📁 작업 공간"
+    hint: "작업 공간 디렉토리 설정"
   memory:
     label: "🧠 메모리 시스템"
     hint: "벡터 데이터베이스 설정"

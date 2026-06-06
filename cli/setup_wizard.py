@@ -18,6 +18,7 @@ import sys
 import json
 from pathlib import Path
 from cli import ui
+from common.i18n import t
 
 ui.enable_ansi_support()
 
@@ -57,6 +58,24 @@ def ask_yes_no(question: str, default: bool = True) -> bool | None:
             ui.print_warning("请输入 y 或 n")
         except (EOFError, KeyboardInterrupt):
             return None
+
+
+def ask_yes_no_options(question: str, default: bool = True) -> bool | None:
+    """使用选项列表询问是/否."""
+    yes_label = "是"
+    no_label = "否"
+    
+    options = [
+        ("yes", yes_label),
+        ("no", no_label),
+    ]
+    default_value = "yes" if default else "no"
+    current_idx = 0 if default else 1
+    
+    choice = ask_choice(question, options, default=current_idx, current_value=default_value)
+    if choice is None:
+        return None
+    return options[choice][0] == "yes"
 
 
 def ask_choice(question: str, options: list, default: int = 0, current_value: str = None) -> int | None:
@@ -194,6 +213,12 @@ def show_current_config(config: dict):
         ui.print_config_item("💻 Terminal 后端", backend_display)
         ui.print_config_item("⏱️ 超时时间", f"{terminal.get('timeout', 60)}s")
         ui.print_config_item("🕐 生命周期", f"{terminal.get('lifetime_seconds', 300)}s")
+    
+    # Workspace Config
+    workspace = config.get('workspace', {})
+    if workspace:
+        workspace_path = workspace.get('path', str(Path.home() / ".handsome_agent"))
+        ui.print_config_item("📁 工作空间", workspace_path)
     
     # Session Reset
     session_reset = config.get('session_reset', {})
@@ -595,7 +620,53 @@ def setup_session_reset(config: dict) -> dict | None:
 
 
 # =============================================================================
-# Section 6: Memory Config
+# Section 6: Workspace Config
+# =============================================================================
+
+def setup_workspace(config: dict) -> dict | None:
+    """配置工作空间路径."""
+    ui.print_step(1, 1, t("setup.workspace.title"))
+    
+    workspace = config.get('workspace', {})
+    current_path = workspace.get('path', str(Path.home() / ".handsome_agent"))
+    
+    print()
+    ui.print_info(t("setup.workspace.description"))
+    print()
+    ui.print_info(f"  {t('setup.workspace.current')}: {current_path}")
+    print()
+    
+    use_custom = ask_yes_no_options(t("setup.workspace.change_prompt"), default=False)
+    if use_custom is None:
+        return None
+    
+    if not use_custom:
+        return workspace
+    
+    new_path = ask_input(
+        t("setup.workspace.new_path"),
+        default=current_path,
+        required=True
+    )
+    if new_path is None:
+        return None
+    
+    # 验证路径
+    new_path = str(Path(new_path).expanduser().resolve())
+    
+    # 确认目录不存在或为空
+    path_obj = Path(new_path)
+    if path_obj.exists() and any(path_obj.iterdir()):
+        ui.print_warning(t("setup.workspace.directory_not_empty"))
+        confirm = ask_yes_no_options(t("setup.workspace.confirm_overwrite"), default=False)
+        if confirm is None or not confirm:
+            return workspace
+    
+    return {"path": new_path}
+
+
+# =============================================================================
+# Section 7: Memory Config
 # =============================================================================
 
 def setup_memory(config: dict) -> dict | None:
@@ -641,7 +712,7 @@ def setup_memory(config: dict) -> dict | None:
 
 
 # =============================================================================
-# Section 7: Context Compression
+# Section 8: Context Compression
 # =============================================================================
 
 def setup_compression(config: dict) -> dict | None:
@@ -676,7 +747,7 @@ def setup_compression(config: dict) -> dict | None:
 
 
 # =============================================================================
-# Section 8: STT (Speech-to-Text)
+# Section 9: STT (Speech-to-Text)
 # =============================================================================
 
 def setup_stt(config: dict) -> dict | None:
@@ -716,7 +787,7 @@ def setup_stt(config: dict) -> dict | None:
 
 
 # =============================================================================
-# Section 9: TTS (Text-to-Speech)
+# Section 10: TTS (Text-to-Speech)
 # =============================================================================
 
 def setup_tts(config: dict) -> dict | None:
@@ -774,7 +845,7 @@ def setup_tts(config: dict) -> dict | None:
 
 
 # =============================================================================
-# Section 10: Browser Tool
+# Section 11: Browser Tool
 # =============================================================================
 
 def setup_browser(config: dict) -> dict | None:
@@ -814,7 +885,7 @@ def setup_browser(config: dict) -> dict | None:
 
 
 # =============================================================================
-# Section 11: Debug Tools
+# Section 12: Debug Tools
 # =============================================================================
 
 def setup_debug(config: dict) -> dict | None:
@@ -848,7 +919,7 @@ def setup_debug(config: dict) -> dict | None:
 
 
 # =============================================================================
-# Section 12: Preferences
+# Section 13: Preferences
 # =============================================================================
 
 def setup_depth(config: dict) -> dict | None:
@@ -1088,6 +1159,7 @@ def run_setup_wizard():
             ("llm", "🤖 大模型配置"),
             ("model", "🔧 模型参数"),
             ("terminal", "💻 Terminal 后端"),
+            ("workspace", "📁 工作空间"),
             ("agent", "⚙️ Agent 设置"),
             ("session_reset", "🔄 Session 重置策略"),
             ("memory", "🧠 记忆系统"),
@@ -1127,6 +1199,7 @@ def run_setup_wizard():
                 "llm": setup_llm_provider,
                 "model": setup_model_config,
                 "terminal": setup_terminal,
+                "workspace": setup_workspace,
                 "agent": setup_agent_settings,
                 "session_reset": setup_session_reset,
                 "memory": setup_memory,

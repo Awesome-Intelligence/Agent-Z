@@ -250,15 +250,16 @@ def ask_yes_no_options(question: str, default: bool = True) -> bool | None:
     no_label = t("setup.common.no")
     
     options = [
-        (yes_label, "yes"),
-        (no_label, "no"),
+        ("yes", yes_label),
+        ("no", no_label),
     ]
-    default_idx = 0 if default else 1
+    default_value = "yes" if default else "no"
+    current_idx = 0 if default else 1
     
-    choice = ask_choice(question, options, default=default_idx)
+    choice = ask_choice(question, options, default=current_idx, current_value=default_value)
     if choice is None:
         return None
-    return options[choice][1] == "yes"
+    return options[choice][0] == "yes"
 
 
 def ask_choice(question: str, options: list, default: int = 0, current_value: str = None) -> int | None:
@@ -386,6 +387,12 @@ def show_current_config(config: dict):
         ui.print_config_item(t("setup.terminal.title"), backend_display)
         ui.print_config_item("⏱️ Timeout", f"{terminal.get('timeout', 60)}s")
         ui.print_config_item("🕐 Lifetime", f"{terminal.get('lifetime_seconds', 300)}s")
+    
+    # Workspace Config
+    workspace = config.get('workspace', {})
+    if workspace:
+        workspace_path = workspace.get('path', str(Path.home() / ".handsome_agent"))
+        ui.print_config_item(t("setup.workspace.title"), workspace_path)
     
     # Session Reset
     session_reset = config.get('session_reset', {})
@@ -1163,7 +1170,53 @@ def setup_session_reset(config: dict) -> dict | None:
 
 
 # =============================================================================
-# Section 6: Memory Config
+# Section 6: Workspace Config
+# =============================================================================
+
+def setup_workspace(config: dict) -> dict | None:
+    """配置工作空间路径."""
+    ui.print_step(1, 1, t("setup.workspace.title"))
+    
+    workspace = config.get('workspace', {})
+    current_path = workspace.get('path', str(Path.home() / ".handsome_agent"))
+    
+    print()
+    ui.print_info(t("setup.workspace.description"))
+    print()
+    ui.print_info(f"  {t('setup.workspace.current')}: {current_path}")
+    print()
+    
+    use_custom = ask_yes_no_options(t("setup.workspace.change_prompt"), default=False)
+    if use_custom is None:
+        return None
+    
+    if not use_custom:
+        return workspace
+    
+    new_path = ask_input(
+        t("setup.workspace.new_path"),
+        default=current_path,
+        required=True
+    )
+    if new_path is None:
+        return None
+    
+    # 验证路径
+    new_path = str(Path(new_path).expanduser().resolve())
+    
+    # 确认目录不存在或为空
+    path_obj = Path(new_path)
+    if path_obj.exists() and any(path_obj.iterdir()):
+        ui.print_warning(t("setup.workspace.directory_not_empty"))
+        confirm = ask_yes_no_options(t("setup.workspace.confirm_overwrite"), default=False)
+        if confirm is None or not confirm:
+            return workspace
+    
+    return {"path": new_path}
+
+
+# =============================================================================
+# Section 7: Memory Config
 # =============================================================================
 
 def setup_memory(config: dict) -> dict | None:
@@ -1560,7 +1613,7 @@ def setup_tts(config: dict) -> dict | None:
         current_voice = tts.get('voice', 'alloy')
         current_idx = next((i for i, (k, _) in enumerate(voice_options) if k == current_voice), 0)
         
-        choice = ask_choice("选择 TTS Voice:", voice_options, default=current_idx, current_value=current_voice)
+        choice = ask_choice(t("setup.gateway.select_voice"), voice_options, default=current_idx, current_value=current_voice)
         if choice is None:
             return None
         
@@ -2021,7 +2074,7 @@ def setup_gateway(config: dict):
     platform_options.append(("done", t("utils.done")))
 
     while True:
-        choice = ask_choice("选择平台:", platform_options, default=len(platform_options) - 1)
+        choice = ask_choice(t("setup.gateway.select_platform"), platform_options, default=len(platform_options) - 1)
         if choice is None or choice == len(platform_options) - 1:
             break
 
@@ -2588,6 +2641,7 @@ def _build_menu_tree() -> MenuNode:
         # 系统设置
         "agent": MenuNode("agent", "Agent 设置", hint="迭代次数、工具进度等", action="agent"),
         "terminal": MenuNode("terminal", "Terminal 后端", hint="命令执行环境", action="terminal"),
+        "workspace": MenuNode("workspace", "📁 工作空间", hint="配置工作空间目录", action="workspace"),
         "memory": MenuNode("memory", "记忆系统", hint="向量数据库配置", action="memory"),
         "language": MenuNode("language", "语言设置", hint="界面显示语言", action="language"),
         
@@ -2629,6 +2683,7 @@ def _build_menu_tree() -> MenuNode:
         MenuNode("system", "⚙️ 系统设置", hint="Agent、Terminal、记忆、语言", children=[
             leaf_nodes["agent"],
             leaf_nodes["terminal"],
+            leaf_nodes["workspace"],
             leaf_nodes["memory"],
             leaf_nodes["language"],
         ]),
@@ -2817,6 +2872,7 @@ def _execute_menu_action(action_id: str, config: dict) -> bool:
             "vision": setup_vision,
             "model": setup_model_config,
             "terminal": setup_terminal,
+            "workspace": setup_workspace,
             "agent": setup_agent_settings,
             "session_reset": setup_session_reset,
             "memory": setup_memory,

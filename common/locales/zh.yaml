@@ -25,8 +25,8 @@ setup:
   common:
     yes_no_yes: "[Y/n]"
     yes_no_no: "[y/N]"
-    yes: "是"
-    no: "否"
+    "yes": "是"
+    "no": "否"
     quit_hint: "(输入 q 返回上一级)"
     enter_to_default: "(直接回车使用默认值: {default})"
     cancel: "已取消"
@@ -91,6 +91,17 @@ setup:
     singularity_image: "Singularity Image"
     using_modal: "使用 Modal Cloud 环境"
     modal_image: "Modal Image"
+
+  # Workspace Config
+  workspace:
+    title: "📁 工作空间配置"
+    description: "设置 Handsome Agent 的工作空间目录，包含配置、会话、记忆等文件。"
+    current: "当前路径"
+    change_prompt: "是否要修改工作空间路径？"
+    new_path: "请输入新的工作空间路径"
+    directory_not_empty: "⚠️  目标目录已存在且非空"
+    confirm_overwrite: "是否继续使用该目录？"
+    using_default: "使用默认路径"
 
   # Agent Settings
   agent:
@@ -262,6 +273,7 @@ setup:
     guide: "指南：{url}"
     configured: "当前已配置：{platforms}"
     select_platform: "选择平台："
+    select_voice: "选择 TTS 音色："
 
   # Tools Configuration
   tools:
@@ -441,6 +453,9 @@ menu:
   terminal:
     label: "💻 Terminal 后端"
     hint: "命令执行环境"
+  workspace:
+    label: "📁 工作空间"
+    hint: "配置工作空间目录"
   memory:
     label: "🧠 记忆系统"
     hint: "向量数据库配置"
