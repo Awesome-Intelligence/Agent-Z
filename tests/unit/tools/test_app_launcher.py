@@ -22,26 +22,35 @@ from pathlib import Path
 class TestAppLauncher:
     """Test suite for app_launcher module."""
 
-    @patch("subprocess.Popen")
-    def test_launch_app_calculator(self, mock_popen):
+    @patch("tools.app_launcher.process_registry")
+    def test_launch_app_calculator(self, mock_registry):
         """Test launching calculator via launch_app."""
         from tools.app_launcher import launch_app
 
-        mock_popen.return_value = MagicMock()
+        mock_session = MagicMock()
+        mock_session.id = "proc_test123"
+        mock_session.pid = 12345
+        mock_registry.spawn.return_value = mock_session
+        mock_registry.verify.return_value = True
 
         result = launch_app("calculator")
         data = json.loads(result)
 
         assert data["success"] is True
         assert data["app"] == "calculator"
-        mock_popen.assert_called_once()
+        assert data["verified"] is True
+        mock_registry.spawn.assert_called_once()
 
-    @patch("subprocess.Popen")
-    def test_launch_app_notepad(self, mock_popen):
+    @patch("tools.app_launcher.process_registry")
+    def test_launch_app_notepad(self, mock_registry):
         """Test launching notepad via launch_app."""
         from tools.app_launcher import launch_app
 
-        mock_popen.return_value = MagicMock()
+        mock_session = MagicMock()
+        mock_session.id = "proc_test456"
+        mock_session.pid = 12346
+        mock_registry.spawn.return_value = mock_session
+        mock_registry.verify.return_value = True
 
         result = launch_app("notepad")
         data = json.loads(result)
@@ -49,12 +58,16 @@ class TestAppLauncher:
         assert data["success"] is True
         assert data["app"] == "notepad"
 
-    @patch("subprocess.Popen")
-    def test_launch_app_cmd(self, mock_popen):
+    @patch("tools.app_launcher.process_registry")
+    def test_launch_app_cmd(self, mock_registry):
         """Test launching cmd via launch_app."""
         from tools.app_launcher import launch_app
 
-        mock_popen.return_value = MagicMock()
+        mock_session = MagicMock()
+        mock_session.id = "proc_test789"
+        mock_session.pid = 12347
+        mock_registry.spawn.return_value = mock_session
+        mock_registry.verify.return_value = True
 
         result = launch_app("cmd")
         data = json.loads(result)
@@ -62,12 +75,16 @@ class TestAppLauncher:
         assert data["success"] is True
         assert data["app"] == "cmd"
 
-    @patch("subprocess.Popen")
-    def test_launch_app_explorer(self, mock_popen):
+    @patch("tools.app_launcher.process_registry")
+    def test_launch_app_explorer(self, mock_registry):
         """Test launching explorer via launch_app."""
         from tools.app_launcher import launch_app
 
-        mock_popen.return_value = MagicMock()
+        mock_session = MagicMock()
+        mock_session.id = "proc_test000"
+        mock_session.pid = 12348
+        mock_registry.spawn.return_value = mock_session
+        mock_registry.verify.return_value = True
 
         result = launch_app("explorer")
         data = json.loads(result)
@@ -85,12 +102,16 @@ class TestAppLauncher:
         # The function should handle this gracefully
         assert "success" in data
 
-    @patch("subprocess.Popen")
-    def test_launch_app_with_args(self, mock_popen):
+    @patch("tools.app_launcher.process_registry")
+    def test_launch_app_with_args(self, mock_registry):
         """Test launching app with arguments."""
         from tools.app_launcher import launch_app
 
-        mock_popen.return_value = MagicMock()
+        mock_session = MagicMock()
+        mock_session.id = "proc_test_args"
+        mock_session.pid = 12349
+        mock_registry.spawn.return_value = mock_session
+        mock_registry.verify.return_value = True
 
         result = launch_app("explorer", args=["/home"])
         data = json.loads(result)
