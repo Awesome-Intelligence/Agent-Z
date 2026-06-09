@@ -409,6 +409,51 @@ class TestStatusBar:
         assert isinstance(rendered, str)
         assert len(rendered) > 0
 
+    def test_increment_llm_call(self):
+        """Test incrementing LLM call counter."""
+        from cli.ui import StatusBar
+        
+        status = StatusBar()
+        assert status.llm_call_count == 0
+        
+        status.increment_llm_call()
+        assert status.llm_call_count == 1
+        
+        status.increment_llm_call()
+        assert status.llm_call_count == 2
+
+
+class TestFormatRound:
+    """Test format_round function."""
+    
+    def test_single_digit(self):
+        """Test single digit round formatting."""
+        from cli.ui import format_round
+        
+        assert format_round(1) == "1️⃣"
+        assert format_round(5) == "5️⃣"
+        assert format_round(9) == "9️⃣"
+    
+    def test_multiple_digits(self):
+        """Test multiple digit round formatting."""
+        from cli.ui import format_round
+        
+        assert format_round(15) == "1️⃣5️⃣"
+        assert format_round(100) == "1️⃣0️⃣0️⃣"
+        assert format_round(999) == "9️⃣9️⃣9️⃣"
+    
+    def test_truncation(self):
+        """Test truncation for large numbers."""
+        from cli.ui import format_round
+        
+        result = format_round(10000)
+        assert result.endswith("+")
+        assert "1️⃣" in result
+        assert "0️⃣" in result
+        
+        result = format_round(99999)
+        assert result.endswith("+")
+
 
 class TestSpinner:
     """Test Spinner class."""

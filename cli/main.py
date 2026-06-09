@@ -642,6 +642,11 @@ def main():
         force_new_session=force_new
     )
 
+    # 注册 LLM 调用回调
+    from cli import ui
+    if agent.llm_provider:
+        agent.llm_provider.register_llm_call_callback(ui.status_bar.increment_llm_call)
+
     # 显示会话信息
     if agent._session:
         print(f"📝 Session: {agent._session.session_id}")

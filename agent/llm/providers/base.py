@@ -83,6 +83,16 @@ class BaseProvider(ABC):
         self.config = config
         self._message_history: List[Message] = []
         self.logger = None  # 子类初始化时设置
+        self._on_llm_call = None  # LLM 调用回调
+
+    def register_llm_call_callback(self, callback):
+        """注册 LLM 调用回调，每次 generate() 成功调用后触发"""
+        self._on_llm_call = callback
+
+    def _notify_llm_call(self):
+        """通知 LLM 调用"""
+        if self._on_llm_call:
+            self._on_llm_call()
 
     def _log_request_started(self, model: str = None):
         """记录请求开始（INFO级别）"""
@@ -94,6 +104,7 @@ class BaseProvider(ABC):
         """记录请求完成（INFO级别）"""
         if self.logger:
             self.logger.info(f"⏹️ {self.provider_display_name} request completed - latency: {latency_ms:.2f}ms")
+        self._notify_llm_call()
 
     def _log_request_body(self, body: Dict[str, Any]):
         """记录请求体（DEBUG级别）- 只保留前50和后50字符"""

@@ -79,6 +79,34 @@ _rich_console = Console() if HAS_RICH else None
 
 
 # ============================================================================
+# Round formatting helpers
+# ============================================================================
+
+DIGIT_EMOJI = {
+    "0": "0️⃣", "1": "1️⃣", "2": "2️⃣", "3": "3️⃣", "4": "4️⃣",
+    "5": "5️⃣", "6": "6️⃣", "7": "7️⃣", "8": "8️⃣", "9": "9️⃣",
+}
+
+
+def format_round(n: int, max_digits: int = 4) -> str:
+    """Format round number with digit emojis.
+    
+    Args:
+        n: The round number
+        max_digits: Maximum digits to display before truncating
+        
+    Returns:
+        Emoji-formatted string like "1️⃣5️⃣" or "1️⃣0️⃣0️⃣0️⃣+"
+    """
+    s = str(n)
+    if len(s) <= max_digits:
+        return "".join(DIGIT_EMOJI[d] for d in s)
+    # Truncate and add +
+    truncated = "".join(DIGIT_EMOJI[d] for d in s[:max_digits])
+    return f"{truncated}+"
+
+
+# ============================================================================
 # StatusBar (UI-specific, retained here)
 # ============================================================================
 
@@ -95,6 +123,7 @@ class StatusBar:
         self.tools_enabled = []
         self.yolo_mode = False
         self.connected = False
+        self.llm_call_count = 0
 
     def update_model(self, model_name: str, provider: str = ""):
         """Update current model name."""
@@ -120,6 +149,10 @@ class StatusBar:
     def set_connected(self, connected: bool):
         """Set connection status."""
         self.connected = connected
+
+    def increment_llm_call(self):
+        """Increment the LLM call counter."""
+        self.llm_call_count += 1
 
     def get_duration(self) -> str:
         """Get formatted session duration."""
@@ -177,6 +210,8 @@ class StatusBar:
 
         duration_part = f"{Theme.SECONDARY}{self.get_duration()}{Colors.RESET}"
 
+        round_part = format_round(self.llm_call_count) if self.llm_call_count > 0 else f"{Theme.SECONDARY_DIM}n/a{Colors.RESET}"
+
         yolo_badge = f" {Theme.ERROR_BRIGHT}{Colors.BOLD}⚠ YOLO{Colors.RESET}" if self.yolo_mode else ""
 
         tools_badge = f" {Theme.ACCENT}🔧{Colors.RESET}" if self.tools_enabled else ""
@@ -194,6 +229,8 @@ class StatusBar:
                 cost_part,
                 f"{Theme.BORDER_DIM}│{Colors.RESET}",
                 duration_part,
+                f"{Theme.BORDER_DIM}│{Colors.RESET}",
+                round_part,
                 yolo_badge,
                 tools_badge,
             ]
@@ -206,6 +243,8 @@ class StatusBar:
                 token_part,
                 f"{Theme.BORDER_DIM}│{Colors.RESET}",
                 duration_part,
+                f"{Theme.BORDER_DIM}│{Colors.RESET}",
+                round_part,
                 yolo_badge,
                 tools_badge,
             ]

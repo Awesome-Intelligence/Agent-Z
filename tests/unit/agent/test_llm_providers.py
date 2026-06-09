@@ -587,3 +587,71 @@ class TestStreamChunk:
         chunk = StreamChunk(finish=True)
         assert chunk.finish is True
         assert chunk.content == ""
+
+
+class TestLLMCallCallback:
+    """LLM 调用回调测试"""
+
+    @pytest.fixture
+    def provider(self):
+        from agent.llm.providers.openai import OpenAIProvider
+        return OpenAIProvider(ProviderConfig(api_key="test-key", model="gpt-4"))
+
+    def test_register_callback(self, provider):
+        """测试注册 LLM 调用回调"""
+        call_count = [0]
+
+        def increment():
+            call_count[0] += 1
+
+        provider.register_llm_call_callback(increment)
+        assert provider._on_llm_call is increment
+
+    def test_notify_llm_call(self, provider):
+        """测试触发 LLM 调用回调"""
+        call_count = [0]
+
+        def increment():
+            call_count[0] += 1
+
+        provider.register_llm_call_callback(increment)
+
+        # 直接调用 _notify_llm_call
+        provider._notify_llm_call()
+        assert call_count[0] == 1
+
+        provider._notify_llm_call()
+        assert call_count[0] == 2
+
+    def test_callback_not_set(self, provider):
+        """测试未设置回调时不报错"""
+        provider._on_llm_call = None
+        provider._notify_llm_call()  # 不应抛出异常
+
+    @pytest.mark.asyncio
+    async def test_callback_triggered_on_generate(self, provider):
+        """测试 generate 成功时触发回调"""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "Hello!"}, "finish_reason": "stop"}],
+            "model": "gpt-4",
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5}
+        }
+
+        call_count = [0]
+
+        def increment():
+            call_count[0] += 1
+
+        provider.register_llm_call_callback(increment)
+
+        with patch.object(provider, '_get_client') as mock_get_client:
+            mock_client = AsyncMock()
+            mock_client.post.return_value = mock_response
+            mock_get_client.return_value = mock_client
+
+            response = await provider.generate("Hi")
+            assert response.content == "Hello!"
+            # generate 成功后应该触发回调
+            assert call_count[0] == 1

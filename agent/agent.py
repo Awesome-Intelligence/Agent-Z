@@ -331,12 +331,21 @@ Answer ONLY with this exact JSON format (no other text):
                         except:
                             pass
 
-            # 如果没有找到有效的 JSON 或 JSON 中没有 use_react 字段，使用 ReAct
-            if result is None or "use_react" not in result:
+            # 如果没有找到有效的 JSON，使用 ReAct
+            if result is None:
                 self._decision_logger.info(f"ReAct 模式判断: 未找到有效 JSON，默认使用 ReAct")
                 return True
 
-            use_react = result.get("use_react", False)
+            # 兼容 use_react 和 action 两种格式
+            if "use_react" in result:
+                use_react = result.get("use_react", False)
+            elif "action" in result:
+                # action 格式: "react"=需要 ReAct, "direct_response"/其他=直接回复
+                use_react = result.get("action") == "react"
+            else:
+                self._decision_logger.info(f"ReAct 模式判断: JSON 中没有 use_react 或 action 字段，默认使用 ReAct")
+                return True
+
             reasoning = result.get("reasoning", "")
             self._decision_logger.info(f"ReAct 模式判断: {use_react} - {reasoning}")
             return use_react
