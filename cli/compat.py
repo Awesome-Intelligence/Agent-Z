@@ -87,6 +87,25 @@ from cli.tui.curses_ui import (
 
 from cli.cli_commands.doctor import run_diagnostics
 from cli.cli_commands.sessions import list_sessions, browse_sessions
+from cli.cli_commands.logs import show_logs, tail_logs
+from cli.cli_commands.gateway import (
+    start_gateway,
+    stop_gateway,
+    check_gateway_status,
+    restart_gateway,
+)
+from cli.cli_commands.cron import list_cron_jobs, check_cron_status
+from cli.cli_commands.acp import (
+    start_acp_server,
+    stop_acp_server,
+    check_acp_status,
+)
+from cli.cli_commands.session_recap import generate_session_recap
+from cli.cli_commands.uninstall import (
+    uninstall_agent,
+    restore_from_backup,
+    list_backups,
+)
 
 # ============================================================================
 # Status Module (保持原位置)
@@ -147,6 +166,21 @@ __all__ = [
     "run_diagnostics",
     "list_sessions",
     "browse_sessions",
+    "show_logs",
+    "tail_logs",
+    "start_gateway",
+    "stop_gateway",
+    "check_gateway_status",
+    "restart_gateway",
+    "list_cron_jobs",
+    "check_cron_status",
+    "start_acp_server",
+    "stop_acp_server",
+    "check_acp_status",
+    "generate_session_recap",
+    "uninstall_agent",
+    "restore_from_backup",
+    "list_backups",
     # Status
     "show_status",
 ]

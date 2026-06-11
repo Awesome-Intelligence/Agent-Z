@@ -450,4 +450,173 @@ def build_top_level_parser():
         help="Configuration key (e.g., model.provider)",
     )
 
+    # =========================================================================
+    # logs command
+    # =========================================================================
+    logs_parser = subparsers.add_parser(
+        "logs",
+        help="View logs",
+        description="View Handsome Agent logs",
+    )
+    logs_parser.add_argument(
+        "-n", "--lines",
+        type=int,
+        default=50,
+        help="Number of lines to show",
+    )
+    logs_parser.add_argument(
+        "-l", "--level",
+        choices=["debug", "info", "warning", "error"],
+        help="Filter by log level",
+    )
+    logs_parser.add_argument(
+        "-s", "--search",
+        help="Search keyword",
+    )
+    logs_parser.add_argument(
+        "-f", "--follow",
+        action="store_true",
+        help="Follow log (like tail -f)",
+    )
+
+    # =========================================================================
+    # gateway command
+    # =========================================================================
+    gateway_parser = subparsers.add_parser(
+        "gateway",
+        help="Gateway service management",
+        description="Start, stop, or check gateway status",
+    )
+    gateway_subparsers = gateway_parser.add_subparsers(dest="gateway_command", help="Gateway command")
+
+    gateway_start_parser = gateway_subparsers.add_parser("start", help="Start gateway")
+    gateway_stop_parser = gateway_subparsers.add_parser("stop", help="Stop gateway")
+    gateway_status_parser = gateway_subparsers.add_parser("status", help="Check gateway status")
+    gateway_restart_parser = gateway_subparsers.add_parser("restart", help="Restart gateway")
+
+    # =========================================================================
+    # cron command
+    # =========================================================================
+    cron_parser = subparsers.add_parser(
+        "cron",
+        help="Cron job management",
+        description="List and manage cron jobs",
+    )
+    cron_subparsers = cron_parser.add_subparsers(dest="cron_command", help="Cron command")
+
+    cron_list_parser = cron_subparsers.add_parser("list", help="List cron jobs")
+    cron_list_parser.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        help="Output as JSON",
+    )
+    cron_status_parser = cron_subparsers.add_parser("status", help="Check cron status")
+
+    # =========================================================================
+    # acp command
+    # =========================================================================
+    acp_parser = subparsers.add_parser(
+        "acp",
+        help="ACP server management",
+        description="Start, stop, or check ACP server status (Editor Integration)",
+    )
+    acp_subparsers = acp_parser.add_subparsers(dest="acp_command", help="ACP command")
+
+    acp_start_parser = acp_subparsers.add_parser("start", help="Start ACP server")
+    acp_stop_parser = acp_subparsers.add_parser("stop", help="Stop ACP server")
+    acp_status_parser = acp_subparsers.add_parser("status", help="Check ACP server status")
+
+    # =========================================================================
+    # sessions command (extend)
+    # =========================================================================
+    # Note: sessions_parser should already exist from earlier code
+    # Add recap subcommand to existing sessions parser
+    sessions_parser = subparsers.add_parser(
+        "sessions",
+        help="Session management",
+        description="Manage chat sessions",
+    )
+    sessions_subparsers = sessions_parser.add_subparsers(dest="sessions_subcommand", help="Sessions command")
+
+    sessions_list_parser = sessions_subparsers.add_parser(
+        "list",
+        help="List all sessions",
+    )
+    sessions_list_parser.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        help="Output as JSON",
+    )
+
+    sessions_browse_parser = sessions_subparsers.add_parser(
+        "browse",
+        help="Browse sessions interactively",
+    )
+    sessions_browse_parser.add_argument(
+        "--tui",
+        action="store_true",
+        help="Use TUI picker",
+    )
+
+    sessions_recap_parser = sessions_subparsers.add_parser(
+        "recap",
+        help="Generate session recap",
+    )
+    sessions_recap_parser.add_argument(
+        "session_id",
+        nargs="?",
+        help="Session ID (default: last session)",
+    )
+    sessions_recap_parser.add_argument(
+        "-f", "--format",
+        choices=["markdown", "text", "json"],
+        default="markdown",
+        help="Output format",
+    )
+
+    # =========================================================================
+    # uninstall command
+    # =========================================================================
+    uninstall_parser = subparsers.add_parser(
+        "uninstall",
+        help="Uninstall Handsome Agent",
+        description="Remove configuration and uninstall agent",
+    )
+    uninstall_parser.add_argument(
+        "-f", "--force",
+        action="store_true",
+        help="Skip confirmation",
+    )
+    uninstall_parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Don't create backup before uninstall",
+    )
+    uninstall_subparsers = uninstall_parser.add_subparsers(dest="uninstall_action", help="Uninstall action")
+    uninstall_subparsers.add_parser("backup", help="Create backup")
+    uninstall_restore_parser = uninstall_subparsers.add_parser("restore", help="Restore from backup")
+    uninstall_restore_parser.add_argument(
+        "backup_path",
+        nargs="?",
+        help="Backup file path",
+    )
+    uninstall_subparsers.add_parser("list", help="List available backups")
+
+    # =========================================================================
+    # doctor command (already exists)
+    # =========================================================================
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Run diagnostic checks",
+        description="Check system configuration and dependencies",
+    )
+    doctor_parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        default=False,
+        help="Verbose output",
+    )
+
     return parser, subparsers, chat_parser

@@ -460,6 +460,114 @@ def cmd_config_get(args: argparse.Namespace):
     get_config(args.key)
 
 
+def cmd_logs(args: argparse.Namespace):
+    """Handle 'logs' command."""
+    from cli.cli_commands.logs import show_logs, tail_logs
+
+    if args.follow:
+        tail_logs(args.lines)
+    else:
+        show_logs(lines=args.lines, level=args.level, search=args.search)
+
+
+def cmd_gateway(args: argparse.Namespace):
+    """Handle 'gateway' command."""
+    from cli.cli_commands.gateway import (
+        start_gateway,
+        stop_gateway,
+        check_gateway_status,
+        restart_gateway,
+    )
+
+    if args.gateway_command == "start":
+        start_gateway()
+    elif args.gateway_command == "stop":
+        stop_gateway()
+    elif args.gateway_command == "status":
+        check_gateway_status()
+    elif args.gateway_command == "restart":
+        restart_gateway()
+    else:
+        # Default: show status
+        check_gateway_status()
+
+
+def cmd_cron(args: argparse.Namespace):
+    """Handle 'cron' command."""
+    from cli.cli_commands.cron import list_cron_jobs, check_cron_status
+
+    if args.cron_command == "list":
+        list_cron_jobs(json_output=args.json)
+    elif args.cron_command == "status":
+        check_cron_status()
+    else:
+        # Default: show list
+        list_cron_jobs()
+
+
+def cmd_acp(args: argparse.Namespace):
+    """Handle 'acp' command."""
+    from cli.cli_commands.acp import (
+        start_acp_server,
+        stop_acp_server,
+        check_acp_status,
+    )
+
+    if args.acp_command == "start":
+        start_acp_server()
+    elif args.acp_command == "stop":
+        stop_acp_server()
+    elif args.acp_command == "status":
+        check_acp_status()
+    else:
+        # Default: show status
+        check_acp_status()
+
+
+def cmd_sessions(args: argparse.Namespace):
+    """Handle 'sessions' command."""
+    from cli.cli_commands.sessions import list_sessions, browse_sessions
+
+    if args.sessions_subcommand == "list":
+        list_sessions(json_output=args.json)
+    elif args.sessions_subcommand == "browse":
+        session_id = browse_sessions(tui=args.tui)
+        if session_id:
+            print(f"Selected session: {session_id}")
+    elif args.sessions_subcommand == "recap":
+        from cli.cli_commands.session_recap import generate_session_recap
+        generate_session_recap(session_id=args.session_id, format=args.format)
+    else:
+        # Default: show list
+        list_sessions()
+
+
+def cmd_uninstall(args: argparse.Namespace):
+    """Handle 'uninstall' command."""
+    from cli.cli_commands.uninstall import (
+        uninstall_agent,
+        restore_from_backup,
+        list_backups,
+    )
+
+    if args.uninstall_action == "backup":
+        print("Creating backup...")
+        # Backup is done as part of uninstall
+    elif args.uninstall_action == "restore":
+        restore_from_backup(args.backup_path)
+    elif args.uninstall_action == "list":
+        list_backups()
+    else:
+        uninstall_agent(force=args.force, backup=not args.no_backup)
+
+
+def cmd_doctor(args: argparse.Namespace):
+    """Handle 'doctor' command."""
+    from cli.cli_commands.doctor import run_diagnostics
+
+    run_diagnostics(verbose=args.verbose)
+
+
 # ============================================================================
 # Main Entry Point
 # ============================================================================
@@ -544,6 +652,27 @@ def main():
             cmd_config_set(args)
         elif args.config_command == 'get':
             cmd_config_get(args)
+        return
+    elif args.command == 'logs':
+        cmd_logs(args)
+        return
+    elif args.command == 'gateway':
+        cmd_gateway(args)
+        return
+    elif args.command == 'cron':
+        cmd_cron(args)
+        return
+    elif args.command == 'acp':
+        cmd_acp(args)
+        return
+    elif args.command == 'sessions':
+        cmd_sessions(args)
+        return
+    elif args.command == 'uninstall':
+        cmd_uninstall(args)
+        return
+    elif args.command == 'doctor':
+        cmd_doctor(args)
         return
 
     # Handle legacy setup mode
