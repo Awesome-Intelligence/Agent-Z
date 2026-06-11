@@ -100,6 +100,9 @@ class Agent:
 
         self.engine = get_integrated_engine(llm_provider=llm_provider)
 
+        # 初始化任务规划中间件
+        self._task_planning_middleware = None
+
         # 初始化统一的 ContextBuilder（所有模式共用）
         from agent.context import ContextBuilder
         tools_dict = {t.name: t for t in self.engine.tool_selector.tools.values()}
@@ -477,10 +480,42 @@ Answer ONLY with this exact JSON format (no other text):
         if use_react is None:
             use_react = await self._should_use_react(user_input, conversation_history)
         
+        # 如果使用 ReAct 模式，先进行任务规划检测
         if use_react:
+            await self._check_and_emit_task_planning(user_input)
             return await self._chat_react(user_input, conversation_history)
         
         return await self._chat_simple(user_input, conversation_history)
+
+    async def _check_and_emit_task_planning(self, user_input: str):
+        """检查是否需要任务规划，并发射规划事件"""
+        self._decision_logger.info("=== 开始任务规划检测 ===")
+        try:
+            # 懒加载初始化任务规划中间件
+            if self._task_planning_middleware is None:
+                from agent.task.task_middleware import TaskPlanningMiddleware
+                session_id = self._session.session_id if self._session else "default"
+                self._task_planning_middleware = TaskPlanningMiddleware(
+                    llm_provider=self.llm_provider,
+                    session_id=session_id,
+                    enable_logging=True,
+                    enable_collaboration=False
+                )
+            
+            # 设置流式发射器
+            if self._stream_emitter:
+                self._task_planning_middleware.set_stream_emitter(self._stream_emitter)
+            
+            # 进行复杂度分析和任务规划（这会发射事件）
+            planning_result = await self._task_planning_middleware.process(user_input)
+            
+            if planning_result.is_complex and planning_result.subtasks:
+                self._decision_logger.info(
+                    f"任务规划: 检测到 {len(planning_result.subtasks)} 个子任务"
+                )
+        except Exception as e:
+            # 静默处理，避免影响主流程
+            self._decision_logger.warning(f"任务规划检查失败: {e}")
     
     def _setup_default_stream(self):
         """设置默认的流式输出（控制台）"""

@@ -21,6 +21,10 @@ from dataclasses import dataclass
 from .task_planner import TaskPlanner, TaskComplexity, get_task_planner, SubTask, TaskStatus
 from .todo_adapter import get_todo_adapter
 from .task_logger import TaskLogger, create_task_logger
+from common.logging_manager import get_decision_logger
+
+# 获取任务规划的专用 logger
+planning_logger = get_decision_logger("TaskPlanning")
 
 
 @dataclass
@@ -126,35 +130,92 @@ class TaskPlanningMiddleware:
         self._stream_emitter = emitter
 
     def _emit_plan_event(self, event_type: str, **kwargs):
-        """发射任务规划事件到流"""
-        if not self._stream_emitter:
-            return
-        
+        """发射任务规划事件到流和日志"""
         try:
             if event_type == "start":
-                self._stream_emitter.emit_plan_start(
-                    kwargs.get('main_task', ''),
-                    kwargs.get('complexity', '')
-                )
+                main_task = kwargs.get('main_task', '')
+                complexity = kwargs.get('complexity', '')
+                
+                # 发射流式事件
+                if self._stream_emitter:
+                    self._stream_emitter.emit_plan_start(main_task, complexity)
+                
+                # 输出到日志
+                planning_logger.info(f"🎯 开始任务规划...")
+                planning_logger.info(f"   主任务: {main_task[:50]}{'...' if len(main_task) > 50 else ''}")
+                planning_logger.info(f"   复杂度: {complexity}")
+                
             elif event_type == "progress":
-                self._stream_emitter.emit_plan_progress(
-                    kwargs.get('subtasks', []),
-                    kwargs.get('completed', 0),
-                    kwargs.get('total', 0),
-                    kwargs.get('current_task', ''),
-                    kwargs.get('progress_percent', 0)
-                )
+                subtasks = kwargs.get('subtasks', [])
+                completed = kwargs.get('completed', 0)
+                total = kwargs.get('total', 0)
+                current_task = kwargs.get('current_task', '')
+                progress_percent = kwargs.get('progress_percent', 0)
+                
+                # 发射流式事件
+                if self._stream_emitter:
+                    self._stream_emitter.emit_plan_progress(
+                        subtasks, completed, total, current_task, progress_percent
+                    )
+                
+                # 输出到日志
+                if subtasks:
+                    planning_logger.info(f"📋 任务规划进度: {completed}/{total} ({progress_percent}%)")
+                    if current_task:
+                        planning_logger.info(f"   当前: {current_task}")
+                    planning_logger.info(f"   子任务列表:")
+                    for i, task in enumerate(subtasks[:5], 1):
+                        task_title = task.get('title', task.get('name', 'Unknown'))
+                        task_status = task.get('status', 'pending')
+                        status_icon = {
+                            'pending': '⏳',
+                            'running': '🔄',
+                            'completed': '✅',
+                            'failed': '❌',
+                            'cancelled': '➖'
+                        }.get(task_status, '❓')
+                        planning_logger.info(f"   {i}. {status_icon} {task_title}")
+                    if len(subtasks) > 5:
+                        planning_logger.info(f"   ... 还有 {len(subtasks) - 5} 个任务")
+                
             elif event_type == "complete":
-                self._stream_emitter.emit_plan_complete(
-                    kwargs.get('subtasks', []),
-                    kwargs.get('completed', 0),
-                    kwargs.get('total', 0),
-                    kwargs.get('success', True),
-                    kwargs.get('summary', '')
-                )
+                subtasks = kwargs.get('subtasks', [])
+                completed = kwargs.get('completed', 0)
+                total = kwargs.get('total', 0)
+                success = kwargs.get('success', True)
+                summary = kwargs.get('summary', '')
+                
+                # 发射流式事件
+                if self._stream_emitter:
+                    self._stream_emitter.emit_plan_complete(
+                        subtasks, completed, total, success, summary
+                    )
+                
+                # 输出到日志
+                status_icon = "✅" if success else "⚠️"
+                status_text = "任务规划完成" if success else "任务规划部分完成"
+                planning_logger.info(f"{status_icon} {status_text}")
+                planning_logger.info(f"   完成: {completed}/{total}")
+                
+                if subtasks:
+                    planning_logger.info(f"   📋 子任务列表:")
+                    for i, task in enumerate(subtasks, 1):
+                        task_title = task.get('title', task.get('name', 'Unknown'))
+                        task_status = task.get('status', 'pending')
+                        status_icon = {
+                            'pending': '⏳',
+                            'running': '🔄',
+                            'completed': '✅',
+                            'failed': '❌',
+                            'cancelled': '➖'
+                        }.get(task_status, '❓')
+                        planning_logger.info(f"   {i}. {status_icon} {task_title}")
+                
+                if summary:
+                    planning_logger.info(f"   总结: {summary[:50]}{'...' if len(summary) > 50 else ''}")
+                
         except Exception as e:
-            # 静默处理，避免影响主流程
-            pass
+            planning_logger.debug(f"发射规划事件失败: {e}")
 
     async def process(self, user_request: str) -> PlanningResult:
         """
@@ -166,12 +227,15 @@ class TaskPlanningMiddleware:
         Returns:
             PlanningResult: 包含复杂度判断和任务列表(如果需要)
         """
+        planning_logger.info(f"开始任务规划检测: {user_request[:30]}...")
+        
         if self.logger:
             self._log = self.logger.plan_start(user_request)
         else:
             self._log = ""
         
         complexity_result = await self._analyze_complexity(user_request)
+        planning_logger.info(f"复杂度分析完成: {complexity_result.get('complexity', 'unknown')}")
         
         if not complexity_result['needs_planning']:
             return PlanningResult(
