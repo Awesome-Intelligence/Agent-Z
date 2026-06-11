@@ -423,7 +423,12 @@ class ReActLoop:
                     except:
                         arguments = {"input": arguments}
 
-                self.logger.info(f"Function call: {tool_name}({arguments})")
+                args_str = str(arguments)
+                if len(args_str) > 90:
+                    args_truncated = f"{args_str[:30]}...{args_str[-30:]}"
+                else:
+                    args_truncated = args_str
+                self.logger.info(f"Function call: {tool_name}({args_truncated})")
 
                 # Hermes 风格：完全信任 LLM 的决策
                 # 如果 LLM 说要调用工具，就调用，让 LLM 自己判断是否重复

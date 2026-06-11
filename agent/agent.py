@@ -482,12 +482,12 @@ Answer ONLY with this exact JSON format (no other text):
         
         # 如果使用 ReAct 模式，先进行任务规划检测
         if use_react:
-            await self._check_and_emit_task_planning(user_input)
+            await self._check_and_emit_task_planning(user_input, use_react=True)
             return await self._chat_react(user_input, conversation_history)
         
         return await self._chat_simple(user_input, conversation_history)
 
-    async def _check_and_emit_task_planning(self, user_input: str):
+    async def _check_and_emit_task_planning(self, user_input: str, use_react: bool = False):
         """检查是否需要任务规划，并发射规划事件"""
         self._decision_logger.info("=== 开始任务规划检测 ===")
         try:
@@ -507,12 +507,34 @@ Answer ONLY with this exact JSON format (no other text):
                 self._task_planning_middleware.set_stream_emitter(self._stream_emitter)
             
             # 进行复杂度分析和任务规划（这会发射事件）
-            planning_result = await self._task_planning_middleware.process(user_input)
+            # 如果 ReAct=true，强制进行任务拆解，不再做复杂度判断
+            if use_react:
+                planning_result = await self._task_planning_middleware.process(
+                    user_input, force_planning=True
+                )
+            else:
+                planning_result = await self._task_planning_middleware.process(user_input)
+            
+            # 输出复杂度分析结果
+            self._decision_logger.info(
+                f"任务规划结果: {planning_result.complexity} - {planning_result.reasoning}"
+            )
             
             if planning_result.is_complex and planning_result.subtasks:
                 self._decision_logger.info(
                     f"任务规划: 检测到 {len(planning_result.subtasks)} 个子任务"
                 )
+                self._decision_logger.info("📋 子任务列表:")
+                for i, task in enumerate(planning_result.subtasks[:10], 1):
+                    task_title = task.get('title', task.get('name', 'Unknown'))
+                    task_desc = task.get('description', '')
+                    if len(task_desc) > 50:
+                        task_desc = f"{task_desc[:50]}..."
+                    self._decision_logger.info(f"   {i}. {task_title}")
+                    if task_desc:
+                        self._decision_logger.info(f"      → {task_desc}")
+                if len(planning_result.subtasks) > 10:
+                    self._decision_logger.info(f"   ... 还有 {len(planning_result.subtasks) - 10} 个任务")
         except Exception as e:
             # 静默处理，避免影响主流程
             self._decision_logger.warning(f"任务规划检查失败: {e}")

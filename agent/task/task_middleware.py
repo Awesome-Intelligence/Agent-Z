@@ -217,9 +217,13 @@ class TaskPlanningMiddleware:
         except Exception as e:
             planning_logger.debug(f"发射规划事件失败: {e}")
 
-    async def process(self, user_request: str) -> PlanningResult:
+    async def process(self, user_request: str, force_planning: bool = False) -> PlanningResult:
         """
         处理请求，判断复杂度并决定是否需要规划
+        
+        Args:
+            user_request: 用户请求
+            force_planning: 强制进行任务规划（用于 ReAct 模式）
         
         如果启用了协作模式且有 AdvancedReasoning，
         则使用 CollaborativeTaskPlanner 获取带推理的执行计划
@@ -234,16 +238,25 @@ class TaskPlanningMiddleware:
         else:
             self._log = ""
         
-        complexity_result = await self._analyze_complexity(user_request)
-        planning_logger.info(f"复杂度分析完成: {complexity_result.get('complexity', 'unknown')}")
-        
-        if not complexity_result['needs_planning']:
-            return PlanningResult(
-                is_complex=False,
-                complexity=complexity_result['complexity'],
-                subtasks=[],
-                reasoning=complexity_result['reasoning']
-            )
+        # ReAct 模式强制进行任务规划，跳过复杂度判断
+        if force_planning:
+            planning_logger.info("强制规划模式（ReAct）: 跳过复杂度判断，直接拆解任务")
+            complexity_result = {
+                'complexity': 'complex',
+                'needs_planning': True,
+                'reasoning': 'ReAct 模式强制规划'
+            }
+        else:
+            complexity_result = await self._analyze_complexity(user_request)
+            planning_logger.info(f"复杂度分析完成: {complexity_result.get('complexity', 'unknown')}")
+            
+            if not complexity_result['needs_planning']:
+                return PlanningResult(
+                    is_complex=False,
+                    complexity=complexity_result['complexity'],
+                    subtasks=[],
+                    reasoning=complexity_result['reasoning']
+                )
         
         # 发射任务规划开始事件
         self._emit_plan_event("start", main_task=user_request, complexity=complexity_result['complexity'])
