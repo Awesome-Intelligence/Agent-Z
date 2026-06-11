@@ -568,6 +568,82 @@ def cmd_doctor(args: argparse.Namespace):
     run_diagnostics(verbose=args.verbose)
 
 
+def cmd_providers(args: argparse.Namespace):
+    """Handle 'providers' command."""
+    from cli.providers import list_providers, get_provider_info, check_provider_status
+
+    if args.providers_command == "list":
+        list_providers(json_output=args.json)
+    elif args.providers_command == "info":
+        get_provider_info(args.provider_id)
+    elif args.providers_command == "status":
+        check_provider_status(args.provider_id)
+    else:
+        list_providers()
+
+
+def cmd_models(args: argparse.Namespace):
+    """Handle 'models' command."""
+    from cli.models import list_models, get_model_info, compare_models
+
+    if args.models_command == "list":
+        list_models(provider=args.provider, json_output=args.json)
+    elif args.models_command == "info":
+        get_model_info(args.model_id)
+    elif args.models_command == "compare":
+        compare_models(args.model1, args.model2)
+    else:
+        list_models()
+
+
+def cmd_profiles(args: argparse.Namespace):
+    """Handle 'profiles' command."""
+    from cli import profiles
+
+    if args.profiles_command == "list":
+        profiles.list_profiles()
+    elif args.profiles_command == "create":
+        profiles.create_profile(args.name, copy_from=args.copy)
+    elif args.profiles_command == "switch":
+        profiles.switch_profile(args.name)
+    elif args.profiles_command == "delete":
+        profiles.delete_profile(args.name, force=args.force)
+    else:
+        profiles.list_profiles()
+
+
+def cmd_backup(args: argparse.Namespace):
+    """Handle 'backup' command."""
+    from cli import backup
+
+    if args.backup_command == "create":
+        backup.backup_config(args.name)
+    elif args.backup_command == "list":
+        backup.list_backups()
+    elif args.backup_command == "restore":
+        backup.restore_backup(args.backup_id)
+    elif args.backup_command == "delete":
+        backup.delete_backup(args.backup_id)
+    else:
+        backup.list_backups()
+
+
+def cmd_auth(args: argparse.Namespace):
+    """Handle 'auth' command."""
+    from cli import auth_cli
+
+    if args.auth_command == "add":
+        auth_cli.add_credential(args.provider, args.api_key)
+    elif args.auth_command == "list":
+        auth_cli.list_credentials()
+    elif args.auth_command == "delete":
+        auth_cli.delete_credential(args.provider)
+    elif args.auth_command == "test":
+        auth_cli.test_connection(args.provider)
+    else:
+        auth_cli.list_credentials()
+
+
 # ============================================================================
 # Main Entry Point
 # ============================================================================
@@ -673,6 +749,21 @@ def main():
         return
     elif args.command == 'doctor':
         cmd_doctor(args)
+        return
+    elif args.command == 'providers':
+        cmd_providers(args)
+        return
+    elif args.command == 'models':
+        cmd_models(args)
+        return
+    elif args.command == 'profiles':
+        cmd_profiles(args)
+        return
+    elif args.command == 'backup':
+        cmd_backup(args)
+        return
+    elif args.command == 'auth':
+        cmd_auth(args)
         return
 
     # Handle legacy setup mode

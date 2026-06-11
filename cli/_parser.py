@@ -619,4 +619,114 @@ def build_top_level_parser():
         help="Verbose output",
     )
 
+    # =========================================================================
+    # providers command
+    # =========================================================================
+    providers_parser = subparsers.add_parser(
+        "providers",
+        help="Provider management",
+        description="List and manage LLM providers",
+    )
+    providers_subparsers = providers_parser.add_subparsers(dest="providers_command", help="Provider command")
+
+    providers_list_parser = providers_subparsers.add_parser("list", help="List all providers")
+    providers_list_parser.add_argument("--json", action="store_true", help="Output as JSON")
+
+    providers_info_parser = providers_subparsers.add_parser("info", help="Show provider info")
+    providers_info_parser.add_argument("provider_id", help="Provider ID")
+
+    providers_status_parser = providers_subparsers.add_parser("status", help="Check provider status")
+    providers_status_parser.add_argument("provider_id", nargs="?", help="Provider ID (optional)")
+
+    # =========================================================================
+    # models command
+    # =========================================================================
+    models_parser = subparsers.add_parser(
+        "models",
+        help="Model catalog",
+        description="List and compare models",
+    )
+    models_subparsers = models_parser.add_subparsers(dest="models_command", help="Model command")
+
+    models_list_parser = models_subparsers.add_parser("list", help="List all models")
+    models_list_parser.add_argument("--provider", help="Filter by provider")
+    models_list_parser.add_argument("--json", action="store_true", help="Output as JSON")
+
+    models_info_parser = models_subparsers.add_parser("info", help="Show model info")
+    models_info_parser.add_argument("model_id", help="Model ID")
+
+    models_compare_parser = models_subparsers.add_parser("compare", help="Compare two models")
+    models_compare_parser.add_argument("model1", help="First model ID")
+    models_compare_parser.add_argument("model2", help="Second model ID")
+
+    # =========================================================================
+    # profiles command
+    # =========================================================================
+    profiles_parser = subparsers.add_parser(
+        "profiles",
+        help="Profile management",
+        description="Manage configuration profiles",
+    )
+    profiles_subparsers = profiles_parser.add_subparsers(dest="profiles_command", help="Profile command")
+
+    profiles_list_parser = profiles_subparsers.add_parser("list", help="List profiles")
+    profiles_list_parser.add_argument("--json", action="store_true", help="Output as JSON")
+
+    profiles_create_parser = profiles_subparsers.add_parser("create", help="Create profile")
+    profiles_create_parser.add_argument("name", help="Profile name")
+    profiles_create_parser.add_argument("--copy", help="Copy from profile")
+
+    profiles_switch_parser = profiles_subparsers.add_parser("switch", help="Switch profile")
+    profiles_switch_parser.add_argument("name", help="Profile name")
+
+    profiles_delete_parser = profiles_subparsers.add_parser("delete", help="Delete profile")
+    profiles_delete_parser.add_argument("name", help="Profile name")
+    profiles_delete_parser.add_argument("-f", "--force", action="store_true", help="Force delete")
+
+    # =========================================================================
+    # backup command
+    # =========================================================================
+    backup_parser = subparsers.add_parser(
+        "backup",
+        help="Backup management",
+        description="Create and restore backups",
+    )
+    backup_subparsers = backup_parser.add_subparsers(dest="backup_command", help="Backup command")
+
+    backup_create_parser = backup_subparsers.add_parser("create", help="Create backup")
+    backup_create_parser.add_argument("--name", help="Backup name")
+
+    backup_list_parser = backup_subparsers.add_parser("list", help="List backups")
+    backup_list_parser.add_argument("--json", action="store_true", help="Output as JSON")
+
+    backup_restore_parser = backup_subparsers.add_parser("restore", help="Restore backup")
+    backup_restore_parser.add_argument("backup_id", help="Backup ID")
+    backup_restore_parser.add_argument("-f", "--force", action="store_true", help="Force restore")
+
+    backup_delete_parser = backup_subparsers.add_parser("delete", help="Delete backup")
+    backup_delete_parser.add_argument("backup_id", help="Backup ID")
+
+    # =========================================================================
+    # auth command
+    # =========================================================================
+    auth_parser = subparsers.add_parser(
+        "auth",
+        help="Authentication management",
+        description="Manage API keys and credentials",
+    )
+    auth_subparsers = auth_parser.add_subparsers(dest="auth_command", help="Auth command")
+
+    auth_add_parser = auth_subparsers.add_parser("add", help="Add credential")
+    auth_add_parser.add_argument("provider", help="Provider ID")
+    auth_add_parser.add_argument("api_key", help="API Key")
+
+    auth_list_parser = auth_subparsers.add_parser("list", help="List credentials")
+    auth_list_parser.add_argument("--json", action="store_true", help="Output as JSON")
+
+    auth_delete_parser = auth_subparsers.add_parser("delete", help="Delete credential")
+    auth_delete_parser.add_argument("provider", help="Provider ID")
+
+    auth_test_parser = auth_subparsers.add_parser("test", help="Test connection")
+    auth_test_parser.add_argument("provider", help="Provider ID")
+
     return parser, subparsers, chat_parser

@@ -65,6 +65,15 @@
 - [x] Task 8.2: 更新 `cli/cli_commands/__init__.py`
   - [x] 导出所有命令函数
 
+## 阶段 9: models 模块
+
+- [x] Task 9.1: 创建 `cli/models.py`
+  - [x] 实现 `MODELS` 模型目录定义
+  - [x] 实现 `list_models()` - 列出所有模型
+  - [x] 实现 `get_model_info()` - 查看模型详情
+  - [x] 实现 `compare_models()` - 对比两个模型
+  - [x] 实现 `search_models()` - 搜索模型
+
 ## Task Dependencies
 
 - 所有任务已完成
