@@ -23,8 +23,8 @@ from .todo_adapter import get_todo_adapter
 from .task_logger import TaskLogger, create_task_logger
 from common.logging_manager import get_decision_logger
 
-# 获取任务规划的专用 logger
-planning_logger = get_decision_logger("TaskPlanning")
+# 获取任务规划的专用 logger（使用 Task 子层标签）
+planning_logger = get_decision_logger("TaskPlanning", sublayer="task")
 
 
 @dataclass
@@ -140,11 +140,6 @@ class TaskPlanningMiddleware:
                 if self._stream_emitter:
                     self._stream_emitter.emit_plan_start(main_task, complexity)
                 
-                # 输出到日志
-                planning_logger.info(f"🎯 开始任务规划...")
-                planning_logger.info(f"   主任务: {main_task[:50]}{'...' if len(main_task) > 50 else ''}")
-                planning_logger.info(f"   复杂度: {complexity}")
-                
             elif event_type == "progress":
                 subtasks = kwargs.get('subtasks', [])
                 completed = kwargs.get('completed', 0)
@@ -157,26 +152,6 @@ class TaskPlanningMiddleware:
                     self._stream_emitter.emit_plan_progress(
                         subtasks, completed, total, current_task, progress_percent
                     )
-                
-                # 输出到日志
-                if subtasks:
-                    planning_logger.info(f"📋 任务规划进度: {completed}/{total} ({progress_percent}%)")
-                    if current_task:
-                        planning_logger.info(f"   当前: {current_task}")
-                    planning_logger.info(f"   子任务列表:")
-                    for i, task in enumerate(subtasks[:5], 1):
-                        task_title = task.get('title', task.get('name', 'Unknown'))
-                        task_status = task.get('status', 'pending')
-                        status_icon = {
-                            'pending': '⏳',
-                            'running': '🔄',
-                            'completed': '✅',
-                            'failed': '❌',
-                            'cancelled': '➖'
-                        }.get(task_status, '❓')
-                        planning_logger.info(f"   {i}. {status_icon} {task_title}")
-                    if len(subtasks) > 5:
-                        planning_logger.info(f"   ... 还有 {len(subtasks) - 5} 个任务")
                 
             elif event_type == "complete":
                 subtasks = kwargs.get('subtasks', [])
@@ -191,14 +166,9 @@ class TaskPlanningMiddleware:
                         subtasks, completed, total, success, summary
                     )
                 
-                # 输出到日志
-                status_icon = "✅" if success else "⚠️"
-                status_text = "任务规划完成" if success else "任务规划部分完成"
-                planning_logger.info(f"{status_icon} {status_text}")
-                planning_logger.info(f"   完成: {completed}/{total}")
-                
+                # 输出带状态的任务列表
                 if subtasks:
-                    planning_logger.info(f"   📋 子任务列表:")
+                    planning_logger.info(f"✅ 任务规划完成 ({len(subtasks)} 个子任务):")
                     for i, task in enumerate(subtasks, 1):
                         task_title = task.get('title', task.get('name', 'Unknown'))
                         task_status = task.get('status', 'pending')
@@ -209,10 +179,9 @@ class TaskPlanningMiddleware:
                             'failed': '❌',
                             'cancelled': '➖'
                         }.get(task_status, '❓')
-                        planning_logger.info(f"   {i}. {status_icon} {task_title}")
-                
-                if summary:
-                    planning_logger.info(f"   总结: {summary[:50]}{'...' if len(summary) > 50 else ''}")
+                        planning_logger.info(f"       {i}. {status_icon} {task_title}")
+                else:
+                    planning_logger.info(f"⚠️ 任务规划完成，但无子任务")
                 
         except Exception as e:
             planning_logger.debug(f"发射规划事件失败: {e}")
@@ -238,13 +207,12 @@ class TaskPlanningMiddleware:
         else:
             self._log = ""
         
-        # ReAct 模式强制进行任务规划，跳过复杂度判断
+        # ReAct 模式：直接进行任务拆解
         if force_planning:
-            planning_logger.info("强制规划模式（ReAct）: 跳过复杂度判断，直接拆解任务")
             complexity_result = {
                 'complexity': 'complex',
                 'needs_planning': True,
-                'reasoning': 'ReAct 模式强制规划'
+                'reasoning': 'ReAct 模式'
             }
         else:
             complexity_result = await self._analyze_complexity(user_request)
@@ -360,7 +328,10 @@ class TaskPlanningMiddleware:
         """LLM 分析任务复杂度"""
         try:
             prompt = self._complexity_prompt.format(request=request)
-            response = await self.llm_provider.generate(prompt)
+            llm_response = await self.llm_provider.generate(prompt)
+            
+            # 从 ProviderResponse 中获取文本内容
+            response = llm_response.content if hasattr(llm_response, 'content') else str(llm_response)
             
             response = self._clean_json_response(response)
             result = json.loads(response)
@@ -392,16 +363,33 @@ class TaskPlanningMiddleware:
                 request=request,
                 complexity=complexity
             )
-            response = await self.llm_provider.generate(prompt)
+            llm_response = await self.llm_provider.generate(prompt)
+            
+            # 从 ProviderResponse 中获取文本内容
+            response = llm_response.content if hasattr(llm_response, 'content') else str(llm_response)
             
             response = self._clean_json_response(response)
             result = json.loads(response)
             
+            subtasks = result.get('subtasks', [])
+            overall_plan = result.get('overall_plan', '')
+            
+            if not subtasks:
+                planning_logger.warning(f"警告: LLM 返回了空的子任务列表")
+            
             return {
-                'subtasks': result.get('subtasks', []),
-                'overall_plan': result.get('overall_plan', '')
+                'subtasks': subtasks,
+                'overall_plan': overall_plan
+            }
+        except json.JSONDecodeError as e:
+            # JSON 解析失败时，提供简洁错误信息
+            planning_logger.error(f"任务拆解失败: JSON解析错误")
+            return {
+                'subtasks': [],
+                'overall_plan': '拆解失败: LLM返回格式不正确'
             }
         except Exception as e:
+            planning_logger.error(f"任务拆解失败: {e}")
             return {
                 'subtasks': [],
                 'overall_plan': f'拆解失败: {str(e)}'
@@ -411,16 +399,31 @@ class TaskPlanningMiddleware:
         """清理 LLM 返回的 JSON 响应"""
         response = response.strip()
         
+        # 移除思考过程标签
+        response = re.sub(r'\[think\]', '', response, flags=re.IGNORECASE)
+        response = re.sub(r'\[/think\]', '', response, flags=re.IGNORECASE)
+        response = re.sub(r'</think>', '', response)
+        
+        # 尝试提取 JSON 代码块
         json_patterns = [
-            r'```json\s*(.+?)\s*```',
-            r'```\s*(.+?)\s*```',
+            r'```json\s*(\{[\s\S]*?\})\s*```',
+            r'```\s*(\{[\s\S]*?\})\s*```',
         ]
         
         for pattern in json_patterns:
-            match = re.search(pattern, response, re.DOTALL)
+            match = re.search(pattern, response)
             if match:
-                response = match.group(1)
-                break
+                return match.group(1)
+        
+        # 尝试直接查找 JSON 对象
+        if response.startswith('{'):
+            return response
+        
+        # 查找最后一个 { 到最后一个 } 之间的内容
+        first_brace = response.find('{')
+        last_brace = response.rfind('}')
+        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+            return response[first_brace:last_brace + 1]
         
         return response
 

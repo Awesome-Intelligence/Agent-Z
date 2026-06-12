@@ -159,7 +159,7 @@ class ReActLoop:
         Returns:
             执行结果字典
         """
-        self.logger.info(f"ReAct 循环开始: {context.task_description[:50]}...")
+        self.logger.debug(f"ReAct 循环开始: {context.task_description[:50]}...")
         
         self._state = LoopState.RUNNING
         self._steps.clear()
@@ -181,13 +181,16 @@ class ReActLoop:
                 self.logger.warning(f"达到最大迭代次数 {self.max_iterations}")
                 break
             
-            self.logger.info(
+            self.logger.debug(
                 f"迭代 {context.current_iteration}/{self.max_iterations}"
             )
             
             try:
                 step_result = await self._execute_step(context)
                 self._steps.append(step_result)
+                
+                # 输出子任务进度
+                self._log_progress(context, step_result)
                 
                 # 检查中断请求（步骤执行后）
                 if self._check_interrupt():
@@ -217,6 +220,25 @@ class ReActLoop:
                 break
         
         return self._build_result(context)
+    
+    def _log_progress(self, context: "ReActContext", step_result: StepResult):
+        """输出子任务执行进度"""
+        subtasks = context.get('subtasks', [])
+        if not subtasks:
+            return
+        
+        # 计算已完成的工具调用数量（作为子任务完成的近似）
+        completed = len([tc for tc in context.tool_calls if tc.tool_name not in ('think', 'reasoning')])
+        total = len(subtasks)
+        current_tool = step_result.tool_name if step_result.tool_name else "思考中..."
+        
+        # 输出进度
+        self.logger.info(f"进度 {completed}/{total} | 🔄 {current_tool}")
+        
+        # 如果有自定义数据中的当前任务描述，使用它
+        current_task_desc = context.get('current_task', '')
+        if current_task_desc:
+            self.logger.info(f"       🔄 {current_task_desc}")
     
     def _check_interrupt(self) -> bool:
         """检查是否有中断请求
@@ -407,11 +429,9 @@ class ReActLoop:
                 truncated = f"{content[:30]}...{content[-30:]}"
             else:
                 truncated = content
-            self.logger.debug(f"LLM response content: {repr(truncated)}")
-
+            
             # 检查是否有有效的 function_call
             function_call = getattr(response, 'function_call', None)
-            self.logger.debug(f"LLM function_call: {function_call}")
 
             if function_call:
                 # MiniMax 的 function_call 结构: {'function': {'name': '...', 'arguments': '...'}}

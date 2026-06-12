@@ -400,6 +400,12 @@ class LLMToolSelector:
                 
                 # 先尝试提取 JSON（处理模型返回的思维链标签）
                 content_str = content.strip()
+                
+                # 清理思维链标签（与 TaskPlanning 一致）
+                content_str = re.sub(r'\[think\]', '', content_str, flags=re.IGNORECASE)
+                content_str = re.sub(r'\[/think\]', '', content_str, flags=re.IGNORECASE)
+                content_str = re.sub(r'</think>', '', content_str)
+                
                 # 匹配完整的 JSON 对象（支持嵌套），找第一个 { 到最后一个 } 之间的内容
                 json_pattern = r'\{[\s\S]*"action"[\s\S]*\}'
                 json_match = re.search(json_pattern, content_str)
