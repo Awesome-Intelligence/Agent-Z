@@ -40,7 +40,7 @@ class SidebarContainer(Container):
             # 日志面板
             with Vertical(id="panel-logs", classes="sidebar-panel hidden"):
                 yield Static("📜 日志", classes="panel-title")
-                yield RichLog(id="log-output", auto_scroll=True, max_lines=1000)
+                yield RichLog(id="log-output", auto_scroll=True, max_lines=1000, wrap=True, min_width=1)
     
     def _build_file_tree(self) -> str:
         """构建文件树."""

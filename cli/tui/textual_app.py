@@ -23,8 +23,6 @@ Textual TUI Application for Handsome Agent
 from __future__ import annotations
 
 import logging
-from rich.console import Console as RichConsole
-from rich.text import Text as RichText
 import os
 import sys
 from typing import TYPE_CHECKING, Optional
@@ -40,6 +38,7 @@ try:
     from textual.message import Message
     from textual import on
     from textual.events import Key
+    from textual import events as textual_events
     # Textual 8.x 中使用 Key 事件而不是 KeyEvent
     KeyEvent = Key
 except ImportError as e:
@@ -174,7 +173,17 @@ class TuiLogHandler(logging.Handler):
 
     线程安全：通过 App.call_from_thread() 将日志从任意线程路由到 UI 线程。
     组件就绪前自动缓冲日志，就绪后一次性刷新。
+    过滤规则：排除 TextualUI 相关的 DEBUG 日志（窗口切换、面板切换等）。
     """
+
+    # 要过滤的 logger 名称前缀（这些日志太频繁，不显示在面板）
+    _FILTER_PREFIXES = ("TextualUI", "cli.tui", "tui.", "keybinding", "key_binding", "KeyBinding")
+    # 要过滤的日志消息关键词（UI 交互类日志）
+    _FILTER_KEYWORDS = (
+        "tab", "panel", "sidebar", "log", "command palette", "screen",
+        "session", "window", "theme", "focus", "mount", "unmount",
+        "key", "binding", "shortcut",
+    )
 
     def __init__(self, app, buffer_size: int = 500):
         super().__init__()
@@ -182,8 +191,7 @@ class TuiLogHandler(logging.Handler):
         self._widget = None  # type: RichLog | None
         self._buffer: list[logging.LogRecord] = []
         self._buffer_size = buffer_size
-        self._console = RichConsole(force_terminal=True, width=120, no_color=True)
-    
+
     def set_widget(self, widget) -> None:
         """设置目标 RichLog 组件并刷新缓冲区。"""
         self._widget = widget
@@ -194,6 +202,10 @@ class TuiLogHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         """接收日志记录（任意线程），路由到 UI 线程写入。"""
+        # 过滤：排除 TextualUI 相关的 DEBUG 日志
+        if record.levelno == logging.DEBUG and self._is_ui_debug_log(record):
+            return
+        
         if self._widget is None:
             if len(self._buffer) < self._buffer_size:
                 self._buffer.append(record)
@@ -203,16 +215,27 @@ class TuiLogHandler(logging.Handler):
         except Exception:
             pass
 
+    def _is_ui_debug_log(self, record: logging.LogRecord) -> bool:
+        """判断是否为 UI 相关的 DEBUG 日志（需要过滤）。"""
+        name = record.name
+        if any(name.startswith(prefix) for prefix in self._FILTER_PREFIXES):
+            return True
+        # 也过滤 UI 交互类消息
+        msg_lower = record.getMessage().lower()
+        return any(kw in msg_lower for kw in self._FILTER_KEYWORDS)
+
     def _write_log(self, record: logging.LogRecord) -> None:
-        """在 UI 线程中写入 RichLog 组件，支持自动换行。"""
+        """在 UI 线程中写入 RichLog 组件，直接追加到 lines 列表。
+        
+        绕过 RichLog 的 deferred render 机制，确保日志立即可见。
+        """
         if self._widget is None:
             return
+        
         msg = self.format(record)
-        # 按 RichLog 组件当前宽度自动换行，保留 Rich 标记
-        width = max(self._widget.size.width, 20)
-        text = RichText.from_markup(msg)
-        wrapped = text.wrap(self._console, width)
-        self._widget.write(wrapped)
+        # 直接写入原始字符串，不预先换行
+        # RichLog 会自动处理换行逻辑
+        self._widget.write(msg)
 
 
 # ============================================================================
@@ -238,7 +261,51 @@ class CompatibleLog:
 # 全局单例实例
 _COMPATIBLE_LOG = CompatibleLog()
 
-# Monkeypatch Textual 的 LayerLogger 以修复 Textual 8.x 兼容性问题
+
+# ============================================================================
+# SubmitTextArea - 支持按 Enter 发送消息的 TextArea 子类
+# ============================================================================
+
+class SubmitTextArea(TextArea):
+    """支持按 Enter 发送消息的 TextArea。
+    
+    - Enter（无修饰键）：触发 Submitted 事件（不插入换行）
+    - Ctrl+Enter：插入换行（默认行为）
+    
+    内部使用自定义的 InputSubmitted 消息事件。
+    """
+    
+    class InputSubmitted(Message):
+        """输入提交事件（按 Enter 触发）。"""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+    
+    async def _on_key(self, event: "textual_events.Key") -> None:
+        """拦截 Enter 键：无修饰键时触发提交，否则保持默认行为。"""
+        key = event.key
+        
+        # Enter without modifiers -> submit message
+        # Textual 中修饰键编码在 key 字符串中：plain="enter", ctrl+enter="ctrl+enter"
+        if key == "enter":
+            event.stop()
+            event.prevent_default()
+            self.post_message(self.InputSubmitted())
+            return
+        
+        # Ctrl+Enter / Shift+Enter / Alt+Enter -> insert newline (default behavior)
+        # 这些 key 字符串包含 '+' 修饰符前缀
+        if key.startswith("ctrl+") or key.startswith("shift+") or key.startswith("alt+"):
+            await super()._on_key(event)
+            return
+        
+        # 其他键保持默认行为
+        await super()._on_key(event)
+
+
+# ============================================================================
+# HandsomeAgentApp 主类
+# ============================================================================
 def _patch_textual_logger():
     """Patch Textual's LayerLogger to be compatible."""
     try:
@@ -694,7 +761,7 @@ Button:hover {
         
         # 输入区域（固定在底部）
         with Container(id="input-area"):
-            yield TextArea(
+            yield SubmitTextArea(
                 id="user-input",
                 classes="input-field",
                 placeholder="输入消息... (Ctrl+Enter 换行, Enter 发送)",
@@ -720,58 +787,6 @@ Button:hover {
             event.stop()
             return
     
-    def _on_text_area_key_down(self, event: Key) -> None:
-        """处理 TextArea 按键事件.
-        
-        - Enter: 发送消息
-        - ↑/↓: 历史导航
-        """
-        from textual.widgets import TextArea
-        
-        # 获取按下的键
-        key = event.key
-        
-        # 检查 Ctrl 键是否按下
-        is_ctrl = False
-        if hasattr(event, 'control') and event.control:
-            is_ctrl = True
-        
-        # Ctrl+数字键已经在全局事件中处理
-        if is_ctrl and key in ['1', '2', '3', '4']:
-            return
-        
-        # 处理 Enter 键 - 发送消息
-        if str(key) == 'enter':
-            # 检查是否有修饰键（简单检查 event 的属性）
-            has_modifier = False
-            if hasattr(event, 'control') and event.control:
-                has_modifier = True
-            if hasattr(event, 'shift') and event.shift:
-                has_modifier = True
-            if hasattr(event, 'alt') and event.alt:
-                has_modifier = True
-            
-            if not has_modifier:
-                # Enter: 发送消息
-                self._submit_from_history()
-                event.prevent_default()
-                event.stop()
-            # 如果有修饰键，则允许 TextArea 默认处理（插入换行）
-            return
-        
-        # 处理方向键 - 历史导航
-        if str(key) == 'up':
-            self._history_prev()
-            event.prevent_default()
-            event.stop()
-            return
-        
-        if str(key) == 'down':
-            self._history_next()
-            event.prevent_default()
-            event.stop()
-            return
-    
     def on_mount(self) -> None:
         """应用挂载时初始化."""
         self._logger.info("Textual UI mounted")
@@ -790,6 +805,35 @@ Button:hover {
         
         # 聚焦到输入框（TextArea）
         self.set_focus(self.query_one("#user-input", TextArea))
+    
+    @on(SubmitTextArea.InputSubmitted)
+    def _on_input_submitted(self, event: SubmitTextArea.InputSubmitted) -> None:
+        """处理 TextArea 回车提交事件：发送消息。"""
+        text_area = self.query_one("#user-input", SubmitTextArea)
+        user_input = text_area.text.strip()
+        
+        if not user_input:
+            return
+        
+        # 添加到历史记录
+        if user_input not in self._input_history:
+            self._input_history.insert(0, user_input)
+            if len(self._input_history) > 100:
+                self._input_history = self._input_history[:100]
+        
+        # 重置历史索引
+        self._history_index = -1
+        self._current_input = ""
+        
+        # 清空输入框
+        text_area.text = ""
+        
+        # 显示用户消息
+        self._append_message("user", user_input)
+        self._logger.debug(f"User input: {user_input[:50]}...")
+        
+        # 异步调用 Agent 处理
+        self.call_later(lambda: self._call_agent_async(user_input))
     
     def _register_event_listeners(self) -> None:
         """注册事件监听器.
@@ -1508,13 +1552,14 @@ Button:hover {
         self.app.call_later(lambda: self._call_agent_async(user_input))
     
     def _call_agent_async(self, user_input: str) -> None:
-        """异步调用 Agent 处理用户输入.
+        """异步调用 Agent 处理用户输入（非阻塞主线程）。
         
         Args:
             user_input: 用户输入的消息
         """
         import asyncio
         from concurrent.futures import ThreadPoolExecutor
+        from textual.timer import Timer
         
         # 显示加载状态
         self._append_message("system", "🤔 正在思考...")
@@ -1522,14 +1567,11 @@ Button:hover {
         # 在线程池中执行异步操作
         def run_agent():
             try:
-                # 获取 Agent 实例
                 agent = self._get_agent()
                 if agent:
-                    # 获取事件循环并运行协程
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     try:
-                        # agent.chat 可能返回协程，需要等待
                         response = agent.chat(user_input)
                         if asyncio.iscoroutine(response):
                             response = loop.run_until_complete(response)
@@ -1546,29 +1588,49 @@ Button:hover {
         future = executor.submit(run_agent)
         executor.shutdown(wait=False)
         
-        # 轮询结果（简单实现）
-        import time
-        max_wait = 60  # 最多等待 60 秒
-        start_time = time.time()
-        while not future.done():
-            if time.time() - start_time > max_wait:
-                self._append_message("system", "⏱️ 处理超时，请重试")
-                return
-            time.sleep(0.5)
+        # 启动定时器轮询结果（非阻塞）
+        self._agent_future = future
+        self._agent_start_time = __import__("time").time()
         
-        # 获取结果并显示
-        try:
-            response = future.result()
-            if response:
-                # 如果是 AgentResponse 对象，提取 content
-                if hasattr(response, 'content'):
-                    self._append_message("assistant", str(response.content))
+        # 取消之前的轮询定时器（如果存在）
+        if hasattr(self, '_poll_timer') and self._poll_timer is not None:
+            self._poll_timer.stop()
+        
+        # 每 0.3 秒检查一次结果（非阻塞主线程）
+        self._poll_timer = self.set_interval(0.3, self._poll_agent_result)
+    
+    def _poll_agent_result(self) -> None:
+        """轮询 Agent 结果（非阻塞主线程）。由 set_interval 调用。"""
+        import time
+        future = getattr(self, '_agent_future', None)
+        if future is None:
+            return
+        
+        if future.done():
+            self._poll_timer.stop()
+            self._poll_timer = None
+            
+            try:
+                response = future.result()
+                if response:
+                    if hasattr(response, 'content'):
+                        self._append_message("assistant", str(response.content))
+                    else:
+                        self._append_message("assistant", str(response))
                 else:
-                    self._append_message("assistant", str(response))
-            else:
-                self._append_message("assistant", "（无回复）")
-        except Exception as e:
-            self._append_message("system", f"❌ 处理失败: {str(e)}")
+                    self._append_message("assistant", "（无回复）")
+            except Exception as e:
+                self._append_message("system", f"❌ 处理失败: {str(e)}")
+            
+            self._agent_future = None
+            return
+        
+        # 超时检查
+        if time.time() - getattr(self, '_agent_start_time', time.time()) > 60:
+            self._poll_timer.stop()
+            self._poll_timer = None
+            self._append_message("system", "⏱️ 处理超时，请重试")
+            self._agent_future = None
     
     def _get_agent(self):
         """获取 Agent 实例.
