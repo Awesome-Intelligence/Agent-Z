@@ -480,6 +480,38 @@ class LogManager:
                 logger.removeHandler(handler)
         
         self._handlers.clear()
+        self._console_handler = None
+    
+    def disable_console(self) -> None:
+        """Temporarily disable console logging (e.g., for Textual TUI mode).
+        
+        Removes the console handler from root logger and all child loggers
+        so that log output does not interfere with the TUI display.
+        """
+        if self._console_handler is None:
+            return
+        
+        # Remove from root logger
+        if self._console_handler in logging.root.handlers:
+            logging.root.removeHandler(self._console_handler)
+        
+        # Remove from all child loggers
+        for logger_name in logging.Logger.manager.loggerDict:
+            logger = logging.getLogger(logger_name)
+            if self._console_handler in logger.handlers:
+                logger.removeHandler(self._console_handler)
+    
+    def enable_console(self) -> None:
+        """Re-enable console logging after being disabled.
+        
+        Restores the console handler to the root logger.
+        """
+        if self._console_handler is None:
+            return
+        
+        # Re-add to root logger if not already present
+        if self._console_handler not in logging.root.handlers:
+            logging.root.addHandler(self._console_handler)
     
     def _apply_module_levels(self) -> None:
         """Apply module level configuration"""

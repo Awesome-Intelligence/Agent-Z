@@ -143,12 +143,13 @@ except ImportError:
 
 # 日志支持
 try:
-    from common.logging_manager import get_access_logger
+    from common.logging_manager import get_access_logger, LogManager
 except ImportError:
     import logging
     logging.basicConfig(level=logging.INFO)
     def get_access_logger(*args, **kwargs):
         return logging.getLogger("HandsomeAgent")
+    LogManager = None
 
 # 降级的颜色常量（用于横幅等使用硬编码颜色的场景）
 # 这些颜色现在通过主题系统管理，但横幅使用硬编码是因为它们在 CSS 中引用
@@ -280,6 +281,13 @@ class HandsomeAgentApp(App):
         """
         # 先 patch Textual logger 以修复兼容性问题
         _patch_textual_logger()
+        
+        # 禁用后端控制台日志，防止日志输出闪现在 TUI 屏幕上
+        if LogManager is not None:
+            try:
+                LogManager.get_instance().disable_console()
+            except Exception:
+                pass
         
         super().__init__(**kwargs)
         
@@ -1162,6 +1170,13 @@ Button:hover {
         self._flush_messages()
         # 注意：这里不调用 super().on_unmount()，因为 Textual App 可能没有这个方法
         self._logger.debug("Application unmounted, data saved")
+        
+        # 恢复后端控制台日志
+        if LogManager is not None:
+            try:
+                LogManager.get_instance().enable_console()
+            except Exception:
+                pass
     
     def _on_sidebar_panel_switch(self, panel_type: str) -> None:
         """处理侧边栏面板切换回调."""
@@ -1804,7 +1819,15 @@ def run_textual_app(
         agent=agent,  # 传递 Agent 实例
     )
     
-    return app.run()
+    try:
+        return app.run()
+    finally:
+        # 确保控制台日志在退出时恢复（兜底机制）
+        if LogManager is not None:
+            try:
+                LogManager.get_instance().enable_console()
+            except Exception:
+                pass
 
 
 # ============================================================================
