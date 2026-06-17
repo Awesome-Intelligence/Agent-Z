@@ -818,6 +818,7 @@ Screen {
 #app-footer {
     height: 1;
     width: 100%;
+    margin: 0;
 }
 
 .footer-content {
@@ -846,14 +847,16 @@ Screen {
     height: 100%;
     layout: horizontal;
     padding: 0 2;
+    align: left middle;
 }
 
 .status-icon {
     width: 1;
-    color: #3fb950;  /* 绿色在线状态 */
+    color: #3fb950;
 }
 
 .status-model {
+    width: auto;
     color: #58a6ff;
 }
 
@@ -863,10 +866,22 @@ Screen {
 }
 
 .status-tokens {
+    width: auto;
     color: #8b949e;
 }
 
 .status-progress {
+    width: auto;
+    color: #8b949e;
+}
+
+.status-time {
+    width: auto;
+    color: #8b949e;
+}
+
+.status-tools {
+    width: auto;
     color: #8b949e;
 }
 
@@ -915,6 +930,8 @@ Screen {
 #input-area {
     height: auto;
     width: 100%;
+    margin: 0;
+    padding: 0;
     background: #161b22;
     dock: bottom;
 }
@@ -964,7 +981,7 @@ Screen {
     background: #0d1117;
     color: #ffffff;
     border: solid #30363d;
-    padding: 1;
+    margin: 0;
     height: 5;
 }
 
@@ -1389,7 +1406,7 @@ ClickableStatic#sidebar-toggle:hover {
         """更新状态栏显示."""
         try:
             # 状态指示器图标
-            icon_widget = self.query_one("#status-indicator-icon", Static)
+            icon_widget = self.query_one("#status-icon", Static)
             icon_widget.update("●")
             
             # 模型名称
@@ -2788,6 +2805,11 @@ ClickableStatic#sidebar-toggle:hover {
             # 恢复状态为空闲
             self.set_agent_status("online")
             
+            # 计算响应时间
+            elapsed = time.time() - getattr(self, '_agent_start_time', time.time())
+            elapsed_minutes = int(elapsed // 60)
+            elapsed_seconds = int(elapsed % 60)
+            
             try:
                 response = future.result()
                 if response:
@@ -2800,6 +2822,13 @@ ClickableStatic#sidebar-toggle:hover {
                 
                 # 使用打字机效果显示内容
                 self._show_typewriter_message(content)
+                
+                # 更新状态栏的时间
+                try:
+                    time_widget = self.query_one("#status-time", Static)
+                    time_widget.update(f"│ {elapsed_minutes}m {elapsed_seconds}s ")
+                except Exception:
+                    pass
             except Exception as e:
                 # 停止加载动画
                 self._stop_loading_animation()
