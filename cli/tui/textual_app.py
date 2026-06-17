@@ -818,8 +818,6 @@ Screen {
 #app-footer {
     height: 1;
     width: 100%;
-    background: #21262d;
-    dock: top;
 }
 
 .footer-content {
@@ -915,7 +913,7 @@ Screen {
 
 /* 输入区域样式 */
 #input-area {
-    height: 5;
+    height: auto;
     width: 100%;
     background: #161b22;
     dock: bottom;
@@ -1314,25 +1312,24 @@ ClickableStatic#sidebar-toggle:hover {
                 yield Static("│", id="status-sep4", classes="status-sep")
                 yield Static("🔧", id="status-tools", classes="status-tools")
         
-        # 自定义 Footer - 显示快捷键提示
-        with Container(id="app-footer"):
-            with Horizontal(id="footer-content"):
-                yield Static(
-                    "[#c9d1d9][[/][#30363d]Ctrl+B[/][#c9d1d9]][/] 侧边栏 [#6e7681]|[/] "
-                    "[#c9d1d9][[/][#30363d]Ctrl+K[/][#c9d1d9]][/] 命令 [#6e7681]|[/] "
-                    "[#c9d1d9][[/][#30363d]Ctrl+Shift+B[/][#c9d1d9]][/] 透明 [#6e7681]|[/] "
-                    "[#c9d1d9][[/][#30363d]Ctrl+Shift+M[/][#c9d1d9]][/] MD [#6e7681]|[/] "
-                    "[#c9d1d9][[/][#30363d]Ctrl+L[/][#c9d1d9]][/] 清屏",
-                    classes="footer-hint"
-                )
-        
-        # 输入区域（固定在底部）
+        # 输入区域 + 快捷键提示（合并为一个容器）
         with Container(id="input-area"):
             yield SubmitTextArea(
                 id="user-input",
                 classes="input-field",
                 placeholder="输入消息... (Ctrl+Enter 换行, Enter 发送)",
             )
+            # 自定义 Footer - 显示快捷键提示
+            with Container(id="app-footer"):
+                with Horizontal(id="footer-content"):
+                    yield Static(
+                        "[#c9d1d9][[/][#30363d]Ctrl+B[/][#c9d1d9]][/] 侧边栏 [#6e7681]|[/] "
+                        "[#c9d1d9][[/][#30363d]Ctrl+K[/][#c9d1d9]][/] 命令 [#6e7681]|[/] "
+                        "[#c9d1d9][[/][#30363d]Ctrl+Shift+B[/][#c9d1d9]][/] 透明 [#6e7681]|[/] "
+                        "[#c9d1d9][[/][#30363d]Ctrl+Shift+M[/][#c9d1d9]][/] MD [#6e7681]|[/] "
+                        "[#c9d1d9][[/][#30363d]Ctrl+L[/][#c9d1d9]][/] 清屏",
+                        classes="footer-hint"
+                    )
     
     def on_key(self, event: KeyEvent) -> None:
         """处理全局键盘事件.
