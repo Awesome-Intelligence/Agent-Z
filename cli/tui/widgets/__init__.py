@@ -13,7 +13,7 @@ TUI Widgets - Textual UI Widget Components
 - ApprovalDialog: 权限审批对话框
 """
 
-from .status_bar import StatusBar
+from .status_bar import StatusBar, StatusBarUpdated
 
 # 命令面板（带降级机制）
 try:
@@ -89,6 +89,7 @@ except ImportError:
 __all__ = [
     # 基础组件
     "StatusBar",
+    "StatusBarUpdated",
     "CommandPaletteScreen",
     "Command",
     # 消息列表

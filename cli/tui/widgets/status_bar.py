@@ -13,7 +13,7 @@ Features:
 - 会话 ID 显示（可选）
 - Token 计数（prompt/completion）
 - 上下文占用率进度条
-- 根据占用率变色（绿色/黄色/红色）
+- 根据上下文占用率变色（绿色/黄色/红色）
 - 实时状态更新机制
 """
 
@@ -24,12 +24,24 @@ from typing import Optional, TYPE_CHECKING
 # Textual 框架导入（带降级机制）
 TEXTUAL_AVAILABLE = True
 try:
+    from textual.app import ComposeResult
     from textual.widget import Widget
+    from textual.widgets import Static
+    from textual.containers import Horizontal
     from textual.message import Message
+    from textual.reactive import reactive
 except ImportError:
     TEXTUAL_AVAILABLE = False
+    ComposeResult = list  # type: ignore
     Widget = object  # type: ignore
+    Static = object  # type: ignore
+    Horizontal = object  # type: ignore
     Message = object  # type: ignore
+    def reactive(default):  # type: ignore
+        """Fallback reactive decorator."""
+        def decorator(func):
+            return func
+        return decorator
 
 # i18n 支持
 try:
@@ -75,6 +87,62 @@ SURFACE = "#1a1a1a"
 
 
 # ============================================================================
+# StatusBar CSS 样式
+# ============================================================================
+
+STATUS_BAR_CSS = """
+StatusBar {
+    width: 100%;
+    height: 1;
+    background: $surface 80%;
+    padding: 0 1;
+}
+
+StatusBar > Horizontal {
+    width: 100%;
+    height: 1;
+    align: center middle;
+}
+
+StatusBar .status-indicator {
+    color: #A0B45A;
+    margin-right: 1;
+}
+
+StatusBar .model-info {
+    color: #8B9A46;
+    margin-right: 1;
+}
+
+StatusBar .token-info {
+    color: #cccccc;
+    margin-right: 1;
+}
+
+StatusBar .context-bar {
+    color: #888888;
+    margin-right: 1;
+}
+
+StatusBar .context-bar.low {
+    color: #4CAF50;
+}
+
+StatusBar .context-bar.warning {
+    color: #FF9800;
+}
+
+StatusBar .context-bar.danger {
+    color: #F44336;
+}
+
+StatusBar .session-info {
+    color: #888888;
+}
+"""
+
+
+# ============================================================================
 # StatusBar 消息定义
 # ============================================================================
 
@@ -100,14 +168,13 @@ class StatusBarUpdated(Message):
 class StatusBar(Widget):
     """Textual 状态栏组件
     
-    显示当前模型状态信息，包括：
+    使用响应式变量 + Static 子组件实现，显示当前模型状态信息：
     - 模型名称和提供商
     - 会话 ID
     - Token 计数（prompt/completion）
     - 上下文占用率进度条
     
     Attributes:
-        COMPONENT_CLASSES: CSS 类定义
         model_name: 当前模型名称
         provider: 模型提供商
         session_id: 会话 ID
@@ -117,12 +184,16 @@ class StatusBar(Widget):
         context_total: 上下文总容量
     """
     
-    COMPONENT_CLASSES = {
-        "model-info",
-        "token-info",
-        "context-bar",
-        "session-info",
-    }
+    CSS = STATUS_BAR_CSS
+    
+    # 响应式变量 - 值变化时自动更新 UI
+    model_name = reactive("Unknown")
+    provider = reactive("")
+    session_id = reactive[Optional[str]](None)
+    prompt_tokens = reactive(0)
+    completion_tokens = reactive(0)
+    context_used = reactive(0)
+    context_total = reactive(128000)
     
     def __init__(
         self,
@@ -156,10 +227,9 @@ class StatusBar(Widget):
         self.context_used = context_used
         self.context_total = context_total
         self._logger = get_access_logger("StatusBar", sublayer="cli")
-        self._update_scheduled = False
     
     # ========================================================================
-    # 状态更新方法
+    # 状态更新方法（兼容原有 API）
     # ========================================================================
     
     def update_model(self, model_name: str, provider: str = "") -> None:
@@ -171,7 +241,6 @@ class StatusBar(Widget):
         """
         self.model_name = model_name
         self.provider = provider
-        self._schedule_update("model")
         self.post_message(StatusBarUpdated(self, "model", (model_name, provider)))
         self._logger.debug(f"Model updated: {model_name} ({provider})")
     
@@ -184,7 +253,6 @@ class StatusBar(Widget):
         """
         self.prompt_tokens = prompt
         self.completion_tokens = completion
-        self._schedule_update("tokens")
         self.post_message(StatusBarUpdated(self, "tokens", (prompt, completion)))
         self._logger.debug(f"Token count updated: prompt={prompt}, completion={completion}")
     
@@ -197,7 +265,6 @@ class StatusBar(Widget):
         """
         self.context_used = used
         self.context_total = total
-        self._schedule_update("context")
         self.post_message(StatusBarUpdated(self, "context", (used, total)))
         ratio = self._get_context_ratio() * 100
         self._logger.debug(f"Context usage updated: {used}/{total} ({ratio:.1f}%)")
@@ -209,20 +276,112 @@ class StatusBar(Widget):
             session_id: 新的会话 ID（None 表示隐藏）
         """
         self.session_id = session_id
-        self._schedule_update("session")
         self.post_message(StatusBarUpdated(self, "session", session_id))
         self._logger.debug(f"Session ID updated: {session_id}")
     
-    def _schedule_update(self, field: str) -> None:
-        """调度 UI 更新（避免频繁刷新）"""
-        if not self._update_scheduled:
-            self._update_scheduled = True
-            self.call_next(self._do_update)
+    # ========================================================================
+    # 响应式 Watcher 方法（自动响应变量变化）
+    # ========================================================================
     
-    def _do_update(self) -> None:
-        """执行 UI 更新"""
-        self._update_scheduled = False
-        self.refresh()
+    def watch_model_name(self) -> None:
+        """响应模型名称变化"""
+        self._update_model_display()
+    
+    def watch_provider(self) -> None:
+        """响应提供商变化"""
+        self._update_model_display()
+    
+    def watch_prompt_tokens(self) -> None:
+        """响应 prompt tokens 变化"""
+        self._update_token_display()
+    
+    def watch_completion_tokens(self) -> None:
+        """响应 completion tokens 变化"""
+        self._update_token_display()
+    
+    def watch_context_used(self) -> None:
+        """响应上下文占用变化"""
+        self._update_context_display()
+    
+    def watch_context_total(self) -> None:
+        """响应上下文总量变化"""
+        self._update_context_display()
+    
+    def watch_session_id(self) -> None:
+        """响应会话 ID 变化"""
+        self._update_session_display()
+    
+    # ========================================================================
+    # 内部 UI 更新方法
+    # ========================================================================
+    
+    def _update_model_display(self) -> None:
+        """更新模型信息显示"""
+        if not hasattr(self, "_mounted"):
+            return
+        try:
+            model_display = f"{self.provider}:{self.model_name}" if self.provider else self.model_name
+            indicator = self.query_one("#status-indicator", Static)
+            model_info = self.query_one("#model-info", Static)
+            indicator.update("●")
+            model_info.update(model_display)
+        except Exception:
+            pass  # 组件未挂载时忽略
+    
+    def _update_token_display(self) -> None:
+        """更新 Token 计数显示"""
+        if not hasattr(self, "_mounted"):
+            return
+        try:
+            total_tokens = self.prompt_tokens + self.completion_tokens
+            token_str = f"{self._format_number(total_tokens)}/{self._format_number(self.context_total)}"
+            token_percentage = self._format_percentage(total_tokens, self.context_total)
+            token_info = self.query_one("#token-info", Static)
+            token_info.update(f"Token: {token_str} ({token_percentage})")
+        except Exception:
+            pass
+    
+    def _update_context_display(self) -> None:
+        """更新上下文占用显示"""
+        if not hasattr(self, "_mounted"):
+            return
+        try:
+            context_bar = self.query_one("#context-bar", Static)
+            bar_text = self._get_context_bar(12)
+            context_bar.update(bar_text)
+            
+            # 更新颜色类
+            ratio = self._get_context_ratio()
+            context_bar.remove_class("low", "warning", "danger")
+            if ratio < 0.5:
+                context_bar.add_class("low")
+            elif ratio < 0.8:
+                context_bar.add_class("warning")
+            else:
+                context_bar.add_class("danger")
+        except Exception:
+            pass
+    
+    def _update_session_display(self) -> None:
+        """更新会话 ID 显示"""
+        if not hasattr(self, "_mounted"):
+            return
+        try:
+            session_info = self.query_one("#session-info", Static)
+            if self.session_id:
+                label_session = self._translate("tui.status.session", "Session")
+                session_info.update(f"| {label_session}: {self.session_id[:8]}...")
+            else:
+                session_info.update("")
+        except Exception:
+            pass
+    
+    def _update_all_displays(self) -> None:
+        """更新所有显示"""
+        self._update_model_display()
+        self._update_token_display()
+        self._update_context_display()
+        self._update_session_display()
     
     # ========================================================================
     # 辅助方法
@@ -320,52 +479,54 @@ class StatusBar(Widget):
         return result
     
     # ========================================================================
-    # 渲染方法
+    # 组件组合方法
     # ========================================================================
     
-    def render(self) -> str:
-        """渲染状态栏内容
+    def compose(self) -> ComposeResult:
+        """组合状态栏子组件
         
         Returns:
-            格式化的状态栏字符串
+            组件生成器
         """
-        # 模型信息
-        if self.provider:
-            model_display = f"{self.provider}:{self.model_name}"
-        else:
-            model_display = self.model_name
-        
-        # Token 信息
-        total_tokens = self.prompt_tokens + self.completion_tokens
-        token_str = f"{self._format_number(total_tokens)}/{self._format_number(self.context_total)}"
-        token_percentage = self._format_percentage(total_tokens, self.context_total)
-        
-        # 上下文占用条
-        context_bar = self._get_context_bar(12)
-        
-        # 翻译文本
-        label_token = self._translate("tui.status.token", "Token")
-        label_session = self._translate("tui.status.session", "Session")
-        
-        # 会话 ID
-        session_str = ""
-        if self.session_id:
-            session_str = f" | {label_session}: {self.session_id[:8]}..."
-        
-        # 组装状态栏
-        parts = [
-            f"[{AVOCADO_BRIGHT}]●[/{AVOCADO_BRIGHT}]",  # 连接状态指示器
-            f"[{AVOCADO_PRIMARY}]{model_display}[/{AVOCADO_PRIMARY}]",
-            f"[{GRAY_DIM}]|[/{GRAY_DIM}]",
-            f"{label_token}: {token_str} ({token_percentage})",
-            f"[{GRAY_DIM}]|[/{GRAY_DIM}]",
-            context_bar,
-            session_str,
-        ]
-        
-        return " ".join(part for part in parts if part)
+        # 模型信息行
+        with Horizontal():
+            # 连接状态指示器
+            yield Static("●", id="status-indicator", classes="status-indicator")
+            
+            # 模型信息
+            model_display = f"{self.provider}:{self.model_name}" if self.provider else self.model_name
+            yield Static(model_display, id="model-info", classes="model-info")
+            
+            # Token 信息（CSS margin 代替分隔符）
+            total_tokens = self.prompt_tokens + self.completion_tokens
+            token_str = f"{self._format_number(total_tokens)}/{self._format_number(self.context_total)}"
+            token_percentage = self._format_percentage(total_tokens, self.context_total)
+            yield Static(
+                f"Token: {token_str} ({token_percentage})",
+                id="token-info",
+                classes="token-info"
+            )
+            
+            # 上下文占用条（CSS margin 代替分隔符）
+            context_bar = self._get_context_bar(12)
+            context_class = "context-bar"
+            ratio = self._get_context_ratio()
+            if ratio < 0.5:
+                context_class += " low"
+            elif ratio < 0.8:
+                context_class += " warning"
+            else:
+                context_class += " danger"
+            yield Static(context_bar, id="context-bar", classes=context_class)
+            
+            # 会话 ID（CSS margin-left 代替前缀分隔符）
+            session_text = ""
+            if self.session_id:
+                label_session = self._translate("tui.status.session", "Session")
+                session_text = f"{label_session}: {self.session_id[:8]}..."
+            yield Static(session_text, id="session-info", classes="session-info")
     
     def on_mount(self) -> None:
         """组件挂载时初始化"""
         self._logger.info("StatusBar mounted")
-        self._schedule_update("initial")
+        self._mounted = True

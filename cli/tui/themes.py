@@ -229,6 +229,404 @@ _PRESET_THEMES: Dict[str, Theme] = {
 
 
 # ============================================================================
+# 透明度等级常量
+# ============================================================================
+
+TRANSPARENCY_LEVELS = {
+    "xs": 0.05,  # 极淡 - 背景微变
+    "sm": 0.10,  # 淡 - 悬停效果
+    "md": 0.15,  # 中 - 选择状态
+    "lg": 0.25,  # 重 - 次要强调
+    "xl": 0.50,  # 浓 - 焦点指示
+}
+
+
+# ============================================================================
+# 半透明颜色转换函数
+# ============================================================================
+
+
+def transparent(color: str, opacity: float) -> str:
+    """将 hex 颜色转换为 rgba 格式。
+
+    Args:
+        color: hex 颜色字符串，如 "#8B9A46"
+        opacity: 透明度，0.0-1.0
+
+    Returns:
+        rgba 格式字符串，如 "rgba(139, 154, 70, 0.5)"
+
+    Examples:
+        >>> transparent("#8B9A46", 0.5)
+        'rgba(139, 154, 70, 0.5)'
+        >>> transparent("#FF0000", 0.25)
+        'rgba(255, 0, 0, 0.25)'
+    """
+    # 移除 # 号
+    color = color.lstrip("#")
+
+    # 支持 3 位和 6 位 hex 格式
+    if len(color) == 3:
+        color = "".join(c * 2 for c in color)
+
+    # 解析 RGB 分量
+    try:
+        r = int(color[0:2], 16)
+        g = int(color[2:4], 16)
+        b = int(color[4:6], 16)
+    except ValueError:
+        # 如果解析失败，返回原始颜色
+        logger.warning(f"Invalid hex color: #{color}, returning original")
+        return color
+
+    # 限制 opacity 范围
+    opacity = max(0.0, min(1.0, opacity))
+
+    return f"rgba({r}, {g}, {b}, {opacity})"
+
+
+# ============================================================================
+# ThemeConfig - 语义化主题配置
+# ============================================================================
+
+
+@dataclass
+class ThemeConfig:
+    """语义化主题配置数据类.
+    
+    用于定义主题的强调色和其他样式变量。
+    颜色变量通过 CSS 类（.theme-avocado 等）应用。
+    """
+    name: str
+    accent: str
+    accent_bright: str
+    accent_dim: str
+    accent_dark: str
+
+
+# 预设主题配置
+THEME_CONFIGS: Dict[str, ThemeConfig] = {
+    "default": ThemeConfig(
+        name="Avocado Green",
+        accent="#8B9A46",
+        accent_bright="#A0B45A",
+        accent_dim="#647030",
+        accent_dark="#465A1E",
+    ),
+    "ares": ThemeConfig(
+        name="War God",
+        accent="#CD7F32",
+        accent_bright="#E8A060",
+        accent_dim="#A06028",
+        accent_dark="#7A4520",
+    ),
+    "mono": ThemeConfig(
+        name="Monochrome",
+        accent="#808080",
+        accent_bright="#A0A0A0",
+        accent_dim="#606060",
+        accent_dark="#404040",
+    ),
+    "slate": ThemeConfig(
+        name="Cool Blue",
+        accent="#607D8B",
+        accent_bright="#78909C",
+        accent_dim="#455A64",
+        accent_dark="#37474F",
+    ),
+}
+
+
+def generate_semantic_colors(theme: ThemeConfig) -> Dict[str, str]:
+    """生成 CSS 语义化颜色变量.
+    
+    Args:
+        theme: ThemeConfig 实例
+        
+    Returns:
+        CSS 变量名到颜色值的映射字典
+    """
+    return {
+        "--accent": theme.accent,
+        "--accent-bright": theme.accent_bright,
+        "--accent-dim": theme.accent_dim,
+        "--accent-dark": theme.accent_dark,
+    }
+
+
+def generate_theme_css(theme_id: str) -> str:
+    """生成主题覆盖类 CSS 字符串.
+    
+    Args:
+        theme_id: 主题 ID (default/ares/mono/slate)
+        
+    Returns:
+        主题 CSS 类定义字符串
+    """
+    theme = THEME_CONFIGS.get(theme_id, THEME_CONFIGS["default"])
+    colors = generate_semantic_colors(theme)
+    css_parts = [f".theme-{theme_id} {{"]
+    for var, value in colors.items():
+        css_parts.append(f"    {var}: {value};")
+    css_parts.append("}")
+    return "\n".join(css_parts)
+
+
+def get_all_theme_css() -> str:
+    """生成所有主题的 CSS 字符串.
+    
+    Returns:
+        所有主题 CSS 类定义的组合字符串
+    """
+    return "\n\n".join(generate_theme_css(tid) for tid in THEME_CONFIGS)
+
+
+# ============================================================================
+# 基础颜色常量（保持向后兼容）
+# ============================================================================
+
+# 状态颜色
+STATUS_ONLINE = "#3fb950"
+STATUS_BUSY = "#f0883e"
+STATUS_AWAY = "#f0883e"
+STATUS_OFFLINE = "#8b949e"
+STATUS_ERROR = "#f85149"
+STATUS_SUCCESS = "#3fb950"
+STATUS_WARNING = "#d29922"
+STATUS_INFO = "#58a6ff"
+
+
+# ============================================================================
+# 半透明颜色变量
+# ============================================================================
+
+# 基于 AVOCADO 主题的半透明版本
+AVOCADO_ACCENT_10 = transparent(THEME_CONFIGS["default"].accent, TRANSPARENCY_LEVELS["sm"])
+AVOCADO_ACCENT_25 = transparent(THEME_CONFIGS["default"].accent, TRANSPARENCY_LEVELS["lg"])
+AVOCADO_ACCENT_50 = transparent(THEME_CONFIGS["default"].accent, TRANSPARENCY_LEVELS["xl"])
+
+# 状态色透明版本
+STATUS_ONLINE_15 = transparent(STATUS_ONLINE, TRANSPARENCY_LEVELS["md"])
+STATUS_BUSY_10 = transparent(STATUS_BUSY, TRANSPARENCY_LEVELS["sm"])
+STATUS_ERROR_15 = transparent(STATUS_ERROR, TRANSPARENCY_LEVELS["md"])
+STATUS_WARNING_15 = transparent(STATUS_WARNING, TRANSPARENCY_LEVELS["md"])
+STATUS_INFO_15 = transparent(STATUS_INFO, TRANSPARENCY_LEVELS["md"])
+
+
+# ============================================================================
+# 消息类型图标和颜色
+# ============================================================================
+
+# 消息类型图标
+MESSAGE_ICONS = {
+    "USER": "🧑",
+    "ASSISTANT": "🤖",
+    "SYSTEM": "⚙️",
+    "TOOL": "🔧",
+    "ERROR": "❌",
+    "THINKING": "💭",
+    "APPROVAL": "✅",
+}
+
+# 消息类型颜色
+MESSAGE_COLORS = {
+    "USER": "#58a6ff",  # 蓝色
+    "ASSISTANT": "#3fb950",  # 绿色
+    "SYSTEM": "#8b949e",  # 灰色
+    "TOOL": "#a371f7",  # 紫色
+    "ERROR": "#f85149",  # 红色
+    "THINKING": "#f0883e",  # 橙色
+    "APPROVAL": "#3fb950",  # 绿色
+}
+
+
+# ============================================================================
+# 文件类型图标
+# ============================================================================
+
+FILE_TYPE_ICONS = {
+    ".py": "🐍",  # Python
+    ".rs": "🦀",  # Rust
+    ".js": "📜",  # JavaScript
+    ".ts": "📘",  # TypeScript
+    ".jsx": "⚛️",  # React JavaScript
+    ".tsx": "⚛️",  # React TypeScript
+    ".vue": "💚",  # Vue
+    ".svelte": "🔥",  # Svelte
+    ".go": "🐹",  # Go
+    ".java": "☕",  # Java
+    ".c": "©",  # C
+    ".cpp": "➕",  # C++
+    ".h": "📎",  # Header
+    ".hpp": "📎",  # C++ Header
+    ".cs": "🔷",  # C#
+    ".rb": "💎",  # Ruby
+    ".php": "🐘",  # PHP
+    ".swift": "🦅",  # Swift
+    ".kt": "🎯",  # Kotlin
+    ".scala": "⚡",  # Scala
+    ".md": "📝",  # Markdown
+    ".txt": "📄",  # Text
+    ".json": "📋",  # JSON
+    ".yaml": "📄",  # YAML
+    ".yml": "📄",  # YAML (short)
+    ".toml": "⚙️",  # TOML
+    ".xml": "📰",  # XML
+    ".html": "🌐",  # HTML
+    ".htm": "🌐",  # HTML (short)
+    ".css": "🎨",  # CSS
+    ".scss": "🎨",  # SCSS
+    ".sass": "🎨",  # Sass
+    ".less": "🎨",  # Less
+    ".sql": "🗃️",  # SQL
+    ".sh": "💻",  # Shell
+    ".bash": "💻",  # Bash
+    ".zsh": "💻",  # Zsh
+    ".ps1": "🖥️",  # PowerShell
+    ".bat": "🖥️",  # Batch
+    ".dockerfile": "🐳",  # Docker
+    ".gitignore": "📁",  # Git
+    ".env": "🔐",  # Environment
+    ".cfg": "⚙️",  # Config
+    ".conf": "⚙️",  # Config
+    ".ini": "⚙️",  # Config
+    ".png": "🖼️",  # Image
+    ".jpg": "🖼️",  # Image
+    ".jpeg": "🖼️",  # Image
+    ".gif": "🖼️",  # Image
+    ".svg": "🖼️",  # Image
+    ".ico": "🖼️",  # Image
+    ".pdf": "📕",  # PDF
+    ".zip": "📦",  # Archive
+    ".tar": "📦",  # Archive
+    ".gz": "📦",  # Archive
+    ".rar": "📦",  # Archive
+    ".7z": "📦",  # Archive
+    ".mp3": "🎵",  # Audio
+    ".wav": "🎵",  # Audio
+    ".mp4": "🎬",  # Video
+    ".mov": "🎬",  # Video
+    ".avi": "🎬",  # Video
+    ".exe": "⚡",  # Executable
+    ".dll": "⚙️",  # Library
+    ".so": "⚙️",  # Shared Object
+    ".a": "📚",  # Static Library
+    ".o": "📚",  # Object File
+    ".default": "📄",  # 默认
+}
+
+
+def get_file_icon(filename: str) -> str:
+    """根据文件名获取对应的图标.
+    
+    Args:
+        filename: 文件名（可包含路径）
+        
+    Returns:
+        对应的 Emoji 图标
+    """
+    from pathlib import Path
+    _, ext = Path(filename).suffix.lower()
+    return FILE_TYPE_ICONS.get(ext, FILE_TYPE_ICONS[".default"])
+
+
+# ============================================================================
+# 任务状态图标
+# ============================================================================
+
+TASK_STATUS_ICONS = {
+    "todo": "📋",  # 待办
+    "pending": "⏳",  # 等待中
+    "in_progress": "🔄",  # 进行中
+    "done": "✅",  # 完成
+    "completed": "✅",  # 完成 (别名)
+    "success": "✅",  # 成功
+    "failed": "❌",  # 失败
+    "error": "❌",  # 错误
+    "blocked": "🚫",  # 阻塞
+    "cancelled": "🚪",  # 取消
+    "skipped": "⏭️",  # 跳过
+}
+
+
+# ============================================================================
+# 任务优先级图标
+# ============================================================================
+
+TASK_PRIORITY_ICONS = {
+    "urgent": "🔴",  # 紧急
+    "high": "🟠",  # 高
+    "medium": "🟡",  # 中
+    "normal": "🟡",  # 正常
+    "low": "🟢",  # 低
+    "lowest": "⚪",  # 最低
+}
+
+
+# ============================================================================
+# 日志级别图标
+# ============================================================================
+
+LOG_LEVEL_ICONS = {
+    "DEBUG": "🐛",  # 调试
+    "INFO": "ℹ️",  # 信息
+    "WARNING": "⚠️",  # 警告
+    "WARN": "⚠️",  # 警告 (别名)
+    "ERROR": "❌",  # 错误
+    "ERR": "❌",  # 错误 (别名)
+    "CRITICAL": "☠️",  # 严重
+    "FATAL": "💀",  # 致命
+    "SUCCESS": "✅",  # 成功
+    "VERBOSE": "📣",  # 详细
+}
+
+
+def get_log_icon(level: str) -> str:
+    """根据日志级别获取对应的图标.
+    
+    Args:
+        level: 日志级别字符串
+        
+    Returns:
+        对应的 Emoji 图标
+    """
+    return LOG_LEVEL_ICONS.get(level.upper(), "ℹ️")
+
+
+# ============================================================================
+# Agent 状态图标
+# ============================================================================
+
+AGENT_STATUS_ICONS = {
+    "idle": "🟢",  # 空闲
+    "busy": "🟠",  # 忙碌
+    "thinking": "💭",  # 思考中
+    "working": "⚙️",  # 工作中
+    "error": "🔴",  # 错误
+    "offline": "⚫",  # 离线
+    "connected": "🟢",  # 已连接
+    "disconnected": "⚫",  # 已断开
+    "loading": "⏳",  # 加载中
+}
+
+
+# ============================================================================
+# 面板图标
+# ============================================================================
+
+PANEL_ICONS = {
+    "file_tree": "📁",  # 文件树
+    "tasks": "📋",  # 任务
+    "agent": "🤖",  # Agent
+    "logs": "📜",  # 日志
+    "search": "🔍",  # 搜索
+    "settings": "⚙️",  # 设置
+    "help": "❓",  # 帮助
+    "terminal": "💻",  # 终端
+}
+
+
+# ============================================================================
 # Theme Manager
 # ============================================================================
 
@@ -900,7 +1298,53 @@ def get_theme_manager() -> ThemeManager:
 # ============================================================================
 
 __all__ = [
+    # 数据类
     "Theme",
+    "ThemeConfig",
+    # 主题配置
+    "THEME_CONFIGS",
+    "generate_semantic_colors",
+    "generate_theme_css",
+    "get_all_theme_css",
+    # 管理器
     "ThemeManager",
     "get_theme_manager",
+    # 透明度系统
+    "TRANSPARENCY_LEVELS",
+    "transparent",
+    # 状态颜色
+    "STATUS_ONLINE",
+    "STATUS_BUSY",
+    "STATUS_AWAY",
+    "STATUS_OFFLINE",
+    "STATUS_ERROR",
+    "STATUS_SUCCESS",
+    "STATUS_WARNING",
+    "STATUS_INFO",
+    # 半透明颜色
+    "AVOCADO_ACCENT_10",
+    "AVOCADO_ACCENT_25",
+    "AVOCADO_ACCENT_50",
+    "STATUS_ONLINE_15",
+    "STATUS_BUSY_10",
+    "STATUS_ERROR_15",
+    "STATUS_WARNING_15",
+    "STATUS_INFO_15",
+    # 消息类型
+    "MESSAGE_ICONS",
+    "MESSAGE_COLORS",
+    # 文件类型图标
+    "FILE_TYPE_ICONS",
+    "get_file_icon",
+    # 任务状态图标
+    "TASK_STATUS_ICONS",
+    # 任务优先级图标
+    "TASK_PRIORITY_ICONS",
+    # 日志级别图标
+    "LOG_LEVEL_ICONS",
+    "get_log_icon",
+    # Agent 状态图标
+    "AGENT_STATUS_ICONS",
+    # 面板图标
+    "PANEL_ICONS",
 ]

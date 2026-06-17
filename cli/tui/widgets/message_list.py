@@ -33,6 +33,12 @@ from datetime import datetime
 from enum import Enum
 import time
 
+# Rich 文本支持
+try:
+    from rich.text import Text
+except ImportError:
+    Text = str  # type: ignore
+
 # Textual 框架导入（带降级机制）
 TEXTUAL_AVAILABLE = True
 try:
@@ -44,6 +50,30 @@ except ImportError:
     Widget = object  # type: ignore
     Message = object  # type: ignore
     ScrollableScroll = object  # type: ignore
+
+# 主题图标和颜色
+try:
+    from cli.tui.themes import MESSAGE_ICONS, MESSAGE_COLORS
+except ImportError:
+    # 降级：使用内置默认值
+    MESSAGE_ICONS = {
+        "USER": "🧑",
+        "ASSISTANT": "🤖",
+        "SYSTEM": "⚙️",
+        "TOOL": "🔧",
+        "ERROR": "❌",
+        "THINKING": "💭",
+        "APPROVAL": "✅",
+    }
+    MESSAGE_COLORS = {
+        "USER": "#58a6ff",
+        "ASSISTANT": "#3fb950",
+        "SYSTEM": "#8b949e",
+        "TOOL": "#a371f7",
+        "ERROR": "#f85149",
+        "THINKING": "#f0883e",
+        "APPROVAL": "#3fb950",
+    }
 
 # i18n 支持
 try:
@@ -64,6 +94,28 @@ except ImportError:
     logging.basicConfig(level=logging.INFO)
     def get_access_logger(*args, **kwargs):
         return logging.getLogger("HandsomeAgent")
+
+# 图标系统
+try:
+    from cli.tui.themes import MESSAGE_ICONS, MESSAGE_COLORS
+except ImportError:
+    # 降级：内联默认值
+    MESSAGE_ICONS = {
+        "USER": "🧑",
+        "ASSISTANT": "🤖",
+        "SYSTEM": "⚙️",
+        "TOOL": "🔧",
+        "ERROR": "❌",
+        "THINKING": "💭",
+    }
+    MESSAGE_COLORS = {
+        "USER": "#58a6ff",
+        "ASSISTANT": "#3fb950",
+        "SYSTEM": "#8b949e",
+        "TOOL": "#a371f7",
+        "ERROR": "#f85149",
+        "THINKING": "#f0883e",
+    }
 
 
 # ============================================================================
@@ -616,29 +668,29 @@ class MessageList(Widget):
             msg: 消息项
             
         Returns:
-            (前缀, 颜色, 后缀) 元组
+            (图标, 颜色, 前缀) 元组
         """
-        # 角色图标
-        icons = {
-            MessageRole.USER: "👤",
-            MessageRole.ASSISTANT: "🤖",
-            MessageRole.SYSTEM: "⚙️",
-            MessageRole.TOOL: "🛠️",
-            MessageRole.ERROR: "❌",
-            MessageRole.THINKING: "💭",
+        # 角色映射到 MESSAGE_ICONS/MESSAGE_COLORS 的键
+        role_to_key = {
+            MessageRole.USER: "USER",
+            MessageRole.ASSISTANT: "ASSISTANT",
+            MessageRole.SYSTEM: "SYSTEM",
+            MessageRole.TOOL: "TOOL",
+            MessageRole.ERROR: "ERROR",
+            MessageRole.THINKING: "THINKING",
         }
         
-        # 颜色配置
+        # 颜色配置（与 MESSAGE_COLORS 保持一致，但使用本地颜色常量）
         colors = {
-            MessageRole.USER: AVOCADO_BRIGHT,
-            MessageRole.ASSISTANT: AVOCADO_PRIMARY,
-            MessageRole.SYSTEM: GRAY_DIM,
-            MessageRole.TOOL: COLOR_INFO,
-            MessageRole.ERROR: COLOR_DANGER,
-            MessageRole.THINKING: GRAY_LIGHT,
+            MessageRole.USER: MESSAGE_COLORS.get("USER", AVOCADO_BRIGHT),
+            MessageRole.ASSISTANT: MESSAGE_COLORS.get("ASSISTANT", AVOCADO_PRIMARY),
+            MessageRole.SYSTEM: MESSAGE_COLORS.get("SYSTEM", GRAY_DIM),
+            MessageRole.TOOL: MESSAGE_COLORS.get("TOOL", COLOR_INFO),
+            MessageRole.ERROR: MESSAGE_COLORS.get("ERROR", COLOR_DANGER),
+            MessageRole.THINKING: MESSAGE_COLORS.get("THINKING", GRAY_LIGHT),
         }
         
-        # 前缀和后缀
+        # 前缀
         prefixes = {
             MessageRole.USER: "",
             MessageRole.ASSISTANT: "",
@@ -648,25 +700,29 @@ class MessageList(Widget):
             MessageRole.THINKING: "  ",
         }
         
-        icon = icons.get(msg.role, "")
+        key = role_to_key.get(msg.role, "ASSISTANT")
+        icon = MESSAGE_ICONS.get(key, "ℹ️")
         color = colors.get(msg.role, WHITE)
         prefix = prefixes.get(msg.role, "")
         
         return icon, color, prefix
     
-    def _format_message(self, msg: MessageItem) -> str:
+    def _format_message(self, msg: MessageItem) -> Text:
         """格式化单条消息
         
         Args:
             msg: 消息项
             
         Returns:
-            格式化的消息字符串
+            格式化的 Rich Text 对象
         """
-        icon, color, prefix = self._get_message_style(msg)
+        # 获取消息类型对应的图标和颜色（使用 themes.py 中的定义）
+        msg_type = msg.role.value.upper()
+        icon = MESSAGE_ICONS.get(msg_type, "💬")
+        color = MESSAGE_COLORS.get(msg_type, "#c9d1d9")
         
         # 时间戳
-        timestamp_str = f"[{GRAY_DIM}]{msg.time_str}[/] " if self.show_timestamps else ""
+        timestamp_str = f"[dim]{msg.time_str}[/]" if self.show_timestamps else ""
         
         # 角色标签
         role_labels = {
@@ -682,37 +738,45 @@ class MessageList(Widget):
         # 工具名称前缀
         tool_prefix = ""
         if msg.role == MessageRole.TOOL and msg.tool_name:
-            tool_prefix = f"[{COLOR_INFO}]{msg.tool_name}[/]: "
+            tool_prefix = f"[#a371f7]{msg.tool_name}[/]: "
         
         # 流式输出指示器
         streaming_indicator = " ▌" if msg.is_streaming else ""
         
-        # 构建消息
-        content_lines = msg.content.split("\n")
-        
+        # 构建消息内容
         if msg.role == MessageRole.SYSTEM:
             # 系统消息居中
-            return f"\n[{GRAY_DIM}]--- {msg.content} ---[/]\n"
+            return Text.from_markup(
+                f"\n[dim]--- {msg.content} ---\n[/]"
+            )
         
-        if msg.role == MessageRole.USER:
-            # 用户消息右侧对齐
-            lines = []
-            for line in content_lines:
-                lines.append(f"[{color}]{icon}{role_label}: {line}{streaming_indicator}[/]")
-            return "\n".join(lines) + "\n"
+        # 构建头部信息：图标 + 角色名称 + 时间戳
+        header = f"{icon} [bold {color}]{role_label}[/]"
+        if timestamp_str:
+            header += f"  [dim]{timestamp_str}[/]"
+        
+        # 构建消息内容
+        content_lines = msg.content.split("\n")
         
         if msg.role == MessageRole.THINKING:
             # 思考内容缩进显示
-            lines = []
+            lines = [f"  {header}"]
             for line in content_lines:
-                lines.append(f"{prefix}[{color}]{icon}{line}{streaming_indicator}[/]")
-            return "\n".join(lines) + "\n"
+                lines.append(f"    [{color}]{line}{streaming_indicator}[/]")
+            return Text.from_markup("\n".join(lines) + "\n")
+        
+        if msg.role == MessageRole.USER:
+            # 用户消息
+            lines = [header]
+            for line in content_lines:
+                lines.append(f"  [{color}]{line}{streaming_indicator}[/]")
+            return Text.from_markup("\n".join(lines) + "\n")
         
         # 默认：助手、工具、错误消息
-        lines = []
+        lines = [header]
         for line in content_lines:
-            lines.append(f"{prefix}[{color}]{icon}{role_label}: {tool_prefix}{line}{streaming_indicator}[/]")
-        return "\n".join(lines) + "\n"
+            lines.append(f"  [{color}]{tool_prefix}{line}{streaming_indicator}[/]")
+        return Text.from_markup("\n".join(lines) + "\n")
     
     # ========================================================================
     # 翻译辅助方法

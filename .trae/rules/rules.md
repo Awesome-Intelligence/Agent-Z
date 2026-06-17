@@ -100,6 +100,7 @@ description: |
 | Hermes  | E:/hermes-agent-study/ |
 | OpenClaw  | E:/openclaw-study |
 | CodeWhale  | E:/CodeWhale-study |
+| frogmouth  | E:/frogmouth |
 
 ---
 

@@ -152,14 +152,14 @@ class RiskLevel(Enum):
         """获取风险等级对应的颜色
         
         Returns:
-            颜色字符串
+            CSS 变量名
         """
         colors = {
-            "low": "#4CAF50",      # 绿色
-            "medium": "#FF9800",    # 橙色
-            "high": "#F44336",      # 红色
+            "low": "$success",     # 绿色
+            "medium": "$warning",   # 橙色
+            "high": "$error",       # 红色
         }
-        return colors.get(self.value, "#888888")
+        return colors.get(self.value, "$text-muted")
     
     def get_icon(self) -> str:
         """获取风险等级对应的图标
@@ -198,68 +198,92 @@ SENSITIVE_OPERATIONS = [
 
 
 # ============================================================================
-# 审批对话框样式
+# 审批对话框样式 (Frogmouth 半透明风格)
 # ============================================================================
 
 APPROVAL_DIALOG_CSS = """
+/* 审批对话框容器 */
 ApprovalDialog {
-    width: 100%;
-    height: 100%;
-    background: $surface;
-}
-
-#approval-container {
-    width: 80%;
-    height: auto;
-    max-width: 70;
     align: center middle;
-    background: $avocado_dark;
-    border: solid $avocado_primary;
+    border: round $primary 50%;     /* 半透明圆角边框 */
+    background: $boost;            /* 提升背景 */
+    width: 60%;
+    max-height: 70%;
     padding: 1 2;
 }
 
+/* 审批对话框内部容器 */
+#approval-container {
+    width: 100%;
+    height: auto;
+    background: $boost;
+    border: round $primary 50%;     /* 半透明边框 */
+    padding: 1 2;
+}
+
+/* 标题头 */
 #approval-header {
     width: 100%;
     height: auto;
-    background: $avocado_dim;
     padding: 0 1;
     margin-bottom: 1;
 }
 
-#approval-title {
-    width: 100%;
-    height: auto;
-    text-style: bold;
-    color: $avocado_bright;
-    margin-bottom: 1;
+/* 风险等级样式 - 使用半透明背景 */
+
+/* 高风险 */
+.risk-high,
+.risk-high > #approval-container {
+    background: $error 15%;        /* 红色淡背景 */
+    border: thick $error 50%;       /* 红色半透明边框 */
 }
 
+/* 中风险 */
+.risk-medium,
+.risk-medium > #approval-container {
+    background: $warning 10%;       /* 橙色淡背景 */
+    border: thick $warning 50%;      /* 橙色半透明边框 */
+}
+
+/* 低风险 */
+.risk-low,
+.risk-low > #approval-container {
+    background: $success 10%;       /* 绿色淡背景 */
+    border: thick $success 50%;      /* 绿色半透明边框 */
+}
+
+/* 风险徽章 */
 #risk-badge {
     width: 100%;
     height: auto;
     margin-bottom: 1;
 }
 
-#approval-body {
-    width: 100%;
-    height: auto;
-    padding: 1 0;
-}
-
+/* 操作信息 */
 #operation-name {
     width: 100%;
     height: auto;
-    color: $white;
     margin-bottom: 1;
 }
 
 #operation-preview {
     width: 100%;
     height: auto;
-    color: $gray_dim;
     margin-bottom: 1;
 }
 
+/* 警告文本 */
+.warning-text {
+    color: $error;
+    text-style: bold;
+}
+
+/* 提示文本 */
+.hint-text {
+    color: $text-muted;
+}
+
+/* 按钮区域 */
 #approval-footer {
     width: 100%;
     height: auto;
@@ -271,25 +295,25 @@ ApprovalDialog {
 #cancel-button {
     width: auto;
     min-width: 10;
+    border: blank;
+    background: $surface 20%;
+}
+
+#cancel-button:hover {
+    background: $surface 40%;
+    border: heavy $surface;
 }
 
 #confirm-button {
     width: auto;
     min-width: 10;
+    border: blank;
+    background: $success 20%;
 }
 
-.warning-text {
-    color: $danger;
-    text-style: bold;
-}
-
-.hint-text {
-    color: $gray_dim;
-}
-
-.key-hint {
-    color: $avocado_bright;
-    text-style: bold;
+#confirm-button:hover {
+    background: $success 40%;
+    border: heavy $success;
 }
 """
 
@@ -401,7 +425,10 @@ class ApprovalDialog(Container):
         """
         i18n = get_i18n()
         
-        with VerticalScroll(id="approval-container"):
+        # 添加风险等级类名
+        risk_class = f"risk-{self.risk_level.value}"
+        
+        with VerticalScroll(id="approval-container", classes=risk_class):
             # 标题头
             yield Static(
                 t("approval.title", "⚠ 操作确认"),
@@ -415,9 +442,7 @@ class ApprovalDialog(Container):
             yield Label(
                 f"[{risk_color}]{risk_icon}[/{risk_color}] "
                 f"[{risk_color}]{risk_label}[/{risk_color}] - "
-                f"{t('approval.risk.description', '风险等级')}"
-                if self.risk_level != RiskLevel.LOW
-                else f"[#4CAF50]✓[/#4CAF50] [#4CAF50]LOW[/#4CAF50] - {t('approval.risk.description', '风险等级')}",
+                f"{t('approval.risk.description', '风险等级')}",
                 id="risk-badge"
             )
             

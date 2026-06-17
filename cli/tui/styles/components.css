@@ -1,0 +1,273 @@
+/*
+ * TUI 组件样式
+ * 使用语义化颜色变量（$panel, $accent, $surface 等）
+ * 主题色通过 CSS 类覆盖实现
+ */
+
+/* ========== 按钮组件 ========== */
+Button {
+    background: var(--surface-raised);
+    color: var(--text);
+    border: blank;
+}
+
+Button:hover {
+    background: var(--accent-10);
+}
+
+Button:focus {
+    border: heavy var(--accent);
+    background: var(--accent-10);
+}
+
+/* 发送按钮 */
+#send-button {
+    width: 5;
+    background: var(--accent);
+    color: var(--text);
+    border: blank;
+}
+
+#send-button:hover {
+    background: var(--accent-bright);
+}
+
+#send-button:focus {
+    border: heavy var(--accent);
+}
+
+/* ========== 面板组件 ========== */
+Panel {
+    border: solid var(--border);
+    background: var(--surface);
+}
+
+/* 侧边栏面板 */
+.sidebar-panel {
+    height: 100%;
+    display: block;
+}
+
+.sidebar-panel.hidden {
+    display: none;
+}
+
+.panel-title {
+    color: var(--text);
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+/* ========== TabbedContent 组件 (Frogmouth 风格 - 无背景色) ========== */
+
+/* TabbedContent 容器 */
+TabbedContent {
+    height: 100%;
+}
+
+TabbedContent > Tabs {
+    dock: top;
+}
+
+TabbedContent > ContentSwitcher {
+    height: 1fr;
+}
+
+/* Tabs 标签栏 - Frogmouth 风格：无背景色 */
+Tabs {
+    background: transparent;
+    border-bottom: solid var(--border);
+}
+
+Tabs Tab {
+    width: 1fr;
+    padding: 0 1;
+    background: transparent;
+    color: var(--text-muted);
+}
+
+Tabs Tab:hover {
+    background: transparent;
+    color: var(--text);
+}
+
+Tabs Tab.active {
+    background: transparent;
+    color: var(--accent);
+    text-style: bold;
+}
+
+Tabs Tab.active:hover {
+    background: transparent;
+}
+
+/* TabPane 内容面板 */
+ContentSwitcher {
+    height: 1fr;
+}
+
+TabPane {
+    height: 100%;
+    padding: 1;
+    border: blank;
+}
+
+TabPane:focus-within {
+    border-left: heavy var(--accent);
+}
+
+/* SidebarPane 内部内容 */
+SidebarPane {
+    height: 100%;
+}
+
+SidebarPane Static {
+    width: 100%;
+}
+
+SidebarPane RichLog {
+    width: 100%;
+    height: 100%;
+}
+
+/* 面板标题样式 */
+.pane-title {
+    color: var(--text);
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+/* ========== 选项列表组件 ========== */
+OptionList {
+    background: var(--surface);
+    border: solid var(--border);
+}
+
+OptionList > .option-list--option {
+    padding: 0 1;
+}
+
+OptionList > .option-list--option:hover {
+    background: var(--accent-10);
+}
+
+OptionList > .option-list--cursor {
+    background: var(--accent-25);
+    color: var(--text);
+}
+
+/* ========== 输入框组件 ========== */
+TextArea,
+Input {
+    background: var(--surface);
+    color: var(--text);
+}
+
+TextArea:focus,
+Input:focus {
+    border: heavy var(--accent);
+}
+
+/* TextArea 特定样式 */
+#user-input {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    border: solid var(--accent-dim) !important;
+    margin: 0 !important;
+    height: 5 !important;
+}
+
+#user-input:focus {
+    border: heavy var(--accent) !important;
+}
+
+/* ========== 消息样式 ========== */
+.user-message {
+    background: var(--surface-raised);
+    color: var(--text);
+    padding: 0 1;
+    margin: 0;
+}
+
+.assistant-message {
+    color: var(--text);
+    padding: 0 1;
+    margin: 0;
+}
+
+.system-message {
+    color: var(--text-muted);
+    padding: 0 1;
+    margin: 0;
+}
+
+/* ========== 通知组件 ========== */
+.notification-toast {
+    background: var(--surface-raised);
+    border: solid var(--accent);
+    padding: 1 2;
+}
+
+.notification-icon {
+    color: var(--accent);
+}
+
+.notification-icon.success {
+    color: var(--status-online);
+}
+
+.notification-icon.warning {
+    color: var(--status-busy);
+}
+
+.notification-icon.error {
+    color: var(--status-error);
+}
+
+.notification-icon.info {
+    color: var(--accent);
+}
+
+/* ========== 进度条组件 ========== */
+.progress-bar {
+    height: 1;
+    background: var(--surface-raised);
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+}
+
+.progress-bar-animated {
+    animation: progress-shine 2s linear infinite;
+}
+
+@keyframes progress-shine {
+    from { background-position: 0 0; }
+    to { background-position: 20px 0; }
+}
+
+/* ========== 对话框样式 (Frogmouth 风格) ========== */
+ApprovalDialog > Vertical {
+    background: var(--surface-raised);
+    border: round var(--primary);
+}
+
+ErrorDialog > Vertical {
+    background: var(--error) 15%;
+    border: thick var(--error) 50%;
+}
+
+/* ========== 滚动条样式 (Frogmouth 风格) ========== */
+ScrollbarThumb {
+    background: var(--accent) 50%;
+}
+
+ScrollbarThumb:hover {
+    background: var(--accent);
+}
+
+ScrollbarTrack {
+    background: var(--surface);
+}

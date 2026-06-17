@@ -34,6 +34,7 @@ _TEXTUAL_IMPORT_ERROR: str | None = None
 try:
     from textual.app import App, ComposeResult
     from textual.widgets import Header, Footer, Static, RichLog, Tabs, Tab, TextArea, Button
+    from textual.binding import Binding
     from textual.containers import Container, VerticalScroll, Horizontal
     from textual.message import Message
     from textual import on
@@ -48,11 +49,9 @@ except ImportError as e:
 # Rich 库导入（用于消息渲染）
 try:
     from rich.text import Text as RichText
-    from rich.console import NewLine
     from rich.style import Style
 except ImportError:
     RichText = None
-    NewLine = None
     Style = None
 
 # 条件导入 typing 工具
@@ -61,10 +60,12 @@ if TYPE_CHECKING:
 
 # 主题系统
 try:
-    from .themes import ThemeManager, get_theme_manager
+    from .themes import ThemeManager, get_theme_manager, THEME_CONFIGS, generate_theme_css
 except ImportError:
     ThemeManager = None
     get_theme_manager = None
+    THEME_CONFIGS = {}
+    generate_theme_css = None
 
 # Markdown 渲染器
 try:
@@ -96,10 +97,9 @@ except ImportError:
 
 # 侧边栏组件
 try:
-    from .sidebar import SidebarContainer, SidebarTabBar
+    from .sidebar import SidebarContainer
 except ImportError:
     SidebarContainer = None
-    SidebarTabBar = None
 
 # 审批对话框组件
 try:
@@ -146,6 +146,12 @@ except ImportError:
     KeyBindingManager = None
     KeyBindingCategory = None
     create_default_keybindings = None
+
+# CSS 模块化架构
+try:
+    from .styles import get_stylesheets
+except ImportError:
+    get_stylesheets = None
 
 # i18n 支持
 try:
@@ -486,27 +492,6 @@ class SubmitTextArea(TextArea):
 
 
 # ============================================================================
-# ClickableStatic - 可点击的 Static 组件（用于替代 Button 避免样式问题）
-# ============================================================================
-
-class ClickableStatic(Static):
-    """可点击的 Static 组件。
-    
-    用于替代 Button 以避免 Textual 默认样式中的边框问题。
-    支持 on_click 事件处理。
-    """
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.can_focus = True
-    
-    def on_click(self) -> None:
-        """处理点击事件。"""
-        # 通知父组件（通过冒泡到 App）
-        self.app._toggle_sidebar()
-
-
-# ============================================================================
 # HandsomeAgentApp 主类
 # ============================================================================
 def _patch_textual_logger():
@@ -554,29 +539,25 @@ class HandsomeAgentApp(App):
     
     # 快捷键绑定
     BINDINGS = [
-        ("q", "quit", "Quit"),
-        ("ctrl+q", "quit", "Quit"),
-        ("ctrl+c", "cancel_current", "Cancel"),
-        ("ctrl+b", "toggle_sidebar", "Sidebar"),
-        ("ctrl+h", "toggle_help", "Help"),
-        ("ctrl+t", "new_tab", "New Tab"),
-        ("ctrl+w", "close_tab", "Close Tab"),
-        ("ctrl+tab", "next_tab", "Next Tab"),
-        ("ctrl+shift+tab", "prev_tab", "Previous Tab"),
-        ("ctrl+k", "open_command_palette", "Command Palette"),
-        ("ctrl+1", "switch_to_file_tree", "File Tree"),
-        ("ctrl+2", "switch_to_tasks", "Tasks"),
-        ("ctrl+3", "switch_to_agent", "Agent"),
-        ("ctrl+4", "switch_to_logs", "Logs"),
-        ("f1", "open_help", "Help"),
-        ("ctrl+/", "open_help", "Help"),
-        ("ctrl+r", "open_session_selector", "Session Selector"),
-        ("ctrl+l", "clear_screen", "Clear"),
-        ("j", "scroll_down", "Scroll Down"),
-        ("k", "scroll_up", "Scroll Up"),
-        ("ctrl+shift+t", "change_theme", "Change Theme"),
-        ("ctrl+shift+b", "toggle_transparency", "Transparency"),  # 透明度切换
-        ("ctrl+shift+m", "toggle_markdown", "Markdown"),  # Markdown 渲染切换
+        # 显示在 Footer 的快捷键
+        Binding("q", "quit", "Quit"),
+        Binding("ctrl+k", "open_command_palette", "Command"),
+        Binding("ctrl+b", "toggle_sidebar", "Sidebar"),
+        Binding("f1", "open_help", "Help"),
+        # 隐藏的快捷键（不显示在 Footer）
+        Binding("ctrl+1", "switch_to_file_tree", "", show=False),
+        Binding("ctrl+2", "switch_to_tasks", "", show=False),
+        Binding("ctrl+3", "switch_to_agent", "", show=False),
+        Binding("ctrl+4", "switch_to_logs", "", show=False),
+        Binding("ctrl+shift+a", "change_theme", "", show=False),
+        Binding("ctrl+shift+b", "toggle_transparency", "", show=False),
+        Binding("ctrl+shift+m", "toggle_markdown", "", show=False),
+        Binding("f10", "toggle_dark_mode", "", show=False),
+        Binding("ctrl+/", "open_help", "", show=False),
+        Binding("ctrl+r", "open_session_selector", "", show=False),
+        Binding("ctrl+l", "clear_screen", "", show=False),
+        Binding("j", "scroll_down", "", show=False),
+        Binding("k", "scroll_up", "", show=False),
     ]
     
     def __init__(
@@ -680,6 +661,10 @@ class HandsomeAgentApp(App):
             if initial_theme:
                 self._theme_manager.set_theme(initial_theme)
         
+        # 语义化主题 ID（用于 CSS 类切换）
+        self.theme_id: str = "default"  # 默认主题
+        self._theme_css_loaded: bool = False
+        
         # 会话持久化相关
         self._session_store: Optional[SessionStore] = None
         self._pending_message_count: int = 0
@@ -731,56 +716,57 @@ class HandsomeAgentApp(App):
     
     # 类级别 CSS 属性（默认主题 - 参考 CodeWhale 深色主题）
     CSS = """
+/* 
+ * Handsome Agent TUI 主样式表
+ * 
+ * CSS 架构说明：
+ * - 基础变量和设计令牌: cli/tui/styles/base.css
+ * - 布局规则和滚动条: cli/tui/styles/layout.css
+ * - 组件样式: cli/tui/styles/components.css
+ * - 动画定义: cli/tui/styles/animations.css
+ * 
+ * 主样式表包含：
+ * - 整体布局结构
+ * - 自定义组件样式
+ * - 覆盖默认组件样式
+ */
+
+/* ========== 整体样式 ========== */
+
 /* Handsome Agent - CodeWhale Style Theme */
 
 Screen {
     background: #0d1117;
 }
 
-/* 聊天区域：深色背景 */
+/* 聊天区域 */
 #chat-area {
     height: 1fr;
     width: 100%;
     background: #0d1117;
-    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    border: blank;
 }
 
-#chat-log {
-    height: 100%;
+/* 自定义 Header - 模型信息显示 + 欢迎横幅 */
+#app-header {
+    height: auto;
     width: 100%;
-    background: #0d1117;
-    padding: 1 2;
-    overflow-x: hidden;
+    dock: top;
+    background: #161b22;
 }
 
-/* 欢迎横幅：简洁设计 */
+#header-content {
+    height: auto;
+    width: 100%;
+}
+
 #welcome-banner {
     height: auto;
-    width: 100%;
-    padding: 1 2;
-    background: #161b22;
-    border-bottom: solid #30363d;
-}
-
-#welcome-title {
-    text-style: bold;
-    color: #58a6ff;
-    height: auto;
-    padding: 0 0 1 0;
-}
-
-#welcome-content {
-    color: #8b949e;
-    height: auto;
-    padding: 0 0 1 0;
-}
-
-/* 自定义 Header - 模型信息显示 */
-#app-header {
-    height: 1;
-    width: 100%;
-    background: #161b22;
-    dock: top;
+    width: auto;
+    padding: 0 2;
+    background: transparent;
 }
 
 .header-content {
@@ -812,28 +798,6 @@ Screen {
 /* 流式输出指示器 - Textual CSS 不支持动画，使用静态样式 */
 .streaming-indicator {
     color: #8b949e;
-}
-
-/* 自定义 Footer - 状态信息 */
-#app-footer {
-    height: 1;
-    width: 100%;
-    margin: 0;
-}
-
-.footer-content {
-    height: 100%;
-    layout: horizontal;
-    padding: 0 2;
-    align: left middle;
-}
-
-.footer-token {
-    color: #8b949e;
-}
-
-.footer-hint {
-    color: #6e7681;
 }
 
 /* === 状态栏样式 === */
@@ -895,12 +859,12 @@ Screen {
 }
 
 /* 聊天日志样式 */
-#chat-log {
+#chat-area {
     padding: 1 2;
 }
 
 /* 消息样式 - 用户消息浅蓝气泡 */
-#chat-log .user-message {
+#chat-area .user-message {
     background: #1f2937;
     color: #e5e7eb;
     padding: 0 1;
@@ -908,42 +872,47 @@ Screen {
 }
 
 /* 消息样式 - 助手消息透明 */
-#chat-log .assistant-message {
+#chat-area .assistant-message {
     color: #c9d1d9;
     padding: 0 1;
     margin: 0;
 }
 
 /* 消息样式 - 系统消息灰色 */
-#chat-log .system-message {
+#chat-area .system-message {
     color: #8b949e;
     padding: 0 1;
     margin: 0;
 }
 
 /* 滚动条样式 - 美化为细线 */
-#chat-area {
-    overflow-y: auto;
-}
+
+/* ========== 焦点样式说明 ========== */
+/* 
+ * Frogmouth 风格焦点指示器设计：
+ * - 默认状态：border: blank（无边框，保持简洁）
+ * - 焦点状态：border: heavy $accent（粗边框强调色）
+ * 这种设计让焦点状态更加清晰醒目
+ */
 
 /* 输入区域样式 */
 #input-area {
     height: auto;
     width: 100%;
-    margin: 0;
+    margin-bottom: 1;
     padding: 0;
     background: #161b22;
     dock: bottom;
 }
 
 #input-field {
-    border: solid #30363d;
+    border: blank;
     background: #0d1117;
     padding: 1 2;
 }
 
 #input-field:focus {
-    border: solid #58a6ff;
+    border: heavy #58a6ff;
 }
 
 /* 发送按钮样式 */
@@ -951,10 +920,15 @@ Screen {
     width: 5;
     background: #238636;
     color: #ffffff;
+    border: blank;
 }
 
 #send-button:hover {
     background: #2ea043;
+}
+
+#send-button:focus {
+    border: heavy #58a6ff;
 }
 
 #input-row {
@@ -964,7 +938,7 @@ Screen {
 }
 
 .input-field {
-    border: solid #30363d;
+    border: blank;
     background: #161b22;
     color: #e6edf3;
     padding: 1 2;
@@ -973,7 +947,7 @@ Screen {
 }
 
 .input-field:focus {
-    border: solid #58a6ff;
+    border: heavy #58a6ff;
 }
 
 /* TextArea (Composer) specific styles */
@@ -986,51 +960,42 @@ Screen {
 }
 
 #user-input:focus {
-    border: solid #58a6ff;
+    border: heavy #58a6ff;
 }
 
 /* 按钮通用样式 */
 Button {
     background: #21262d;
     color: #c9d1d9;
-    border: solid #30363d;
+    border: blank;
 }
 
 Button:hover {
     background: #30363d;
 }
 
+Button:focus {
+    border: heavy #58a6ff;
+    background: #30363d;
+}
+
 /* === 侧边栏样式 === */
 #sidebar-container {
-    width: 15%;
-    min-width: 20;
-    max-width: 25;
+    width: 30;
     height: 100%;
     background: #161b22;
-    border-left: solid #30363d;
-}
-
-/* 侧边栏折叠状态 - 完全隐藏 */
-#sidebar-container.collapsed {
-    display: none;
-}
-
-/* 折叠按钮样式 - 固定在边缘 (使用 ClickableStatic 避免 Button 默认样式) */
-ClickableStatic#sidebar-toggle {
-    width: 2;
-    height: 100%;
-    min-width: 2;
-    max-width: 2;
-    background: #21262d;
-    color: #8b949e;
-    content-align: center middle;
-    padding: 0;
+    border-left: blank;
     margin: 0;
+    padding: 0;
 }
 
-ClickableStatic#sidebar-toggle:hover {
-    background: #30363d;
-    color: #c9d1d9;
+#sidebar-container:focus {
+    border-left: heavy #58a6ff;
+}
+
+#sidebar-container-inner {
+    width: 100%;
+    height: 100%;
 }
 
 #sidebar-tabs {
@@ -1095,11 +1060,15 @@ ClickableStatic#sidebar-toggle:hover {
 #main-area {
     height: 1fr;
     width: 100%;
+    margin: 0;
+    padding: 0;
 }
 
 #chat-area {
     width: 1fr;
     height: 100%;
+    margin: 0;
+    padding: 0;
 }
 
 #file-tree-title,
@@ -1156,11 +1125,11 @@ ClickableStatic#sidebar-toggle:hover {
 /* 半透明输入框 */
 .transparent-input {
     background: rgba(13, 17, 23, 0.60);
-    border: solid rgba(88, 166, 255, 0.3);
+    border: blank;
 }
 
 .transparent-input:focus {
-    border: solid rgba(88, 166, 255, 0.6);
+    border: heavy rgba(88, 166, 255, 0.8);
 }
 
 /* 半透明欢迎横幅 */
@@ -1287,31 +1256,20 @@ ClickableStatic#sidebar-toggle:hover {
         Returns:
             ComposeResult: 组件生成器
         """
-        # 自定义 Header - 显示模型信息
+        # 自定义 Header - 显示欢迎横幅和当前目录
         with Container(id="app-header"):
             with Horizontal(id="header-content"):
-                yield Static("🟢", id="status-indicator", classes="header-status")
-                yield Static(self.model_name or "Handsome Agent", classes="header-model")
-                ctx_str = f"[{self._format_context(self.context_length)}]" if self.context_length else ""
-                yield Static(ctx_str, classes="header-context")
-                cwd_short = self.cwd[-30:] if self.cwd and len(self.cwd) > 30 else (self.cwd or "")
-                yield Static(cwd_short, classes="header-cwd")
-        
-        # 主区域 - 左侧聊天 + 折叠按钮 + 右侧侧边栏
-        with Horizontal(id="main-area"):
-            # 左侧聊天区域（弹性高度）
-            with VerticalScroll(id="chat-area"):
+                # 欢迎横幅（ASCII 艺术）
                 yield Static("", id="welcome-banner")
-                yield RichLog(id="chat-log", auto_scroll=True)
-            
-            # 折叠按钮 - 使用 ClickableStatic 避免 Button 默认样式问题
-            if SidebarContainer and SidebarTabBar:
-                yield ClickableStatic("◀", id="sidebar-toggle", markup=False)
+        
+        # 主区域 - 左侧聊天 + 右侧侧边栏
+        with Horizontal(id="main-area"):
+            # 左侧聊天区域 - 直接使用 RichLog
+            yield RichLog(id="chat-area", auto_scroll=True)
             
             # 右侧侧边栏
-            if SidebarContainer and SidebarTabBar:
+            if SidebarContainer:
                 with Container(id="sidebar-container"):
-                    yield SidebarTabBar(on_switch=self._on_sidebar_panel_switch)
                     yield SidebarContainer(cwd=self.cwd, agent=self._agent)
         
         # 状态栏 - 显示模型、Token、工具等信息
@@ -1329,24 +1287,16 @@ ClickableStatic#sidebar-toggle:hover {
                 yield Static("│", id="status-sep4", classes="status-sep")
                 yield Static("🔧", id="status-tools", classes="status-tools")
         
-        # 输入区域 + 快捷键提示（合并为一个容器）
+        # 输入区域
         with Container(id="input-area"):
             yield SubmitTextArea(
                 id="user-input",
                 classes="input-field",
                 placeholder="输入消息... (Ctrl+Enter 换行, Enter 发送)",
             )
-            # 自定义 Footer - 显示快捷键提示
-            with Container(id="app-footer"):
-                with Horizontal(id="footer-content"):
-                    yield Static(
-                        "[#c9d1d9][[/][#30363d]Ctrl+B[/][#c9d1d9]][/] 侧边栏 [#6e7681]|[/] "
-                        "[#c9d1d9][[/][#30363d]Ctrl+K[/][#c9d1d9]][/] 命令 [#6e7681]|[/] "
-                        "[#c9d1d9][[/][#30363d]Ctrl+Shift+B[/][#c9d1d9]][/] 透明 [#6e7681]|[/] "
-                        "[#c9d1d9][[/][#30363d]Ctrl+Shift+M[/][#c9d1d9]][/] MD [#6e7681]|[/] "
-                        "[#c9d1d9][[/][#30363d]Ctrl+L[/][#c9d1d9]][/] 清屏",
-                        classes="footer-hint"
-                    )
+        
+        # Textual 内置 Footer - 自动从 BINDINGS 读取快捷键
+        yield Footer()
     
     def on_key(self, event: KeyEvent) -> None:
         """处理全局键盘事件.
@@ -1386,6 +1336,9 @@ ClickableStatic#sidebar-toggle:hover {
         # 注册事件监听器
         self._register_event_listeners()
         
+        # 加载 CSS 模块化样式表（使用 call_later 调用异步方法）
+        self.call_later(self._load_stylesheets)
+        
         # 将 TUI 日志处理器绑定到日志面板的 RichLog 组件
         if self._tui_log_handler is not None:
             try:
@@ -1401,6 +1354,75 @@ ClickableStatic#sidebar-toggle:hover {
         
         # 聚焦到输入框（TextArea）
         self.set_focus(self.query_one("#user-input", TextArea))
+    
+    async def _load_stylesheets(self) -> None:
+        """异步加载所有 CSS 模块化样式表.
+        
+        CSS 架构说明：
+        - base.css: 变量定义和设计令牌
+        - layout.css: 布局规则和滚动条样式
+        - components.css: 组件样式覆盖
+        - animations.css: 动画定义
+        """
+        if get_stylesheets is None:
+            self._logger.debug("CSS module not available, using inline CSS")
+            return
+        
+        try:
+            stylesheets = get_stylesheets()
+            for css_file in stylesheets:
+                css_path = Path(css_file)
+                if css_path.exists():
+                    await self.add_stylesheet(str(css_path))
+                    self._logger.debug(f"Loaded stylesheet: {css_path.name}")
+                else:
+                    self._logger.debug(f"Stylesheet not found: {css_path}")
+            
+            # 加载完成后，应用默认主题
+            self._apply_theme_class()
+            self._theme_css_loaded = True
+        except Exception as e:
+            self._logger.debug(f"Failed to load stylesheets: {e}")
+    
+    def _apply_theme_class(self) -> None:
+        """应用主题 CSS 类.
+        
+        通过添加/移除 CSS 类来切换主题色。
+        """
+        self._logger.debug(f"[_apply_theme_class] Called, _theme_css_loaded={self._theme_css_loaded}, theme_id={self.theme_id}")
+        
+        # 如果 CSS 还未加载，先延迟应用
+        if not self._theme_css_loaded:
+            self.set_timer(0.5, self._apply_theme_class)
+            return
+        
+        # 移除所有主题类
+        for tid in THEME_CONFIGS:
+            self.remove_class(f"theme-{tid}")
+        
+        # 添加当前主题类
+        self.add_class(f"theme-{self.theme_id}")
+        self._logger.info(f"Applied theme class: theme-{self.theme_id}")
+    
+    def update_theme_css(self) -> None:
+        """更新主题 CSS（通过切换 CSS 类）.
+        
+        供 action_change_theme 调用，用于切换主题色。
+        """
+        self._apply_theme_class()
+    
+    def action_toggle_dark_mode(self) -> None:
+        """切换深色/浅色模式 (F10).
+        
+        使用 Textual 内置的 theme 属性切换深色/浅色主题。
+        """
+        # Textual 8.x 使用 theme 属性切换内置主题
+        if self.theme == "textual-dark":
+            self.theme = "textual-light"
+            self.notify("切换到浅色模式")
+        else:
+            self.theme = "textual-dark"
+            self.notify("切换到深色模式")
     
     def _update_status_bar(self) -> None:
         """更新状态栏显示."""
@@ -1501,20 +1523,17 @@ ClickableStatic#sidebar-toggle:hover {
         status_icon.update("●")
     
     def _toggle_sidebar(self) -> None:
-        """切换侧边栏折叠状态."""
+        """切换侧边栏显示状态."""
         sidebar = self.query_one("#sidebar-container", Container)
-        toggle_btn = self.query_one("#sidebar-toggle", ClickableStatic)
         
-        if sidebar.has_class("collapsed"):
-            # 展开侧边栏
-            sidebar.remove_class("collapsed")
-            toggle_btn.remove_class("collapsed")
-            toggle_btn.update("▶")  # 向左箭头 - 侧边栏已展开，点击收起
+        if sidebar.styles.display == "none":
+            # 显示侧边栏
+            sidebar.styles.display = "block"
+            self.notify("侧边栏已显示")
         else:
-            # 折叠侧边栏
-            sidebar.add_class("collapsed")
-            toggle_btn.add_class("collapsed")
-            toggle_btn.update("◀")  # 向右箭头 - 侧边栏已收起，点击展开
+            # 隐藏侧边栏
+            sidebar.styles.display = "none"
+            self.notify("侧边栏已隐藏")
     
     def _update_loading_frame(self) -> None:
         """更新加载动画帧."""
@@ -1617,8 +1636,8 @@ ClickableStatic#sidebar-toggle:hover {
             markup=True,
         )
         
-        # 获取 chat-area 容器，在末尾添加流式组件（显示在底部）
-        chat_area = self.query_one("#chat-area", VerticalScroll)
+        # 获取 chat-area，在末尾添加流式组件（显示在底部）
+        chat_area = self.query_one("#chat-area", RichLog)
         chat_area.mount(streaming_widget)
         
         self._streaming_timer = self.set_interval(
@@ -1658,10 +1677,10 @@ ClickableStatic#sidebar-toggle:hover {
             streaming_widget.update(self._streaming_current_content)
             self._streaming_displayed = end_index
         
-        # 滚动到底部
+        # 滚动到底部 - RichLog 的 auto_scroll=True 会自动处理
         try:
-            chat_area = self.query_one("#chat-area")
-            chat_area.scroll_end(animate=False)
+            chat_area = self.query_one("#chat-area", RichLog)
+            chat_area.scroll_home(animate=False)
         except Exception:
             pass
         
@@ -1726,11 +1745,11 @@ ClickableStatic#sidebar-toggle:hover {
     
     def _render_welcome_banner(self) -> None:
         """渲染简洁的欢迎横幅."""
-        # ASCII 艺术横幅（来自 CLI 模式）
+        # ASCII 艺术横幅（淡紫色 #A371F7）
         welcome_lines = [
-            "[bold #8B9A46]░█░█░█▀█░█▀█░█▀▄░█▀▀░█▀█░█▄█░█▀▀[/]",
-            "[bold #8B9A46]░█▀█░█▀█░█░█░█░█░▀▀█░█░█░█░█░█▀▀[/]",
-            "[bold #8B9A46]░▀░▀░▀░▀░▀░▀░▀▀░░▀▀▀░▀▀▀░▀░▀░▀▀▀[/]",
+            "[bold #A371F7]░█░█░█▀█░█▀█░█▀▄░█▀▀░█▀█░█▄█░█▀▀[/]",
+            "[bold #A371F7]░█▀█░█▀█░█░█░█░█░▀▀█░█░█░█░█░█▀▀[/]",
+            "[bold #A371F7]░▀░▀░▀░▀░▀░▀░▀▀░░▀▀▀░▀▀▀░▀░▀░▀▀▀[/]",
         ]
         
         # 设置横幅内容
@@ -1886,28 +1905,34 @@ ClickableStatic#sidebar-toggle:hover {
         return ["default"]
     
     def action_change_theme(self) -> None:
-        """切换到下一个主题 (Ctrl+Shift+T)."""
-        if not self._theme_manager:
-            self.notify("Theme manager not available")
-            return
+        """切换到下一个主题 (Ctrl+Shift+T).
         
-        # 获取所有主题 ID
-        theme_ids = self._theme_manager.list_theme_ids()
+        循环切换语义化主题（default/ares/mono/slate），
+        通过 CSS 类覆盖实现主题色变化。
+        """
+        # 获取所有语义化主题 ID
+        theme_ids = list(THEME_CONFIGS.keys())
         if not theme_ids:
+            self.notify("No themes available")
             return
         
         # 获取当前主题的索引
-        current_id = self._theme_manager.get_current_theme_id()
         try:
-            current_index = theme_ids.index(current_id)
+            current_index = theme_ids.index(self.theme_id)
         except ValueError:
             current_index = -1
         
         # 切换到下一个主题（循环）
         next_index = (current_index + 1) % len(theme_ids)
-        next_theme_id = theme_ids[next_index]
+        self.theme_id = theme_ids[next_index]
         
-        self.set_theme(next_theme_id)
+        # 更新 CSS 类
+        self._apply_theme_class()
+        
+        # 获取主题显示名称
+        theme_config = THEME_CONFIGS.get(self.theme_id)
+        display_name = theme_config.name if theme_config else self.theme_id
+        self.notify(f"Theme changed to: {display_name}")
     
     def action_toggle_transparency(self) -> None:
         """切换半透明背景 (Ctrl+Shift+B).
@@ -1962,38 +1987,8 @@ ClickableStatic#sidebar-toggle:hover {
                 except Exception:
                     # 组件可能不存在，跳过
                     pass
-            
-            # 更新页脚快捷键提示
-            self._update_footer_hint()
-            
         except Exception as e:
             self._logger.debug(f"Failed to update transparency styles: {e}")
-    
-    def _update_footer_hint(self) -> None:
-        """更新页脚快捷键提示，添加透明度切换提示。"""
-        try:
-            footer = self.query_one("#app-footer")
-            if footer:
-                # 检测透明度状态
-                is_transparent = (
-                    self._theme_manager.is_transparency_enabled() 
-                    if self._theme_manager else False
-                )
-                
-                # 添加透明度指示符
-                trans_indicator = "◐" if is_transparent else "○"
-                trans_text = f" {trans_indicator} 透明度" if is_transparent else ""
-                
-                # 更新页脚内容
-                footer.query_one("#footer-content", Horizontal).mount(
-                    Static(
-                        f"[#6e7681]|[/] [#c9d1d9][[/][#30363d]Ctrl+Shift+B[/][#c9d1d9]][/] 透明度",
-                        classes="footer-hint"
-                    ),
-                    after=footer.query_one("#footer-content").last_child
-                )
-        except Exception:
-            pass
     
     def is_transparency_enabled(self) -> bool:
         """检查透明度是否启用.
@@ -2473,7 +2468,7 @@ ClickableStatic#sidebar-toggle:hover {
         try:
             sidebar = self.query_one("#sidebar-container-inner")
             if sidebar:
-                sidebar.switch_panel(panel_type)
+                sidebar.switch_to_panel(panel_type)
         except Exception as e:
             self._logger.debug(f"Failed to switch sidebar panel: {e}")
     
@@ -2485,8 +2480,10 @@ ClickableStatic#sidebar-toggle:hover {
                 # Textual 只支持 block 或 none
                 if sidebar.styles.display == "none":
                     sidebar.styles.display = "block"
+                    self.notify("侧边栏已显示")
                 else:
                     sidebar.styles.display = "none"
+                    self.notify("侧边栏已隐藏")
                 self._logger.debug(f"Sidebar toggled, display: {sidebar.styles.display}")
         except Exception as e:
             self._logger.debug(f"Sidebar toggle failed: {e}")
@@ -2531,17 +2528,8 @@ ClickableStatic#sidebar-toggle:hover {
             status: 状态类型 (online/busy/error)
         """
         self._agent_status = status
-        indicator = self.query_one("#status-indicator", Static)
-        
-        if status == "busy":
-            indicator.update("🟡")
-            indicator.styles.color = STATUS_BUSY
-        elif status == "error":
-            indicator.update("🔴")
-            indicator.styles.color = STATUS_ERROR
-        else:
-            indicator.update("🟢")
-            indicator.styles.color = STATUS_ONLINE
+        # 状态指示器已从 app-header 移除，仅记录日志
+        self._logger.debug(f"Agent status changed to: {status}")
     
     def action_toggle_help(self) -> None:
         """切换帮助面板显示."""
@@ -2591,7 +2579,7 @@ ClickableStatic#sidebar-toggle:hover {
             content: 消息内容
             render_markdown: 是否渲染 Markdown（仅对 assistant 消息生效）
         """
-        log = self.query_one("#chat-log", RichLog)
+        chat_area = self.query_one("#chat-area", RichLog)
         
         # 检查是否需要渲染 Markdown
         should_render_markdown = (
@@ -2628,8 +2616,8 @@ ClickableStatic#sidebar-toggle:hover {
             else:
                 formatted = RichText.from_markup(f"[dim]**System**[/]\n\n{content}")
             # 消息之间添加空行分隔
-            log.write(NewLine(1))
-            log.write(formatted)
+            chat_area.write("\n")
+            chat_area.write(formatted)
         else:
             # 降级：直接写入文本
             if role == "user":
@@ -2640,8 +2628,8 @@ ClickableStatic#sidebar-toggle:hover {
                 label = "Tool"
             else:
                 label = "System"
-            log.write(NewLine(1))
-            log.write(f"{label}: {content}")
+            chat_area.write("\n")
+            chat_area.write(f"{label}: {content}")
     
     def _history_prev(self) -> None:
         """显示上一条历史记录."""
@@ -2866,8 +2854,8 @@ ClickableStatic#sidebar-toggle:hover {
             content: 消息内容
         """
         # 消息之间添加空行分隔
-        log = self.query_one("#chat-log", RichLog)
-        log.write(NewLine(1))
+        chat_area = self.query_one("#chat-area", RichLog)
+        chat_area.write(NewLine(1))
         
         # 渲染 Markdown（如果启用）- 使用行内渲染避免 HTML 标签问题
         if self._markdown_enabled and self._markdown_renderer and self._markdown_renderer.is_available():
@@ -2877,13 +2865,13 @@ ClickableStatic#sidebar-toggle:hover {
                 self._logger.debug(f"Markdown render failed: {e}")
         
         # 启动打字机效果
-        self.start_typewriter_effect(content, "chat-log")
+        self.start_typewriter_effect(content, "chat-area")
     
     def action_clear_screen(self) -> None:
         """清屏 (Ctrl+L)."""
-        log = self.query_one("#chat-log", RichLog)
-        if log:
-            log.clear()
+        chat_area = self.query_one("#chat-area", RichLog)
+        if chat_area:
+            chat_area.clear()
         self._logger.debug("Screen cleared")
     
     def action_cancel_current(self) -> None:
@@ -3016,18 +3004,18 @@ ClickableStatic#sidebar-toggle:hover {
             role: 消息角色 (user/assistant)
             content: 消息内容
         """
-        log = self.query_one("#chat-log", RichLog)
-        if log:
+        chat_area = self.query_one("#chat-area", RichLog)
+        if chat_area:
             if role == "user":
-                log.write(f"[bold {AVOCADO_BRIGHT}]You:[/] {content}")
+                chat_area.write(f"[bold {AVOCADO_BRIGHT}]You:[/] {content}")
             else:
-                log.write(f"[bold {AVOCADO_PRIMARY}]Agent:[/] {content}")
+                chat_area.write(f"[bold {AVOCADO_PRIMARY}]Agent:[/] {content}")
     
     def clear_chat(self) -> None:
         """清空聊天日志."""
-        log = self.query_one("#chat-log", RichLog)
-        if log:
-            log.clear()
+        chat_area = self.query_one("#chat-area", RichLog)
+        if chat_area:
+            chat_area.clear()
     
     # ========================================================================
     # 标签页管理方法
