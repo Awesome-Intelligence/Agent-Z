@@ -66,6 +66,14 @@ except ImportError:
     ThemeManager = None
     get_theme_manager = None
 
+# Markdown 渲染器
+try:
+    from .markdown_renderer import MarkdownRenderer, markdown_to_rich, is_markdown_available
+except ImportError:
+    MarkdownRenderer = None
+    markdown_to_rich = None
+    is_markdown_available = None
+
 # ChatView 组件
 try:
     from .views.chat_view import ChatView, ChatMessageSubmitted
@@ -254,6 +262,165 @@ class TuiLogHandler(logging.Handler):
 
 
 # ============================================================================
+# NotificationAnimationManager - 通知动画管理器
+# ============================================================================
+
+class NotificationType:
+    """通知类型枚举."""
+    
+    INFO = "info"
+    SUCCESS = "success"
+    WARNING = "warning"
+    ERROR = "error"
+    
+    # 动画类型
+    ANIM_SLIDE = "slide"
+    ANIM_FADE = "fade"
+    ANIM_BOUNCE = "bounce"
+    ANIM_SHAKE = "shake"
+    ANIM_PULSE = "pulse"
+    
+    @classmethod
+    def get_animation_for_type(cls, notification_type: str) -> str:
+        """根据通知类型获取对应的动画类名.
+        
+        Args:
+            notification_type: 通知类型 (info/success/warning/error)
+            
+        Returns:
+            动画类名
+        """
+        animations = {
+            cls.INFO: cls.ANIM_SLIDE,
+            cls.SUCCESS: cls.ANIM_BOUNCE,
+            cls.WARNING: cls.ANIM_PULSE,
+            cls.ERROR: cls.ANIM_SHAKE,
+        }
+        return animations.get(notification_type, cls.ANIM_FADE)
+    
+    @classmethod
+    def get_icon(cls, notification_type: str) -> str:
+        """获取通知类型的图标.
+        
+        Args:
+            notification_type: 通知类型
+            
+        Returns:
+            Emoji 图标
+        """
+        icons = {
+            cls.INFO: "ℹ️",
+            cls.SUCCESS: "✅",
+            cls.WARNING: "⚠️",
+            cls.ERROR: "❌",
+        }
+        return icons.get(notification_type, "ℹ️")
+
+
+class NotificationAnimationManager:
+    """通知动画管理器.
+    
+    负责：
+    - 管理通知动画效果
+    - 提供多种动画类型
+    - 控制动画时长和缓动函数
+    """
+    
+    # 动画时长配置 (秒)
+    ANIMATION_DURATIONS = {
+        "fast": 0.2,
+        "normal": 0.3,
+        "slow": 0.5,
+    }
+    
+    # 动画缓动函数
+    EASING_FUNCTIONS = {
+        "ease": "ease",
+        "ease-in": "ease-in",
+        "ease-out": "ease-out",
+        "ease-in-out": "ease-in-out",
+        "bounce": "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+        "elastic": "cubic-bezier(0.5, 1.5, 0.5, 1)",
+    }
+    
+    @classmethod
+    def get_css_animation(cls, animation_type: str, duration: str = "normal") -> str:
+        """获取 CSS 动画字符串.
+        
+        Args:
+            animation_type: 动画类型
+            duration: 动画时长 (fast/normal/slow)
+            
+        Returns:
+            CSS animation 属性值
+        """
+        duration_value = cls.ANIMATION_DURATIONS.get(duration, 0.3)
+        easing = cls.EASING_FUNCTIONS.get("ease-out", "ease-out")
+        
+        animation_map = {
+            NotificationType.ANIM_SLIDE: f"slide-in-right {duration_value}s {easing}",
+            NotificationType.ANIM_FADE: f"fade-in {duration_value}s {easing}",
+            NotificationType.ANIM_BOUNCE: f"bounce-in {duration_value}s {cls.EASING_FUNCTIONS['bounce']}",
+            NotificationType.ANIM_SHAKE: f"shake {duration_value}s {easing}",
+            NotificationType.ANIM_PULSE: f"pulse {duration_value * 2}s ease-in-out infinite",
+        }
+        
+        return animation_map.get(animation_type, f"fade-in {duration_value}s {easing}")
+    
+    @classmethod
+    def create_animated_notification(
+        cls,
+        message: str,
+        notification_type: str = NotificationType.INFO,
+        duration: float = 3.0,
+    ) -> tuple[str, str]:
+        """创建带动画的通知内容.
+        
+        Args:
+            message: 通知消息
+            notification_type: 通知类型
+            duration: 显示时长（秒）
+            
+        Returns:
+            (toast CSS类, 格式化消息)
+        """
+        # 获取动画类型
+        anim_type = cls.get_animation_for_type(notification_type)
+        icon = cls.get_icon(notification_type)
+        
+        # 构建 CSS 类
+        css_classes = [
+            "notification-toast",
+            notification_type,
+            f"anim-{anim_type}",
+        ]
+        css_class_str = " ".join(css_classes)
+        
+        # 格式化消息（带图标）
+        formatted_message = f"[bold]{icon}[/] {message}"
+        
+        return css_class_str, formatted_message
+    
+    @classmethod
+    def get_progress_bar_html(cls, progress: float, animated: bool = True) -> str:
+        """生成分带动画的进度条 HTML.
+        
+        Args:
+            progress: 进度 (0.0 - 1.0)
+            animated: 是否启用动画
+            
+        Returns:
+            进度条 CSS 类
+        """
+        base_class = "progress-bar"
+        fill_class = "progress-bar-fill"
+        if animated:
+            fill_class += " progress-bar-animated"
+        
+        return f"{base_class} {fill_class}"
+
+
+# ============================================================================
 # HandsomeAgentApp 主类
 # ============================================================================
 
@@ -408,6 +575,8 @@ class HandsomeAgentApp(App):
         ("j", "scroll_down", "Scroll Down"),
         ("k", "scroll_up", "Scroll Up"),
         ("ctrl+shift+t", "change_theme", "Change Theme"),
+        ("ctrl+shift+b", "toggle_transparency", "Transparency"),  # 透明度切换
+        ("ctrl+shift+m", "toggle_markdown", "Markdown"),  # Markdown 渲染切换
     ]
     
     def __init__(
@@ -482,8 +651,24 @@ class HandsomeAgentApp(App):
         # 加载动画相关
         self._is_loading: bool = False
         self._loading_timer: Optional[callable] = None
-        self._loading_frames: list = ["◐", "◓", "◑", "◒"]  # 旋转动画帧
+        # 多套加载动画帧（支持切换）
+        self._LOADING_FRAMES = {
+            "dots": ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],  # 点状旋转
+            "circle": ["◐", "◓", "◑", "◒"],  # 圆形旋转
+            "braille": ["⠓", "⠒", "⠐", "⠔", "⠠", "⠡", "⠢", "⠣"],  # 盲文旋转
+            "pulse": ["●", "○", "◌"],  # 脉冲
+        }
+        self._loading_frames: list = self._LOADING_FRAMES["dots"]  # 默认使用点状
         self._loading_frame_index: int = 0
+        self._loading_style: str = "dots"  # 当前动画风格
+        
+        # 流式输出打字机效果相关
+        self._is_streaming: bool = False
+        self._streaming_text: str = ""
+        self._streaming_widget_id: str | None = None
+        self._streaming_timer: Optional[callable] = None
+        self._streaming_chars_per_tick: int = 3  # 每帧显示的字符数
+        self._streaming_delay_ms: int = 30  # 每帧延迟（毫秒）
         
         # 保存 Agent 实例
         self._agent = agent
@@ -528,6 +713,21 @@ class HandsomeAgentApp(App):
         
         # Agent 状态指示器
         self._agent_status = "online"  # online/busy/error
+        
+        # Markdown 渲染器初始化
+        self._markdown_renderer: MarkdownRenderer | None = None
+        if MarkdownRenderer:
+            try:
+                self._markdown_renderer = MarkdownRenderer(enable_code_highlight=True)
+                if self._markdown_renderer.is_available():
+                    self._logger.debug("Markdown renderer initialized")
+                else:
+                    self._logger.debug("Markdown renderer not available: " + self._markdown_renderer.get_install_hint())
+            except Exception as e:
+                self._logger.debug(f"Failed to initialize Markdown renderer: {e}")
+        
+        # Markdown 渲染开关
+        self._markdown_enabled = True  # 默认启用 Markdown 渲染
     
     # 类级别 CSS 属性（默认主题 - 参考 CodeWhale 深色主题）
     CSS = """
@@ -894,6 +1094,168 @@ ClickableStatic#sidebar-toggle:hover {
     text-style: bold;
     margin-bottom: 1;
 }
+
+/* ============================================================================
+   半透明背景样式 (Frosted Glass Effect)
+   支持 Ctrl+Shift+B 快捷键切换
+   ============================================================================ */
+
+/* 透明度容器 - 基础样式 */
+.transparent-container {
+    /* 使用纯色背景作为降级方案 */
+}
+
+/* 半透明面板 - 毛玻璃效果 */
+.transparent-panel {
+    background: rgba(13, 17, 23, 0.75);
+    border: solid rgba(48, 54, 61, 0.5);
+}
+
+/* 半透明标题栏 */
+.transparent-header {
+    background: rgba(22, 27, 34, 0.80);
+}
+
+/* 半透明状态栏 */
+.transparent-status-bar {
+    background: rgba(33, 38, 45, 0.80);
+}
+
+/* 半透明页脚 */
+.transparent-footer {
+    background: rgba(33, 38, 45, 0.85);
+}
+
+/* 半透明侧边栏 */
+.transparent-sidebar {
+    background: rgba(22, 27, 34, 0.75);
+    border-left: solid rgba(48, 54, 61, 0.5);
+}
+
+/* 半透明聊天区域 */
+.transparent-chat {
+    background: rgba(13, 17, 23, 0.70);
+}
+
+/* 半透明输入框 */
+.transparent-input {
+    background: rgba(13, 17, 23, 0.60);
+    border: solid rgba(88, 166, 255, 0.3);
+}
+
+.transparent-input:focus {
+    border: solid rgba(88, 166, 255, 0.6);
+}
+
+/* 半透明欢迎横幅 */
+.transparent-welcome {
+    background: rgba(22, 27, 34, 0.65);
+    border-bottom: solid rgba(48, 54, 61, 0.4);
+}
+
+/* 透明度切换指示器 */
+.transparency-indicator {
+    color: #58a6ff;
+    text-style: bold;
+}
+
+/* ============================================================================
+   通知样式 (Notification Styles)
+   注意: Textual CSS 不支持 @keyframes 动画和细粒度边框属性
+   ============================================================================ */
+
+/* 通知样式 - 基础 */
+.notification-toast {
+    background: #21262d;
+    border: solid #58a6ff;
+    padding: 1 2;
+}
+
+/* 通知图标样式 */
+.notification-icon {
+    color: #58a6ff;
+}
+
+.notification-icon.success {
+    color: #3fb950;
+}
+
+.notification-icon.warning {
+    color: #f0883e;
+}
+
+.notification-icon.error {
+    color: #f85149;
+}
+
+.notification-icon.info {
+    color: #58a6ff;
+}
+
+/* 进度条样式 */
+.progress-bar {
+    height: 1;
+    background: #21262d;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: #58a6ff;
+}
+
+/* ============================================================================
+   打字机效果光标样式
+   ============================================================================ */
+
+/* 闪烁光标样式 - 用于流式输出 */
+.typewriter-cursor {
+    color: #58a6ff;
+    text-style: bold;
+}
+
+/* 加载动画文字样式 */
+.loading-text {
+    color: #8b949e;
+}
+
+/* 打字机完成后的淡入效果 (使用纯色，不支持 @keyframes 动画) */
+.typewriter-complete {
+    color: #c9d1d9;
+}
+
+/* 加载动画增强样式 */
+.loading-indicator {
+    color: #3fb950;
+}
+
+/* 加载动画帧样式 */
+.loading-frame {
+    text-style: bold;
+}
+
+/* 打字机输出组件样式 */
+.typewriter-output {
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    overflow-x: auto;
+    padding: 0 2;
+    background: #0d1117;
+}
+
+/* 打字机速度控制 (通过 Python 代码控制，此处仅作标记) */
+.typewriter-fast {
+    color: #58a6ff;
+}
+
+.typewriter-normal {
+    color: #58a6ff;
+}
+
+.typewriter-slow {
+    color: #58a6ff;
+}
+
 """
     
     def compose(self) -> ComposeResult:
@@ -958,6 +1320,8 @@ ClickableStatic#sidebar-toggle:hover {
                 yield Static(
                     "[#c9d1d9][[/][#30363d]Ctrl+B[/][#c9d1d9]][/] 侧边栏 [#6e7681]|[/] "
                     "[#c9d1d9][[/][#30363d]Ctrl+K[/][#c9d1d9]][/] 命令 [#6e7681]|[/] "
+                    "[#c9d1d9][[/][#30363d]Ctrl+Shift+B[/][#c9d1d9]][/] 透明 [#6e7681]|[/] "
+                    "[#c9d1d9][[/][#30363d]Ctrl+Shift+M[/][#c9d1d9]][/] MD [#6e7681]|[/] "
                     "[#c9d1d9][[/][#30363d]Ctrl+L[/][#c9d1d9]][/] 清屏",
                     classes="footer-hint"
                 )
@@ -1015,6 +1379,11 @@ ClickableStatic#sidebar-toggle:hover {
                 self._tui_log_handler.set_widget(log_widget)
             except Exception:
                 pass
+        
+        # 应用已保存的透明度设置
+        if self._theme_manager and self._theme_manager.is_transparency_enabled():
+            self._logger.info("Applying saved transparency settings")
+            self._update_transparency_styles(True)
         
         # 聚焦到输入框（TextArea）
         self.set_focus(self.query_one("#user-input", TextArea))
@@ -1144,6 +1513,202 @@ ClickableStatic#sidebar-toggle:hover {
         self._loading_frame_index = (self._loading_frame_index + 1) % len(self._loading_frames)
         # 设置下一个定时器（约 200ms 一帧）
         self.set_timer(0.2, self._update_loading_frame)
+    
+    # ========================================================================
+    # 加载动画控制方法
+    # ========================================================================
+    
+    def set_loading_style(self, style: str) -> bool:
+        """设置加载动画风格.
+        
+        Args:
+            style: 动画风格 (dots/circle/braille/pulse)
+            
+        Returns:
+            True 如果设置成功
+        """
+        if style in self._LOADING_FRAMES:
+            self._loading_style = style
+            self._loading_frames = self._LOADING_FRAMES[style]
+            self._loading_frame_index = 0
+            self._logger.debug(f"Loading style changed to: {style}")
+            return True
+        return False
+    
+    def cycle_loading_style(self) -> str:
+        """循环切换加载动画风格.
+        
+        Returns:
+            切换后的动画风格名称
+        """
+        styles = list(self._LOADING_FRAMES.keys())
+        current_index = styles.index(self._loading_style) if self._loading_style in styles else 0
+        next_index = (current_index + 1) % len(styles)
+        next_style = styles[next_index]
+        self.set_loading_style(next_style)
+        return next_style
+    
+    # ========================================================================
+    # 流式输出打字机效果方法
+    # ========================================================================
+    
+    def start_streaming_message(self, widget_id: str) -> None:
+        """开始流式输出消息.
+        
+        Args:
+            widget_id: 要更新的 RichLog 组件 ID
+        """
+        self._is_streaming = True
+        self._streaming_text = ""
+        self._streaming_widget_id = widget_id
+        
+        # 显示流式输出开始提示
+        log = self.query_one(f"#{widget_id}", RichLog)
+        if log:
+            from rich.text import Text as RichText
+            header = RichText.from_markup("[bold #3fb950]**Assistant**[/]\n\n")
+            log.write(header)
+    
+    def append_streaming_text(self, text: str) -> None:
+        """追加流式文本内容（由外部调用，如 agent 实时推送）.
+        
+        Args:
+            text: 要追加的文本
+        """
+        if not self._is_streaming:
+            return
+        self._streaming_text += text
+    
+    def start_typewriter_effect(self, full_text: str, widget_id: str) -> None:
+        """启动打字机效果（完整文本逐字显示）.
+        
+        Args:
+            full_text: 完整的文本内容
+            widget_id: 要更新的 RichLog 组件 ID
+        """
+        self._is_streaming = True
+        self._streaming_text = full_text
+        self._streaming_widget_id = widget_id
+        self._streaming_displayed = 0
+        self._streaming_current_content = ""  # 使用实例变量跟踪内容
+        
+        # 如果已经有流式组件，先移除
+        self._remove_streaming_widget()
+        
+        # 创建一个临时的 Static 组件用于显示打字中的内容
+        from textual.widgets import Static
+        streaming_widget = Static(
+            id="streaming-output",
+            classes="typewriter-output",
+            markup=True,
+        )
+        
+        # 获取 chat-area 容器，在末尾添加流式组件（显示在底部）
+        chat_area = self.query_one("#chat-area", VerticalScroll)
+        chat_area.mount(streaming_widget)
+        
+        self._streaming_timer = self.set_interval(
+            self._streaming_delay_ms / 1000.0,
+            self._update_typewriter_frame
+        )
+    
+    def _remove_streaming_widget(self) -> None:
+        """移除流式输出组件."""
+        try:
+            widget = self.query_one("#streaming-output")
+            widget.remove()
+        except Exception:
+            pass
+    
+    def _update_typewriter_frame(self) -> None:
+        """更新打字机动画帧（定时器回调）."""
+        if not self._is_streaming:
+            return
+        
+        try:
+            streaming_widget = self.query_one("#streaming-output")
+        except Exception:
+            return
+        
+        # 计算已显示的字符数
+        current_displayed = getattr(self, '_streaming_displayed', 0)
+        chars_to_add = self._streaming_chars_per_tick
+        
+        # 计算本帧要添加的字符范围
+        end_index = min(current_displayed + chars_to_add, len(self._streaming_text))
+        new_chars = self._streaming_text[current_displayed:end_index]
+        
+        if new_chars:
+            # 追加新字符到当前内容
+            self._streaming_current_content += new_chars
+            streaming_widget.update(self._streaming_current_content)
+            self._streaming_displayed = end_index
+        
+        # 滚动到底部
+        try:
+            chat_area = self.query_one("#chat-area")
+            chat_area.scroll_end(animate=False)
+        except Exception:
+            pass
+        
+        # 检查是否完成
+        if self._streaming_displayed >= len(self._streaming_text):
+            self._finish_typewriter_effect()
+        else:
+            # 添加闪烁光标
+            streaming_widget.update(self._streaming_current_content + "[blink]▋[/]")
+    
+    def _finish_typewriter_effect(self) -> None:
+        """完成打字机效果."""
+        if self._streaming_timer:
+            self._streaming_timer.stop()
+            self._streaming_timer = None
+        
+        # 使用实例变量获取内容
+        full_content = getattr(self, '_streaming_current_content', "") or ""
+        # 移除光标
+        full_content = full_content.replace("[blink]▋[/]", "")
+        
+        # 将完整内容写入 RichLog
+        if full_content and self._streaming_widget_id:
+            try:
+                log = self.query_one(f"#{self._streaming_widget_id}", RichLog)
+                log.write(full_content)
+                log.write("\n")
+            except Exception:
+                pass
+        
+        # 移除流式组件
+        self._remove_streaming_widget()
+        
+        self._is_streaming = False
+        self._streaming_displayed = 0
+    
+    def is_streaming(self) -> bool:
+        """检查是否正在流式输出.
+        
+        Returns:
+            True 如果正在流式输出
+        """
+        return self._is_streaming
+    
+    def cancel_streaming(self) -> None:
+        """取消当前的流式输出."""
+        if self._streaming_timer:
+            self._streaming_timer.stop()
+            self._streaming_timer = None
+        
+        self._remove_streaming_widget()
+        
+        self._is_streaming = False
+        self._streaming_text = ""
+        self._streaming_widget_id = None
+        self._streaming_displayed = 0
+        self._streaming_current_content = ""
+    
+    # ========================================================================
+    # 欢迎横幅渲染
+    # ========================================================================
     
     def _render_welcome_banner(self) -> None:
         """渲染简洁的欢迎横幅."""
@@ -1329,6 +1894,282 @@ ClickableStatic#sidebar-toggle:hover {
         next_theme_id = theme_ids[next_index]
         
         self.set_theme(next_theme_id)
+    
+    def action_toggle_transparency(self) -> None:
+        """切换半透明背景 (Ctrl+Shift+B).
+        
+        启用毛玻璃效果，让 TUI 背景半透明显示终端背景。
+        """
+        if not self._theme_manager:
+            self.notify("Theme manager not available")
+            return
+        
+        # 切换透明度状态
+        enabled = self._theme_manager.toggle_transparency()
+        
+        # 更新 UI 样式
+        self._update_transparency_styles(enabled)
+        
+        # 显示通知
+        if enabled:
+            self.notify("✓ 半透明背景已启用 (毛玻璃效果)")
+        else:
+            self.notify("✗ 半透明背景已禁用")
+    
+    def _update_transparency_styles(self, enabled: bool) -> None:
+        """更新透明度相关样式.
+        
+        Args:
+            enabled: 是否启用透明度
+        """
+        # 需要更新的组件及其对应的透明样式类
+        transparent_mappings = {
+            "#app-header": "transparent-header",
+            "#status-bar": "transparent-status-bar",
+            "#app-footer": "transparent-footer",
+            "#sidebar-container": "transparent-sidebar",
+            "#chat-area": "transparent-chat",
+            "#user-input": "transparent-input",
+            "#welcome-banner": "transparent-welcome",
+        }
+        
+        try:
+            for widget_id, transparent_class in transparent_mappings.items():
+                try:
+                    widget = self.query_one(widget_id)
+                    
+                    if enabled:
+                        # 添加透明样式类
+                        widget.add_class(transparent_class)
+                    else:
+                        # 移除透明样式类
+                        widget.remove_class(transparent_class)
+                        
+                except Exception:
+                    # 组件可能不存在，跳过
+                    pass
+            
+            # 更新页脚快捷键提示
+            self._update_footer_hint()
+            
+        except Exception as e:
+            self._logger.debug(f"Failed to update transparency styles: {e}")
+    
+    def _update_footer_hint(self) -> None:
+        """更新页脚快捷键提示，添加透明度切换提示。"""
+        try:
+            footer = self.query_one("#app-footer")
+            if footer:
+                # 检测透明度状态
+                is_transparent = (
+                    self._theme_manager.is_transparency_enabled() 
+                    if self._theme_manager else False
+                )
+                
+                # 添加透明度指示符
+                trans_indicator = "◐" if is_transparent else "○"
+                trans_text = f" {trans_indicator} 透明度" if is_transparent else ""
+                
+                # 更新页脚内容
+                footer.query_one("#footer-content", Horizontal).mount(
+                    Static(
+                        f"[#6e7681]|[/] [#c9d1d9][[/][#30363d]Ctrl+Shift+B[/][#c9d1d9]][/] 透明度",
+                        classes="footer-hint"
+                    ),
+                    after=footer.query_one("#footer-content").last_child
+                )
+        except Exception:
+            pass
+    
+    def is_transparency_enabled(self) -> bool:
+        """检查透明度是否启用.
+        
+        Returns:
+            True 如果透明度已启用
+        """
+        if self._theme_manager:
+            return self._theme_manager.is_transparency_enabled()
+        return False
+    
+    # ========================================================================
+    # Markdown 渲染方法
+    # ========================================================================
+    
+    def action_toggle_markdown(self) -> None:
+        """切换 Markdown 渲染 (Ctrl+Shift+M)."""
+        self._markdown_enabled = not self._markdown_enabled
+        
+        if self._markdown_enabled:
+            if self._markdown_renderer and self._markdown_renderer.is_available():
+                self.notify_info("✓ Markdown 渲染已启用")
+            else:
+                self.notify_warning("Markdown 渲染未安装（pip install mistune）")
+        else:
+            self.notify_info("✗ Markdown 渲染已禁用")
+        
+        self._logger.debug(f"Markdown rendering: {self._markdown_enabled}")
+    
+    def is_markdown_enabled(self) -> bool:
+        """检查 Markdown 渲染是否启用.
+        
+        Returns:
+            True 如果 Markdown 渲染已启用
+        """
+        return self._markdown_enabled
+    
+    def is_markdown_available(self) -> bool:
+        """检查 Markdown 渲染是否可用（已安装依赖）。
+        
+        Returns:
+            True 如果 Markdown 渲染库已安装
+        """
+        return self._markdown_renderer is not None and self._markdown_renderer.is_available()
+    
+    def get_markdown_features(self) -> dict:
+        """获取 Markdown 功能特性.
+        
+        Returns:
+            功能特性字典
+        """
+        if is_markdown_available:
+            return is_markdown_available()
+        return {"mistune": False, "pygments": False, "code_highlight": False}
+    
+    def render_markdown(self, text: str) -> str:
+        """渲染 Markdown 文本.
+        
+        Args:
+            text: Markdown 格式的文本
+            
+        Returns:
+            渲染后的文本
+        """
+        if not self._markdown_enabled or not self._markdown_renderer:
+            return text
+        
+        try:
+            return self._markdown_renderer.render(text)
+        except Exception as e:
+            self._logger.debug(f"Markdown render failed: {e}")
+            return text
+    
+    # ========================================================================
+    # 动画通知方法
+    # ========================================================================
+    
+    def notify_animated(
+        self,
+        message: str,
+        notification_type: str = NotificationType.INFO,
+        duration: float = 3.0,
+    ) -> None:
+        """显示带动画的通知.
+        
+        Args:
+            message: 通知消息
+            notification_type: 通知类型 (info/success/warning/error)
+            duration: 显示时长（秒）
+        """
+        # 获取动画图标
+        icon = NotificationType.get_icon(notification_type)
+        
+        # 根据类型添加不同的前缀和动画效果
+        if notification_type == NotificationType.SUCCESS:
+            # 成功通知：弹跳动画
+            animated_msg = f"✅ {message}"
+        elif notification_type == NotificationType.WARNING:
+            # 警告通知：脉冲动画
+            animated_msg = f"⚠️ {message}"
+        elif notification_type == NotificationType.ERROR:
+            # 错误通知：抖动动画
+            animated_msg = f"❌ {message}"
+        else:
+            # 信息通知：滑入动画
+            animated_msg = f"ℹ️ {message}"
+        
+        # 使用 Textual 内置的通知系统
+        self.notify(
+            animated_msg,
+            timeout=duration,
+            title=notification_type.upper() if notification_type != NotificationType.INFO else "通知",
+        )
+        
+        self._logger.debug(f"Animated notification: [{notification_type}] {message}")
+    
+    def notify_success(self, message: str, duration: float = 3.0) -> None:
+        """显示成功通知（带弹跳动画）.
+        
+        Args:
+            message: 通知消息
+            duration: 显示时长（秒）
+        """
+        self.notify_animated(message, NotificationType.SUCCESS, duration)
+    
+    def notify_warning(self, message: str, duration: float = 4.0) -> None:
+        """显示警告通知（带脉冲动画）.
+        
+        Args:
+            message: 通知消息
+            duration: 显示时长（秒）
+        """
+        self.notify_animated(message, NotificationType.WARNING, duration)
+    
+    def notify_error(self, message: str, duration: float = 5.0) -> None:
+        """显示错误通知（带抖动动画）.
+        
+        Args:
+            message: 通知消息
+            duration: 显示时长（秒）
+        """
+        self.notify_animated(message, NotificationType.ERROR, duration)
+    
+    def notify_info(self, message: str, duration: float = 3.0) -> None:
+        """显示信息通知（带滑入动画）.
+        
+        Args:
+            message: 通知消息
+            duration: 显示时长（秒）
+        """
+        self.notify_animated(message, NotificationType.INFO, duration)
+    
+    def show_loading_animation(self, message: str = "加载中...") -> None:
+        """显示加载动画通知.
+        
+        Args:
+            message: 加载提示消息
+        """
+        loading_msg = f"⏳ {message}"
+        self.notify(loading_msg, timeout=None, title="LOADING")
+    
+    def show_progress_notification(
+        self,
+        progress: float,
+        message: str = "",
+        total: int = 100,
+    ) -> None:
+        """显示进度通知.
+        
+        Args:
+            progress: 当前进度 (0.0 - 1.0)
+            message: 进度描述
+            total: 总量
+        """
+        # 计算百分比
+        percent = int(progress * 100)
+        current = int(progress * total)
+        
+        # 生成进度条
+        bar_length = 20
+        filled = int(bar_length * progress)
+        bar = "█" * filled + "░" * (bar_length - filled)
+        
+        # 构建消息
+        progress_msg = f"{bar} {percent}%"
+        if message:
+            progress_msg = f"{message}\n{progress_msg}"
+        
+        # 显示进度
+        self.notify(progress_msg, timeout=2.0, title=f"进度 ({current}/{total})")
     
     def apply_skin_from_engine(self) -> bool:
         """从皮肤引擎应用皮肤到当前主题.
@@ -1728,14 +2569,31 @@ ClickableStatic#sidebar-toggle:hover {
         """处理 TextArea 提交（Enter 键）."""
         self._submit_user_input()
     
-    def _append_message(self, role: str, content: str) -> None:
+    def _append_message(self, role: str, content: str, render_markdown: bool = True) -> None:
         """追加消息到聊天区域.
-        
+
         Args:
             role: 消息角色 ("user", "assistant", "system")
             content: 消息内容
+            render_markdown: 是否渲染 Markdown（仅对 assistant 消息生效）
         """
         log = self.query_one("#chat-log", RichLog)
+        
+        # 检查是否需要渲染 Markdown
+        should_render_markdown = (
+            render_markdown 
+            and self._markdown_enabled 
+            and self._markdown_renderer 
+            and role == "assistant"
+        )
+        
+        # 如果需要渲染 Markdown，先转换内容
+        if should_render_markdown:
+            try:
+                content = self._markdown_renderer.render(content)
+            except Exception as e:
+                self._logger.debug(f"Markdown render failed: {e}")
+                # 降级：使用原始内容
         
         # 使用 RichText.from_markup() 正确解析 Rich 标记
         if RichText:
@@ -1937,11 +2795,14 @@ ClickableStatic#sidebar-toggle:hover {
                 response = future.result()
                 if response:
                     if hasattr(response, 'content'):
-                        self._append_message("assistant", str(response.content))
+                        content = str(response.content)
                     else:
-                        self._append_message("assistant", str(response))
+                        content = str(response)
                 else:
-                    self._append_message("assistant", "（无回复）")
+                    content = "（无回复）"
+                
+                # 使用打字机效果显示内容
+                self._show_typewriter_message(content)
             except Exception as e:
                 # 停止加载动画
                 self._stop_loading_animation()
@@ -1971,6 +2832,26 @@ ClickableStatic#sidebar-toggle:hover {
         # 尝试从外部获取 agent 实例
         # 这需要在 run_textual_mode 中设置
         return getattr(self, '_agent', None)
+    
+    def _show_typewriter_message(self, content: str) -> None:
+        """使用打字机效果显示消息.
+        
+        Args:
+            content: 消息内容
+        """
+        # 消息之间添加空行分隔
+        log = self.query_one("#chat-log", RichLog)
+        log.write(NewLine(1))
+        
+        # 渲染 Markdown（如果启用）- 使用行内渲染避免 HTML 标签问题
+        if self._markdown_enabled and self._markdown_renderer and self._markdown_renderer.is_available():
+            try:
+                content = self._markdown_renderer.render_inline(content)
+            except Exception as e:
+                self._logger.debug(f"Markdown render failed: {e}")
+        
+        # 启动打字机效果
+        self.start_typewriter_effect(content, "chat-log")
     
     def action_clear_screen(self) -> None:
         """清屏 (Ctrl+L)."""
@@ -2463,6 +3344,15 @@ __all__ = [
     # 主题系统
     "ThemeManager",
     "get_theme_manager",
+    # 通知动画系统
+    "NotificationType",
+    "NotificationAnimationManager",
+    # Markdown 渲染系统
+    "MarkdownRenderer",
+    "markdown_to_rich",
+    "is_markdown_available",
+    # 流式输出打字机效果
+    "TypewriterEffect",
 ]
 
 
