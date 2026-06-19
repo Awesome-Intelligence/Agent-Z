@@ -36,7 +36,7 @@ from tui.core.markdown_renderer import (
 )
 
 # 导出 Curses UI 模块
-from tui.core.curses_ui import (
+from common.terminal.curses_ui import (
     has_curses,
     flush_stdin,
     curses_radiolist,

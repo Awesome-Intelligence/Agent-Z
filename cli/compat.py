@@ -12,33 +12,17 @@ CLI Compatibility Layer - 向后兼容导入
 # UI Components (向后兼容)
 # ============================================================================
 
-# 从 components.ui 导入
-from cli.components.ui import (
+# 从 common.terminal.colors 导入
+from common.terminal.colors import (
     Colors,
     Theme,
-    print_info,
-    print_success,
-    print_warning,
-    print_error,
-    print_header,
-    print_divider,
-    print_step,
-    print_box,
-    Spinner,
-    prompt,
-    HAS_RICH,
-    status_bar,
-    StatusBar,
-)
-
-# 从 components.colors 导入
-from cli.components.colors import (
+    color,
     should_use_color,
     supports_ansi,
     enable_ansi_support,
+    strip_color as strip_ansi,
     get_terminal_width,
     get_terminal_height,
-    strip_color as strip_ansi,
     HEX_AVOCADO,
     HEX_AVOCADO_BRIGHT,
     HEX_AVOCADO_DIM,
@@ -47,24 +31,39 @@ from cli.components.colors import (
     RGB_AVOCADO_DIM,
 )
 
-# 从 components.output 导入
-from cli.components.output import (
+# 从 common.terminal.output 导入
+from common.terminal.output import (
+    print_info,
+    print_success,
+    print_warning,
+    print_error,
+    print_header,
+    print_debug,
+    print_divider,
+    print_step,
     print_substep,
     print_end_step,
+    print_box,
     print_table_row,
     print_spinner,
+    Spinner,
+    prompt,
     prompt_yes_no,
     prompt_choice,
 )
 
-# 从 components.ui 导入 print_banner
-# 从 components.banner 导入 build_welcome_banner, print_setup_banner, print_simple_banner
-from cli.components.ui import (
+# 从 common.terminal.ui 导入
+from common.terminal.ui import (
     print_banner,
+    print_banner_simple,
+    status_bar,
+    StatusBar,
+    HAS_RICH,
 )
-from cli.components.banner import (
+
+# 从 common.terminal.banner 导入
+from common.terminal.banner import (
     build_welcome_banner,
-    print_setup_banner,
     print_simple_banner,
 )
 
@@ -72,13 +71,15 @@ from cli.components.banner import (
 # TUI Components (向后兼容)
 # ============================================================================
 
-from tui.core.curses_ui import (
+from common.terminal.curses_ui import (
     has_curses,
     curses_radiolist,
     curses_checklist,
     radio_select,
     multi_select,
     flush_stdin,
+    IS_WINDOWS,
+    IS_TTY,
 )
 
 # ============================================================================
@@ -117,19 +118,30 @@ __all__ = [
     # UI
     "Colors",
     "Theme",
+    "color",
     "print_info",
     "print_success",
     "print_warning",
     "print_error",
     "print_header",
+    "print_debug",
     "print_divider",
     "print_step",
+    "print_substep",
+    "print_end_step",
     "print_box",
+    "print_table_row",
     "Spinner",
     "prompt",
+    "prompt_yes_no",
+    "prompt_choice",
     "HAS_RICH",
     "status_bar",
     "StatusBar",
+    "print_banner",
+    "print_banner_simple",
+    "print_simple_banner",
+    "build_welcome_banner",
     # Colors
     "should_use_color",
     "supports_ansi",
@@ -143,18 +155,6 @@ __all__ = [
     "RGB_AVOCADO",
     "RGB_AVOCADO_BRIGHT",
     "RGB_AVOCADO_DIM",
-    # Output
-    "print_substep",
-    "print_end_step",
-    "print_table_row",
-    "print_spinner",
-    "prompt_yes_no",
-    "prompt_choice",
-    # Banner
-    "print_banner",
-    "print_simple_banner",
-    "build_welcome_banner",
-    "print_setup_banner",
     # TUI
     "has_curses",
     "curses_radiolist",
@@ -162,6 +162,8 @@ __all__ = [
     "radio_select",
     "multi_select",
     "flush_stdin",
+    "IS_WINDOWS",
+    "IS_TTY",
     # Commands
     "run_diagnostics",
     "list_sessions",

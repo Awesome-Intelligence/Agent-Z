@@ -23,8 +23,8 @@ def show_logs(lines: int = 50, level: Optional[str] = None, search: Optional[str
         level: Filter by level (debug/info/warning/error)
         search: Search keyword in logs
     """
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_info, print_error
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_info, print_error
     
     print_header("📋 日志查看")
     
@@ -131,7 +131,7 @@ def _filter_logs(lines: List[str], level: Optional[str], search: Optional[str]) 
 
 def _print_log_line(line: str, level: Optional[str]) -> None:
     """打印单条日志"""
-    from cli.components.colors import Colors, color
+    from common.terminal.colors import Colors, color
     
     # 解析日志级别
     level_icons = {
@@ -160,8 +160,8 @@ def _print_log_line(line: str, level: Optional[str]) -> None:
 
 def tail_logs(lines: int = 20) -> None:
     """实时跟踪日志（类似 tail -f）"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_error
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_error
     
     print_header("📋 实时日志跟踪 (Ctrl+C 退出)")
     print()

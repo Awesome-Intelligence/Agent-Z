@@ -123,7 +123,7 @@ def get_file_icon(filename: str) -> str:
     Returns:
         对应的 Emoji 图标
     """
-    _, ext = Path(filename).suffix.lower()
+    ext = Path(filename).suffix.lower()
     return FILE_TYPE_ICONS.get(ext, FILE_TYPE_ICONS[".default"])
 
 

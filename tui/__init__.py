@@ -67,11 +67,16 @@ from tui.widgets import (
     ApprovalDialog,
 )
 
-# 核心
-from tui.core import (
-    keybindings,
-    markdown_renderer,
-    curses_ui,
+# 核心模块
+import tui.core.keybindings as keybindings
+import tui.core.markdown_renderer as markdown_renderer
+from common.terminal.curses_ui import (
+    has_curses,
+    curses_radiolist,
+    curses_checklist,
+    radio_select,
+    multi_select,
+    flush_stdin,
 )
 
 __all__ = [
@@ -114,8 +119,13 @@ __all__ = [
     "MessageList",
     "StreamingText",
     "ApprovalDialog",
-    # 核心
+    # 核心模块
     "keybindings",
     "markdown_renderer",
-    "curses_ui",
+    "has_curses",
+    "curses_radiolist",
+    "curses_checklist",
+    "radio_select",
+    "multi_select",
+    "flush_stdin",
 ]

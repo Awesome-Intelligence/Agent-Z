@@ -20,8 +20,8 @@ def list_cron_jobs(json_output: bool = False) -> None:
     Args:
         json_output: Output as JSON
     """
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_info
     
     print_header("⏰ 定时任务列表")
     
@@ -56,8 +56,8 @@ def list_cron_jobs(json_output: bool = False) -> None:
 
 def check_cron_status() -> None:
     """Check cron service status."""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error, print_info
     
     print_header("📊 定时任务状态")
     

@@ -23,8 +23,8 @@ def uninstall_agent(force: bool = False, backup: bool = True) -> None:
         force: Skip confirmation
         backup: Create backup before uninstall
     """
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error, print_info, print_warning
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error, print_info, print_warning
     
     print_header("🗑️ 卸载 Handsome Agent")
     
@@ -97,8 +97,8 @@ def uninstall_agent(force: bool = False, backup: bool = True) -> None:
 
 def _create_backup(config_dir: Path) -> Optional[Path]:
     """创建备份"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_info, print_error
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_info, print_error
     
     print_info("正在创建备份...")
     
@@ -135,8 +135,8 @@ def _create_backup(config_dir: Path) -> Optional[Path]:
 
 def restore_from_backup(backup_path: Optional[Path] = None) -> None:
     """从备份恢复"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error, print_info
     
     print_header("♻️ 从备份恢复")
     
@@ -181,8 +181,8 @@ def restore_from_backup(backup_path: Optional[Path] = None) -> None:
 
 def list_backups() -> None:
     """列出可用的备份"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_info
     
     print_header("📦 可用备份")
     
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     if args.action == "backup":
-        from cli.components.ui import print_info
+        from common.terminal.ui import print_info
         print_info("创建备份...")
         # 备份功能已整合到卸载中
     elif args.action == "restore":

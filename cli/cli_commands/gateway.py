@@ -73,8 +73,8 @@ def _is_process_running(pid: int) -> bool:
 
 def start_gateway() -> None:
     """启动 Gateway 服务"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error, print_info
     
     print_header("🚀 启动 Gateway")
     
@@ -146,8 +146,8 @@ def start_gateway() -> None:
 
 def stop_gateway() -> None:
     """停止 Gateway 服务"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error, print_info
     
     print_header("🛑 停止 Gateway")
     
@@ -192,8 +192,8 @@ def stop_gateway() -> None:
 
 def check_gateway_status() -> None:
     """查看 Gateway 状态"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error, print_info
     
     print_header("📊 Gateway 状态")
     

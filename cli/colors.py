@@ -9,7 +9,7 @@ Colors Module - 重新导出自 cli.components.colors
 """
 
 # 重新导出自新位置
-from cli.components.colors import (
+from common.terminal.colors import (
     Colors,
     Theme,
     should_use_color,

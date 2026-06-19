@@ -9,7 +9,7 @@ CLI Output Module - 重新导出自 cli.components.output
 """
 
 # 重新导出自新位置
-from cli.components.output import (
+from common.terminal.output import (
     Colors,
     Theme,
     should_use_color,

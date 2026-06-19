@@ -128,8 +128,8 @@ def get_auth_manager() -> AuthManager:
 
 def add_credential(provider: str, api_key: str) -> bool:
     """添加 API Key"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error
     
     print_header("🔐 添加认证")
     
@@ -145,8 +145,8 @@ def add_credential(provider: str, api_key: str) -> bool:
 
 def list_credentials() -> None:
     """列出所有认证"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header
     
     print_header("🔐 认证列表")
     
@@ -180,8 +180,8 @@ def list_credentials() -> None:
 
 def delete_credential(provider: str) -> bool:
     """删除认证"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error
     
     print_header("🗑️ 删除认证")
     
@@ -197,8 +197,8 @@ def delete_credential(provider: str) -> bool:
 
 def test_connection(provider: str) -> bool:
     """测试连接"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error
     
     print_header(f"🔍 测试连接: {provider}")
     

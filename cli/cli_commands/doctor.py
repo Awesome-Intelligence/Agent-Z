@@ -23,8 +23,8 @@ def run_diagnostics(verbose: bool = False) -> bool:
     Returns:
         True if all checks pass, False otherwise
     """
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_info, print_success, print_error
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_info, print_success, print_error
     
     print_header("🔍 系统诊断")
     print()

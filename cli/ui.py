@@ -9,7 +9,7 @@ UI Module - 重新导出自 cli.components.ui
 """
 
 # 重新导出自新位置
-from cli.components.ui import (
+from common.terminal.ui import (
     Colors,
     Theme,
     should_use_color,

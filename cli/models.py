@@ -222,8 +222,8 @@ def list_models(provider: Optional[str] = None, json_output: bool = False) -> No
         provider: Filter by provider
         json_output: Output as JSON
     """
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header
     
     print_header("🤖 模型目录")
     
@@ -282,8 +282,8 @@ def get_model_info(model_id: str) -> None:
     Args:
         model_id: Model ID
     """
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_error
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_error
     
     print_header(f"🤖 Model: {model_id}")
     
@@ -331,8 +331,8 @@ def compare_models(model1_id: str, model2_id: str) -> None:
         model1_id: First model ID
         model2_id: Second model ID
     """
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_error
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_error
     
     print_header(f"📊 模型对比: {model1_id} vs {model2_id}")
     

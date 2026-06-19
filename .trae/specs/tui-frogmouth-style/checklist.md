@@ -107,3 +107,57 @@
 - [x] 代码风格保持一致
 - [x] 注释和文档更新
 - [x] 侧边栏重构代码质量检查通过
+
+## 实现文件清单
+
+### 核心实现文件
+
+| 文件路径 | 功能说明 | 状态 |
+|---------|---------|------|
+| `cli/tui/theming/colors.py` | 半透明颜色系统 | ✅ |
+| `cli/tui/theming/icons.py` | 图标系统 | ✅ |
+| `cli/tui/theming/css/__init__.py` | CSS 模块加载器 | ✅ |
+| `cli/tui/theming/css/base.css` | 基础样式和设计令牌 | ✅ |
+| `cli/tui/theming/css/layout.css` | 布局规则 | ✅ |
+| `cli/tui/theming/css/components.css` | 组件样式 | ✅ |
+| `cli/tui/theming/css/animations.css` | 动画定义 | ✅ |
+| `cli/tui/sidebar.py` | 侧边栏 TabbedContent 实现 | ✅ |
+
+### 已验证的实现细节
+
+1. **半透明颜色系统** (`colors.py`):
+   - `TRANSPARENCY_LEVELS` 字典定义完成（xs=0.05, sm=0.10, md=0.15, lg=0.25, xl=0.50）
+   - `transparent()` 函数支持 hex 到 rgba 转换
+   - 状态颜色常量定义完成
+
+2. **图标系统** (`icons.py`):
+   - `MESSAGE_ICONS` 定义 7 种消息类型图标
+   - `MESSAGE_COLORS` 定义对应颜色
+   - `FILE_TYPE_ICONS` 定义 60+ 文件类型图标
+   - `TASK_STATUS_ICONS` 定义任务状态图标
+   - `LOG_LEVEL_ICONS` 定义日志级别图标
+   - `AGENT_STATUS_ICONS` 定义 Agent 状态图标
+   - `PANEL_ICONS` 定义面板图标
+
+3. **CSS 模块化** (`css/`):
+   - `get_stylesheets()` 返回 4 个 CSS 文件路径
+   - `get_theme_css()` 支持主题加载
+   - base.css 定义完整的设计令牌系统
+   - components.css 定义焦点样式（`border: heavy $accent`）
+
+4. **侧边栏实现** (`sidebar.py`):
+   - `SidebarPane` 基类继承 `TabPane`
+   - `TasksPane`, `FileTreePane`, `AgentPane`, `LogsPane` 四个面板
+   - `SidebarContainer` 使用 `TabbedContent` + `TabPane`
+   - Tab 键盘导航绑定（ctrl+left, ctrl+right）
+   - `switch_to_panel()` 方法用于面板切换
+
+### 验证通过的功能
+
+- ✅ 半透明颜色生成函数正常工作
+- ✅ 图标系统覆盖消息、文件、任务、日志、Agent 等场景
+- ✅ CSS 模块按正确顺序加载（base → layout → components → animations）
+- ✅ 焦点样式统一使用 `border: heavy $accent` 模式
+- ✅ 侧边栏 Tab 切换功能正常
+- ✅ Tab 键盘导航（ctrl+←/→）功能正常
+- ✅ 主题 CSS 文件可正确加载

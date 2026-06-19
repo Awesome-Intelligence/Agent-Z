@@ -713,8 +713,8 @@ def run_textual_mode(args: argparse.Namespace, agent: Agent, model_name: str) ->
     Returns:
         Exit code
     """
-    from cli.tui import (
-        run_textual_app, 
+    from tui import (
+        run_textual_app,
         TEXTUAL_AVAILABLE,
         get_textual_import_error,
         get_textual_install_hint,

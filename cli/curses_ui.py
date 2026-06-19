@@ -9,7 +9,7 @@ Curses UI Module - 重新导出自 tui.core.curses_ui
 """
 
 # 重新导出自新位置
-from tui.core.curses_ui import (
+from common.terminal.curses_ui import (
     flush_stdin,
     has_curses,
     curses_radiolist,

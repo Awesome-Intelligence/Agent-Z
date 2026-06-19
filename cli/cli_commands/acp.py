@@ -61,8 +61,8 @@ def _is_process_running(pid: int) -> bool:
 
 def start_acp_server() -> None:
     """启动 ACP 服务器"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error, print_info
     
     print_header("🚀 启动 ACP 服务器")
     
@@ -120,8 +120,8 @@ def start_acp_server() -> None:
 
 def stop_acp_server() -> None:
     """停止 ACP 服务器"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error, print_info
     
     print_header("🛑 停止 ACP 服务器")
     
@@ -163,8 +163,8 @@ def stop_acp_server() -> None:
 
 def check_acp_status() -> None:
     """查看 ACP 服务器状态"""
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error, print_info
     
     print_header("📊 ACP 服务器状态")
     

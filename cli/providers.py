@@ -171,8 +171,8 @@ def list_providers(json_output: bool = False) -> None:
     Args:
         json_output: Output as JSON
     """
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_info
     
     print_header("📡 LLM Provider 列表")
     
@@ -224,8 +224,8 @@ def get_provider_info(provider_id: str) -> None:
     Args:
         provider_id: Provider ID (e.g., 'openai')
     """
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_error, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_error, print_info
     
     print_header(f"📡 Provider: {provider_id}")
     
@@ -281,8 +281,8 @@ def check_provider_status(provider_id: Optional[str] = None) -> None:
     Args:
         provider_id: Specific provider to check, or None for all
     """
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_success, print_error
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_success, print_error
     
     print_header("🔍 Provider 状态检查")
     

@@ -1825,8 +1825,8 @@ def create_fallback_app(
     context_length: int | None = None,
     approval_mode: str = "suggest",
 ) -> None:
-    from cli.components.banner import print_simple_banner
-    from cli.components.ui import print_info, print_warning
+    from common.terminal.banner import print_simple_banner
+    from common.terminal.ui import print_info, print_warning
 
     print_simple_banner()
     print_info(f"Model: {model_name}")

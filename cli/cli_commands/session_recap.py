@@ -21,8 +21,8 @@ def generate_session_recap(session_id: Optional[str] = None, format: str = "mark
         session_id: Session ID to recap (default: current/last)
         format: Output format (markdown/text/json)
     """
-    from cli.components.colors import Colors, color
-    from cli.components.ui import print_header, print_error, print_info
+    from common.terminal.colors import Colors, color
+    from common.terminal.ui import print_header, print_error, print_info
     
     print_header("📝 会话摘要")
     
@@ -194,7 +194,7 @@ def _format_duration(duration) -> str:
 
 def _print_markdown_recap(recap: Dict) -> None:
     """打印 Markdown 格式摘要"""
-    from cli.components.colors import Colors, color
+    from common.terminal.colors import Colors, color
     
     print()
     print(f"# 📝 会话摘要")
@@ -241,7 +241,7 @@ def _print_markdown_recap(recap: Dict) -> None:
 
 def _print_text_recap(recap: Dict) -> None:
     """打印纯文本格式摘要"""
-    from cli.components.colors import Colors, color
+    from common.terminal.colors import Colors, color
     
     print()
     print(color("会话摘要", Colors.AVOCADO_BRIGHT))

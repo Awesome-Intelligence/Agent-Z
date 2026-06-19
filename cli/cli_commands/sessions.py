@@ -21,7 +21,7 @@ def list_sessions(json_output: bool = False) -> None:
         json_output: Output as JSON
     """
     from agent.session import session_manager
-    from cli.components.colors import Colors, color
+    from common.terminal.colors import Colors, color
     
     sessions = session_manager.list_sessions()
     
@@ -67,7 +67,7 @@ def browse_sessions(tui: bool = False) -> Optional[str]:
         Selected session ID or None
     """
     from agent.session import session_manager
-    from cli.components.colors import Colors, color
+    from common.terminal.colors import Colors, color
     
     sessions = session_manager.list_sessions()
     
@@ -78,7 +78,7 @@ def browse_sessions(tui: bool = False) -> Optional[str]:
     if tui:
         # Try to use TUI picker
         try:
-            from tui.core.curses_ui import curses_radiolist
+            from common.terminal.curses_ui import curses_radiolist
             index = curses_radiolist(
                 question="Select a session:",
                 choices=[(s[:50], s) for s in sessions],
