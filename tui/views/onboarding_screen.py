@@ -111,8 +111,8 @@ OnboardingScreen {
     width: 80;
     height: auto;
     max-height: 90%;
-    background: $avocado_dark;
-    border: solid $avocado_primary;
+    background: """ + AVOCADO_DARK + """;
+    border: solid """ + AVOCADO_PRIMARY + """;
     padding: 2 3;
 }
 
@@ -133,14 +133,14 @@ OnboardingScreen {
     width: 100%;
     content-align: center middle;
     text-style: bold;
-    color: $avocado_bright;
+    color: """ + AVOCADO_BRIGHT + """;
 }
 
 #step-description {
     height: auto;
     width: 100%;
     content-align: center middle;
-    color: $white;
+    color: """ + WHITE + """;
     margin-bottom: 1;
 }
 
@@ -159,38 +159,38 @@ OnboardingScreen {
 .provider-item {
     height: 3;
     width: 100%;
-    background: $avocado_dim;
-    border: solid $avocado_primary;
+    background: """ + AVOCADO_DIM + """;
+    border: solid """ + AVOCADO_PRIMARY + """;
     margin: 0 0 1 0;
     padding: 0 1;
 }
 
 .provider-item:hover {
-    background: $avocado_primary;
+    background: """ + AVOCADO_PRIMARY + """;
 }
 
 .provider-item.selected {
-    background: $avocado_primary;
-    border: solid $avocado_bright;
+    background: """ + AVOCADO_PRIMARY + """;
+    border: solid """ + AVOCADO_BRIGHT + """;
 }
 
 .provider-name {
-    color: $white;
+    color: """ + WHITE + """;
     text-style: bold;
 }
 
 .provider-models {
-    color: $avocado_dim;
+    color: """ + AVOCADO_DIM + """;
 }
 
 #api-key-input {
     width: 100%;
-    border: solid $avocado_primary;
+    border: solid """ + AVOCADO_PRIMARY + """;
     margin: 1 0;
 }
 
 #api-key-input:focus {
-    border: solid $avocado_bright;
+    border: solid """ + AVOCADO_BRIGHT + """;
 }
 
 .language-options {
@@ -202,19 +202,19 @@ OnboardingScreen {
 .language-item {
     height: 2;
     width: 100%;
-    background: $avocado_dim;
-    border: solid $avocado_primary;
+    background: """ + AVOCADO_DIM + """;
+    border: solid """ + AVOCADO_PRIMARY + """;
     margin: 0 0 1 0;
     padding: 0 1;
 }
 
 .language-item:hover {
-    background: $avocado_primary;
+    background: """ + AVOCADO_PRIMARY + """;
 }
 
 .language-item.selected {
-    background: $avocado_primary;
-    border: solid $avocado_bright;
+    background: """ + AVOCADO_PRIMARY + """;
+    border: solid """ + AVOCADO_BRIGHT + """;
 }
 
 .directory-info {
@@ -224,7 +224,7 @@ OnboardingScreen {
 }
 
 .directory-path {
-    color: $avocado_bright;
+    color: """ + AVOCADO_BRIGHT + """;
 }
 
 #step-actions {
@@ -263,7 +263,7 @@ OnboardingScreen {
     height: auto;
     width: 100%;
     content-align: center middle;
-    color: $avocado_bright;
+    color: """ + AVOCADO_BRIGHT + """;
 }
 
 RadioSet {
@@ -411,13 +411,13 @@ class OnboardingScreen(Container):
             f"[bold {AVOCADO_BRIGHT}]╔══════════════════════════════════════════╗[/]",
         ))
         container.mount(Static(
-            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold {AVOCADO_BRIGHT}]👋 {i18n.t('onboarding.welcome.title', 'Welcome to Handsome Agent')}[/]                [bold {AVOCADO_BRIGHT}]║[/]"
+            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold {AVOCADO_BRIGHT}]👋 {i18n.t('onboarding.welcome.title')}[/]                [bold {AVOCADO_BRIGHT}]║[/]"
         ))
         container.mount(Static(
             f"[bold {AVOCADO_BRIGHT}]╠══════════════════════════════════════════╣[/]"
         ))
         container.mount(Static(
-            f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.welcome.description', 'Let us set up your AI assistant')}[/]    [bold {AVOCADO_BRIGHT}]║[/]"
+            f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.welcome.description')}[/]    [bold {AVOCADO_BRIGHT}]║[/]"
         ))
         container.mount(Static(
             f"[bold {AVOCADO_BRIGHT}]╚══════════════════════════════════════════╝[/]"
@@ -425,7 +425,7 @@ class OnboardingScreen(Container):
         
         # 步骤说明
         container.mount(Static(
-            i18n.t('onboarding.welcome.steps_preview', 'Steps: Provider → API Key → Language → Directory'),
+            i18n.t('onboarding.welcome.steps_preview'),
             id="step-description"
         ))
         
@@ -433,13 +433,13 @@ class OnboardingScreen(Container):
         with Horizontal(id="step-actions"):
             container.mount(Horizontal(
                 Button(
-                    i18n.t('onboarding.button.start', '▶ Start'),
+                    i18n.t('onboarding.button.start'),
                     id="btn-start",
                     variant="primary",
                     classes="button-primary"
                 ),
                 Button(
-                    i18n.t('onboarding.button.skip', 'Skip'),
+                    i18n.t('onboarding.button.skip'),
                     id="btn-skip",
                     classes="button-secondary"
                 ),
@@ -453,14 +453,14 @@ class OnboardingScreen(Container):
             id="step-header"
         ))
         container.mount(Static(
-            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold]{i18n.t('onboarding.provider.title', '🤖 Select LLM Provider')}[/]                     [bold {AVOCADO_BRIGHT}]║[/]",
+            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold]{i18n.t('onboarding.provider.title')}[/]                     [bold {AVOCADO_BRIGHT}]║[/]",
             id="step-title"
         ))
         container.mount(Static(
             f"[bold {AVOCADO_BRIGHT}]╠══════════════════════════════════════════╣[/]"
         ))
         container.mount(Static(
-            f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.provider.description', 'Choose your AI model provider')}[/]                [bold {AVOCADO_BRIGHT}]║[/]"
+            f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.provider.description')}[/]                [bold {AVOCADO_BRIGHT}]║[/]"
         ))
         container.mount(Static(
             f"[bold {AVOCADO_BRIGHT}]╚══════════════════════════════════════════╝[/]"
@@ -489,18 +489,18 @@ class OnboardingScreen(Container):
         with Horizontal(id="step-actions"):
             container.mount(Horizontal(
                 Button(
-                    i18n.t('onboarding.button.next', 'Next →'),
+                    i18n.t('onboarding.button.next'),
                     id="btn-next",
                     variant="primary",
                     classes="button-primary"
                 ),
                 Button(
-                    i18n.t('onboarding.button.back', '← Back'),
+                    i18n.t('onboarding.button.back'),
                     id="btn-back",
                     classes="button-back"
                 ),
                 Button(
-                    i18n.t('onboarding.button.skip', 'Skip'),
+                    i18n.t('onboarding.button.skip'),
                     id="btn-skip-step",
                     classes="button-secondary"
                 ),
@@ -514,7 +514,7 @@ class OnboardingScreen(Container):
             id="step-header"
         ))
         container.mount(Static(
-            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold]{i18n.t('onboarding.api_key.title', '🔑 API Key Configuration')}[/]                  [bold {AVOCADO_BRIGHT}]║[/]"
+            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold]{i18n.t('onboarding.api_key.title')}[/]                  [bold {AVOCADO_BRIGHT}]║[/]"
         ))
         container.mount(Static(
             f"[bold {AVOCADO_BRIGHT}]╠══════════════════════════════════════════╣[/]"
@@ -524,14 +524,14 @@ class OnboardingScreen(Container):
             provider_info = PROVIDERS.get(self.selected_provider, {})
             provider_name = provider_info.get("display_name", self.selected_provider)
             container.mount(Static(
-                f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.api_key.selected_provider', 'Selected provider')}: {provider_name}[/]          [bold {AVOCADO_BRIGHT}]║[/]"
+                f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.api_key.selected_provider')}: {provider_name}[/]          [bold {AVOCADO_BRIGHT}]║[/]"
             ))
             
             # API Key 获取链接
             website = provider_info.get("website", "")
             if website:
                 container.mount(Static(
-                    f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.api_key.get_key', 'Get API key')}: {website}[/]          [bold {AVOCADO_BRIGHT}]║[/]"
+                    f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.api_key.get_key')}: {website}[/]          [bold {AVOCADO_BRIGHT}]║[/]"
                 ))
         
         container.mount(Static(
@@ -541,11 +541,11 @@ class OnboardingScreen(Container):
         # API Key 输入框
         with VerticalScroll(id="step-content"):
             container.mount(Static(
-                i18n.t('onboarding.api_key.input_prompt', 'Enter your API Key:'),
+                i18n.t('onboarding.api_key.input_prompt'),
                 id="api-key-label"
             ))
             container.mount(Input(
-                placeholder=i18n.t('onboarding.api_key.placeholder', 'sk-xxxxxxxxxxxxxxxxxxxxxxxx'),
+                placeholder=i18n.t('onboarding.api_key.placeholder'),
                 id="api-key-input",
                 password=True
             ))
@@ -554,18 +554,18 @@ class OnboardingScreen(Container):
         with Horizontal(id="step-actions"):
             container.mount(Horizontal(
                 Button(
-                    i18n.t('onboarding.button.next', 'Next →'),
+                    i18n.t('onboarding.button.next'),
                     id="btn-next",
                     variant="primary",
                     classes="button-primary"
                 ),
                 Button(
-                    i18n.t('onboarding.button.back', '← Back'),
+                    i18n.t('onboarding.button.back'),
                     id="btn-back",
                     classes="button-back"
                 ),
                 Button(
-                    i18n.t('onboarding.button.skip', 'Skip'),
+                    i18n.t('onboarding.button.skip'),
                     id="btn-skip-step",
                     classes="button-secondary"
                 ),
@@ -579,13 +579,13 @@ class OnboardingScreen(Container):
             id="step-header"
         ))
         container.mount(Static(
-            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold]{i18n.t('onboarding.language.title', '🌐 Select Language')}[/]                        [bold {AVOCADO_BRIGHT}]║[/]"
+            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold]{i18n.t('onboarding.language.title')}[/]                        [bold {AVOCADO_BRIGHT}]║[/]"
         ))
         container.mount(Static(
             f"[bold {AVOCADO_BRIGHT}]╠══════════════════════════════════════════╣[/]"
         ))
         container.mount(Static(
-            f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.language.description', 'Choose your preferred display language')}[/]   [bold {AVOCADO_BRIGHT}]║[/]"
+            f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.language.description')}[/]   [bold {AVOCADO_BRIGHT}]║[/]"
         ))
         container.mount(Static(
             f"[bold {AVOCADO_BRIGHT}]╚══════════════════════════════════════════╝[/]"
@@ -606,13 +606,13 @@ class OnboardingScreen(Container):
         with Horizontal(id="step-actions"):
             container.mount(Horizontal(
                 Button(
-                    i18n.t('onboarding.button.next', 'Next →'),
+                    i18n.t('onboarding.button.next'),
                     id="btn-next",
                     variant="primary",
                     classes="button-primary"
                 ),
                 Button(
-                    i18n.t('onboarding.button.back', '← Back'),
+                    i18n.t('onboarding.button.back'),
                     id="btn-back",
                     classes="button-back"
                 ),
@@ -626,13 +626,13 @@ class OnboardingScreen(Container):
             id="step-header"
         ))
         container.mount(Static(
-            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold]{i18n.t('onboarding.directory.title', '📁 Trust Workspace Directory')}[/]            [bold {AVOCADO_BRIGHT}]║[/]"
+            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold]{i18n.t('onboarding.directory.title')}[/]            [bold {AVOCADO_BRIGHT}]║[/]"
         ))
         container.mount(Static(
             f"[bold {AVOCADO_BRIGHT}]╠══════════════════════════════════════════╣[/]"
         ))
         container.mount(Static(
-            f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.directory.description', 'Set the working directory for Handsome Agent')}[/] [bold {AVOCADO_BRIGHT}]║[/]"
+            f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.directory.description')}[/] [bold {AVOCADO_BRIGHT}]║[/]"
         ))
         container.mount(Static(
             f"[bold {AVOCADO_BRIGHT}]╚══════════════════════════════════════════╝[/]"
@@ -641,7 +641,7 @@ class OnboardingScreen(Container):
         # 目录信息
         with VerticalScroll(id="step-content", classes="directory-info"):
             container.mount(Static(
-                f"[dim]{i18n.t('onboarding.directory.current', 'Current workspace')}:[/]",
+                f"[dim]{i18n.t('onboarding.directory.current')}:[/]",
             ))
             container.mount(Static(
                 f"[bold {AVOCADO_BRIGHT}]{self.trusted_directory}[/]",
@@ -649,20 +649,20 @@ class OnboardingScreen(Container):
             ))
             container.mount(Static(""))
             container.mount(Static(
-                f"[dim]{i18n.t('onboarding.directory.info', 'This directory stores config, sessions, and memory files.')}[/]"
+                f"[dim]{i18n.t('onboarding.directory.info')}[/]"
             ))
         
         # 操作按钮
         with Horizontal(id="step-actions"):
             container.mount(Horizontal(
                 Button(
-                    i18n.t('onboarding.button.finish', '✓ Finish'),
+                    i18n.t('onboarding.button.finish'),
                     id="btn-finish",
                     variant="primary",
                     classes="button-primary"
                 ),
                 Button(
-                    i18n.t('onboarding.button.back', '← Back'),
+                    i18n.t('onboarding.button.back'),
                     id="btn-back",
                     classes="button-back"
                 ),
@@ -675,13 +675,13 @@ class OnboardingScreen(Container):
             f"[bold {AVOCADO_BRIGHT}]╔══════════════════════════════════════════╗[/]",
         ))
         container.mount(Static(
-            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold {AVOCADO_BRIGHT}]✅ {i18n.t('onboarding.complete.title', 'Setup Complete!')}[/]                        [bold {AVOCADO_BRIGHT}]║[/]"
+            f"[bold {AVOCADO_BRIGHT}]║[/]  [bold {AVOCADO_BRIGHT}]✅ {i18n.t('onboarding.complete.title')}[/]                        [bold {AVOCADO_BRIGHT}]║[/]"
         ))
         container.mount(Static(
             f"[bold {AVOCADO_BRIGHT}]╠══════════════════════════════════════════╣[/]"
         ))
         container.mount(Static(
-            f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.complete.message', 'Your Handsome Agent is ready to use!')}[/]          [bold {AVOCADO_BRIGHT}]║[/]"
+            f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.complete.message')}[/]          [bold {AVOCADO_BRIGHT}]║[/]"
         ))
         container.mount(Static(
             f"[bold {AVOCADO_BRIGHT}]╚══════════════════════════════════════════╝[/]"
@@ -696,9 +696,9 @@ class OnboardingScreen(Container):
         # 摘要信息
         summary_items = []
         if self.selected_provider:
-            summary_items.append(f"• {i18n.t('onboarding.complete.provider', 'Provider')}: {self.selected_provider}")
-        summary_items.append(f"• {i18n.t('onboarding.complete.language', 'Language')}: {self.selected_language}")
-        summary_items.append(f"• {i18n.t('onboarding.complete.directory', 'Workspace')}: {self.trusted_directory}")
+            summary_items.append(f"• {i18n.t('onboarding.complete.provider')}: {self.selected_provider}")
+        summary_items.append(f"• {i18n.t('onboarding.complete.language')}: {self.selected_language}")
+        summary_items.append(f"• {i18n.t('onboarding.complete.directory')}: {self.trusted_directory}")
         
         summary_text = "\n".join(summary_items)
         container.mount(Static(
@@ -710,13 +710,13 @@ class OnboardingScreen(Container):
         with Horizontal(id="step-actions"):
             container.mount(Horizontal(
                 Button(
-                    i18n.t('onboarding.button.start_using', '▶ Start Using'),
+                    i18n.t('onboarding.button.start_using'),
                     id="btn-start-using",
                     variant="primary",
                     classes="button-primary"
                 ),
                 Button(
-                    i18n.t('onboarding.button.configure_more', '⚙ Configure More'),
+                    i18n.t('onboarding.button.configure_more'),
                     id="btn-configure",
                     classes="button-secondary"
                 ),

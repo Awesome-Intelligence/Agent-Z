@@ -129,7 +129,7 @@ class SessionItem:
 
 SESSION_PICKER_CSS = """
 SessionPickerScreen {
-    background: $avocado_dark;
+    background: """ + AVOCADO_DARK + """;
 }
 
 #picker-container {
@@ -138,7 +138,7 @@ SessionPickerScreen {
     max-height: 24;
     margin: 1 2;
     background: $surface;
-    border: solid $avocado_primary;
+    border: solid """ + AVOCADO_PRIMARY + """;
     border-title-style: bold;
     padding: 0 1;
 }
@@ -146,11 +146,11 @@ SessionPickerScreen {
 #search-input {
     width: 100%;
     margin: 1 0;
-    border: solid $avocado_dim;
+    border: solid """ + AVOCADO_DIM + """;
 }
 
 #search-input:focus {
-    border: solid $avocado_bright;
+    border: solid """ + AVOCADO_BRIGHT + """;
 }
 
 #session-table {
@@ -164,12 +164,12 @@ SessionPickerScreen {
 }
 
 #session-table .datatable--cursor {
-    background: $avocado_primary;
-    color: $white;
+    background: """ + AVOCADO_PRIMARY + """;
+    color: """ + WHITE + """;
 }
 
 #session-table :highlight_cursor {
-    background: $avocado_dim;
+    background: """ + AVOCADO_DIM + """;
 }
 
 #action-bar {
@@ -186,14 +186,14 @@ SessionPickerScreen {
     width: 100%;
     height: auto;
     padding: 1 0;
-    color: $gray_dim;
+    color: """ + GRAY_DIM + """;
 }
 
 #empty-hint {
     width: 100%;
     height: 5;
     content-align: center middle;
-    color: $gray_dim;
+    color: """ + GRAY_DIM + """;
 }
 """
 
@@ -275,7 +275,7 @@ class SessionPickerScreen(ModalScreen):
             self._sessions = [
                 SessionItem(
                     id=s.id,
-                    title=s.title or self._i18n.t("session.default_title", "新会话"),
+                    title=s.title or self._i18n.t("session.default_title"),
                     created_at=s.created_at.strftime("%Y-%m-%d %H:%M") if s.created_at else "",
                     message_count=s.message_count,
                     model=s.model or "",
@@ -334,14 +334,14 @@ class SessionPickerScreen(ModalScreen):
             组件生成器
         """
         # 标题
-        title = self._i18n.t("tui.session_picker.title", "会话选择器")
+        title = self._i18n.t("tui.session_picker.title")
         yield Static(
             f"[bold {AVOCADO_BRIGHT}]📋 {title}[/]",
             id="picker-title"
         )
         
         # 搜索输入
-        placeholder = self._i18n.t("tui.session_picker.search_hint", "搜索会话...")
+        placeholder = self._i18n.t("tui.session_picker.search_hint")
         yield Input(
             placeholder=placeholder,
             id="search-input"
@@ -351,7 +351,7 @@ class SessionPickerScreen(ModalScreen):
         yield DataTable(id="session-table")
         
         # 空状态提示
-        empty_text = self._i18n.t("tui.session_picker.empty", "暂无会话记录")
+        empty_text = self._i18n.t("tui.session_picker.empty")
         yield Static(
             empty_text,
             id="empty-hint"
@@ -359,7 +359,7 @@ class SessionPickerScreen(ModalScreen):
         
         # 操作栏
         with Horizontal(id="action-bar"):
-            new_text = self._i18n.t("tui.session_picker.new_session", "新建会话")
+            new_text = self._i18n.t("tui.session_picker.new_session")
             yield Button(
                 new_text,
                 id="new-session-button",
@@ -367,11 +367,11 @@ class SessionPickerScreen(ModalScreen):
             )
         
         # 提示栏
-        hint_up = self._i18n.t("tui.session_picker.hint_up", "↑/k")
-        hint_down = self._i18n.t("tui.session_picker.hint_down", "↓/j")
-        hint_enter = self._i18n.t("tui.session_picker.hint_enter", "Enter")
-        hint_esc = self._i18n.t("tui.session_picker.hint_esc", "Esc")
-        hint_delete = self._i18n.t("tui.session_picker.hint_delete", "D")
+        hint_up = self._i18n.t("tui.session_picker.hint_up")
+        hint_down = self._i18n.t("tui.session_picker.hint_down")
+        hint_enter = self._i18n.t("tui.session_picker.hint_enter")
+        hint_esc = self._i18n.t("tui.session_picker.hint_esc")
+        hint_delete = self._i18n.t("tui.session_picker.hint_delete")
         yield Static(
             f"[{GRAY_DIM}]{hint_up} {hint_down} 导航  |  {hint_enter} 选择  |  {hint_delete} 删除  |  {hint_esc} 关闭[/]",
             id="hint-bar"
@@ -512,7 +512,7 @@ class SessionPickerScreen(ModalScreen):
             self._logger.info(f"New session created: {session_id}")
             
             # 发送选择消息
-            title = self._i18n.t("session.default_title", "新会话")
+            title = self._i18n.t("session.default_title")
             self.post_message(self.SessionSelected(self, session_id, title))
             
             # 关闭面板

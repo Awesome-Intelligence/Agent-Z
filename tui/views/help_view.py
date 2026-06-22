@@ -83,7 +83,7 @@ GOLD = "#FFD700"
 
 HELP_VIEW_CSS = """
 HelpScreen {
-    background: $avocado_dark;
+    background: """ + AVOCADO_DARK + """;
 }
 
 #help-container {
@@ -92,7 +92,7 @@ HelpScreen {
     max-height: 80%;
     margin: 2 4;
     background: $surface;
-    border: solid $avocado_primary;
+    border: solid """ + AVOCADO_PRIMARY + """;
     border-title-style: bold;
     padding: 1 2;
 }
@@ -102,7 +102,7 @@ HelpScreen {
     height: auto;
     padding: 1 0;
     text-style: bold;
-    color: $avocado_bright;
+    color: """ + AVOCADO_BRIGHT + """;
 }
 
 #help-content {
@@ -119,7 +119,7 @@ HelpScreen {
 
 .category-title {
     text-style: bold;
-    color: $avocado_primary;
+    color: """ + AVOCADO_PRIMARY + """;
     text-style: bold;
 }
 
@@ -130,19 +130,19 @@ HelpScreen {
 }
 
 .kbinding-key {
-    color: $gold;
+    color: """ + GOLD + """;
     text-style: bold;
 }
 
 .kbinding-desc {
-    color: $white;
+    color: """ + WHITE + """;
 }
 
 #help-footer {
     width: 100%;
     height: auto;
     padding: 1 0;
-    color: $gray_dim;
+    color: """ + GRAY_DIM + """;
 }
 """
 
@@ -215,7 +215,7 @@ class HelpScreen(ModalScreen):
         i18n = get_i18n()
         
         # 标题
-        title = i18n.t("tui.help.title", "键盘快捷键")
+        title = i18n.t("tui.help.title")
         yield Static(
             f"[bold {AVOCADO_BRIGHT}]⌨ {title}[/]",
             id="help-title"
@@ -226,7 +226,7 @@ class HelpScreen(ModalScreen):
             yield Static(self._build_help_content(), id="help-body")
         
         # 底部提示
-        hint = i18n.t("tui.help.hint", "按 Esc 或 q 关闭")
+        hint = i18n.t("tui.help.hint")
         yield Static(
             f"[{GRAY_DIM}]{hint}[/]",
             id="help-footer"
@@ -247,11 +247,11 @@ class HelpScreen(ModalScreen):
         
         # 分类显示快捷键
         categories = [
-            ("navigation", i18n.t("tui.help.category.navigation", "导航")),
-            ("tab", i18n.t("tui.help.category.tab", "标签页")),
-            ("command", i18n.t("tui.help.category.command", "命令")),
-            ("help", i18n.t("tui.help.category.help", "帮助")),
-            ("session", i18n.t("tui.help.category.session", "会话")),
+            ("navigation", i18n.t("tui.help.category.navigation")),
+            ("tab", i18n.t("tui.help.category.tab")),
+            ("command", i18n.t("tui.help.category.command")),
+            ("help", i18n.t("tui.help.category.help")),
+            ("session", i18n.t("tui.help.category.session")),
         ]
         
         default_bindings = self._get_default_bindings()
@@ -269,7 +269,10 @@ class HelpScreen(ModalScreen):
             
             for binding in bindings:
                 key_display = self._format_key(binding.key)
-                desc = i18n.t(f"tui.keybinding.{binding.key}", default=binding.description)
+                desc = i18n.t(f"tui.keybinding.{binding.key}")
+                # Fallback to binding description if key not found
+                if desc == f"tui.keybinding.{binding.key}":
+                    desc = binding.description
                 content_lines.append(
                     f"  [{GOLD}]{key_display:<15}[/{GOLD}]  {desc}"
                 )

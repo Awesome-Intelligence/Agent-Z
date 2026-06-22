@@ -133,7 +133,7 @@ class Command:
 
 COMMAND_PALETTE_CSS = """
 CommandPaletteScreen {
-    background: $avocado_dark;
+    background: """ + PURPLE_DARK + """;
 }
 
 #palette-container {
@@ -142,7 +142,7 @@ CommandPaletteScreen {
     max-height: 20;
     margin: 1 2;
     background: $surface;
-    border: solid $avocado_primary;
+    border: solid """ + PURPLE_PRIMARY + """;
     border-title-style: bold;
     padding: 0 1;
 }
@@ -150,11 +150,11 @@ CommandPaletteScreen {
 #search-input {
     width: 100%;
     margin: 1 0;
-    border: solid $avocado_dim;
+    border: solid """ + PURPLE_DIM + """;
 }
 
 #search-input:focus {
-    border: solid $avocado_bright;
+    border: solid """ + PURPLE_BRIGHT + """;
 }
 
 #command-list {
@@ -170,34 +170,34 @@ CommandPaletteScreen {
 }
 
 .command-item:hover {
-    background: $avocado_dim;
+    background: """ + PURPLE_DIM + """;
 }
 
 .command-item:focus {
-    background: $avocado_primary;
+    background: """ + PURPLE_PRIMARY + """;
 }
 
 .command-name {
     width: 100%;
-    color: $avocado_bright;
+    color: """ + PURPLE_BRIGHT + """;
     text-style: bold;
 }
 
 .command-description {
     width: 100%;
-    color: $white;
+    color: """ + WHITE + """;
 }
 
 .command-shortcut {
     width: 100%;
-    color: $gold;
+    color: """ + GOLD + """;
 }
 
 #hint-bar {
     width: 100%;
     height: auto;
     padding: 1 0;
-    color: $gray_dim;
+    color: """ + GRAY_DIM + """;
 }
 """
 
@@ -261,8 +261,8 @@ class CommandPaletteScreen(ModalScreen):
         return [
             Command(
                 id="new_tab",
-                name=i18n.t("tui.command.new_tab", "新建标签"),
-                description=i18n.t("tui.command.new_tab_desc", "创建新的聊天标签页"),
+                name=i18n.t("tui.command.new_tab"),
+                description=i18n.t("tui.command.new_tab_desc"),
                 shortcut="Ctrl+T",
                 action=lambda: self.app.post_message(self.CommandExecuted(
                     self, Command("", "", "", None)
@@ -271,8 +271,8 @@ class CommandPaletteScreen(ModalScreen):
             ),
             Command(
                 id="close_tab",
-                name=i18n.t("tui.command.close_tab", "关闭标签"),
-                description=i18n.t("tui.command.close_tab_desc", "关闭当前标签页"),
+                name=i18n.t("tui.command.close_tab"),
+                description=i18n.t("tui.command.close_tab_desc"),
                 shortcut="Ctrl+W",
                 action=lambda: self.app.post_message(self.CommandExecuted(
                     self, Command("", "", "", None)
@@ -281,8 +281,8 @@ class CommandPaletteScreen(ModalScreen):
             ),
             Command(
                 id="toggle_theme",
-                name=i18n.t("tui.command.toggle_theme", "切换主题"),
-                description=i18n.t("tui.command.toggle_theme_desc", "在明暗主题之间切换"),
+                name=i18n.t("tui.command.toggle_theme"),
+                description=i18n.t("tui.command.toggle_theme_desc"),
                 shortcut="",
                 action=lambda: self.app.post_message(self.CommandExecuted(
                     self, Command("", "", "", None)
@@ -291,8 +291,8 @@ class CommandPaletteScreen(ModalScreen):
             ),
             Command(
                 id="clear_screen",
-                name=i18n.t("tui.command.clear_screen", "清屏"),
-                description=i18n.t("tui.command.clear_screen_desc", "清空当前聊天记录"),
+                name=i18n.t("tui.command.clear_screen"),
+                description=i18n.t("tui.command.clear_screen_desc"),
                 shortcut="Ctrl+L",
                 action=lambda: self.app.post_message(self.CommandExecuted(
                     self, Command("", "", "", None)
@@ -301,8 +301,8 @@ class CommandPaletteScreen(ModalScreen):
             ),
             Command(
                 id="show_help",
-                name=i18n.t("tui.command.show_help", "查看帮助"),
-                description=i18n.t("tui.command.show_help_desc", "显示快捷键帮助面板"),
+                name=i18n.t("tui.command.show_help"),
+                description=i18n.t("tui.command.show_help_desc"),
                 shortcut="F1",
                 action=lambda: self.app.post_message(self.CommandExecuted(
                     self, Command("", "", "", None)
@@ -311,8 +311,8 @@ class CommandPaletteScreen(ModalScreen):
             ),
             Command(
                 id="quit",
-                name=i18n.t("tui.command.quit", "退出应用"),
-                description=i18n.t("tui.command.quit_desc", "退出 Handsome Agent"),
+                name=i18n.t("tui.command.quit"),
+                description=i18n.t("tui.command.quit_desc"),
                 shortcut="Ctrl+Q",
                 action=lambda: self.app.post_message(self.CommandExecuted(
                     self, Command("", "", "", None)
@@ -321,8 +321,8 @@ class CommandPaletteScreen(ModalScreen):
             ),
             Command(
                 id="settings",
-                name=i18n.t("tui.command.settings", "打开设置"),
-                description=i18n.t("tui.command.settings_desc", "打开设置界面"),
+                name=i18n.t("tui.command.settings"),
+                description=i18n.t("tui.command.settings_desc"),
                 shortcut="Ctrl+,",
                 action=lambda: self.app.action_open_settings(),
                 category="system",
@@ -338,14 +338,14 @@ class CommandPaletteScreen(ModalScreen):
         i18n = get_i18n()
         
         # 标题
-        title = i18n.t("tui.command_palette.title", "命令面板")
+        title = i18n.t("tui.command_palette.title")
         yield Static(
             f"[bold {PURPLE_BRIGHT}]⌘ {title}[/]",
             id="palette-title"
         )
         
         # 搜索输入
-        placeholder = i18n.t("tui.command_palette.search_hint", "搜索命令...")
+        placeholder = i18n.t("tui.command_palette.search_hint")
         yield Input(
             placeholder=placeholder,
             id="search-input"
@@ -355,10 +355,10 @@ class CommandPaletteScreen(ModalScreen):
         yield ListView(id="command-list")
         
         # 提示栏
-        hint_up = i18n.t("tui.command_palette.hint_up", "↑/k")
-        hint_down = i18n.t("tui.command_palette.hint_down", "↓/j")
-        hint_enter = i18n.t("tui.command_palette.hint_enter", "Enter")
-        hint_esc = i18n.t("tui.command_palette.hint_esc", "Esc")
+        hint_up = i18n.t("tui.command_palette.hint_up")
+        hint_down = i18n.t("tui.command_palette.hint_down")
+        hint_enter = i18n.t("tui.command_palette.hint_enter")
+        hint_esc = i18n.t("tui.command_palette.hint_esc")
         yield Static(
             f"[{GRAY_DIM}]{hint_up} {hint_down} 导航  |  {hint_enter} 执行  |  {hint_esc} 关闭[/]",
             id="hint-bar"

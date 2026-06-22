@@ -74,8 +74,8 @@ WelcomeScreen {
     width: 80;
     height: auto;
     max-height: 90%;
-    background: $avocado_dark;
-    border: solid $avocado_primary;
+    background: """ + AVOCADO_DARK + """;
+    border: solid """ + AVOCADO_PRIMARY + """;
     padding: 2 3;
 }
 
@@ -90,21 +90,21 @@ WelcomeScreen {
     width: 100%;
     content-align: center middle;
     text-style: bold;
-    color: $avocado_bright;
+    color: """ + AVOCADO_BRIGHT + """;
 }
 
 #welcome-subtitle {
     height: 1;
     width: 100%;
     content-align: center middle;
-    color: $avocado_dim;
+    color: """ + AVOCADO_DIM + """;
 }
 
 #welcome-divider {
     height: 1;
     width: 100%;
     content-align: center middle;
-    color: $avocado_dim;
+    color: """ + AVOCADO_DIM + """;
 }
 
 #welcome-features {
@@ -116,11 +116,11 @@ WelcomeScreen {
 .feature-item {
     height: 1;
     width: 100%;
-    color: $white;
+    color: """ + WHITE + """;
 }
 
 .feature-emoji {
-    color: $avocado_bright;
+    color: """ + AVOCADO_BRIGHT + """;
 }
 
 #welcome-status {
@@ -135,16 +135,16 @@ WelcomeScreen {
 }
 
 .status-label {
-    color: $avocado_dim;
+    color: """ + AVOCADO_DIM + """;
     width: 12;
 }
 
 .status-value {
-    color: $avocado_bright;
+    color: """ + AVOCADO_BRIGHT + """;
 }
 
 .status-warning {
-    color: $avocado_bright;
+    color: """ + AVOCADO_BRIGHT + """;
 }
 
 #welcome-actions {
@@ -173,7 +173,7 @@ WelcomeScreen {
     height: 1;
     width: 100%;
     content-align: center middle;
-    color: $gray_dim;
+    color: #888888;
 }
 """
 
@@ -264,7 +264,7 @@ class WelcomeScreen(Static):
                 f"[bold {AVOCADO_BRIGHT}]╠══════════════════════════════════════════╣[/]"
             )
             yield Static(
-                f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.welcome.subtitle', 'Your AI assistant for everything')}[/]          [bold {AVOCADO_BRIGHT}]║[/]"
+                f"[bold {AVOCADO_BRIGHT}]║[/]  [dim]{i18n.t('onboarding.welcome.subtitle')}[/]          [bold {AVOCADO_BRIGHT}]║[/]"
             )
             
             # 分隔线
@@ -276,10 +276,10 @@ class WelcomeScreen(Static):
             # 特色功能
             with VerticalScroll(id="welcome-features"):
                 features = [
-                    ("🤖", i18n.t('onboarding.welcome.feature.ai', 'AI-powered intent recognition')),
-                    ("💬", i18n.t('onboarding.welcome.feature.chat', 'Natural conversation interface')),
-                    ("🛠️", i18n.t('onboarding.welcome.feature.tools', 'Extensible tool system')),
-                    ("🧠", i18n.t('onboarding.welcome.feature.memory', 'Long-term memory & context')),
+                    ("🤖", i18n.t('onboarding.welcome.feature.ai')),
+                    ("💬", i18n.t('onboarding.welcome.feature.chat')),
+                    ("🛠️", i18n.t('onboarding.welcome.feature.tools')),
+                    ("🧠", i18n.t('onboarding.welcome.feature.memory')),
                 ]
                 
                 for emoji, desc in features:
@@ -296,9 +296,9 @@ class WelcomeScreen(Static):
                 )
                 
                 if self.has_api_key:
-                    status_text = f"[bold {AVOCADO_BRIGHT}]║[/]  [bold {AVOCADO_BRIGHT}]✓[/] {i18n.t('onboarding.welcome.api_key.configured', 'API Key configured')[:35]:<35}         [bold {AVOCADO_BRIGHT}]║[/]"
+                    status_text = f"[bold {AVOCADO_BRIGHT}]║[/]  [bold {AVOCADO_BRIGHT}]✓[/] {i18n.t('onboarding.welcome.api_key.configured')[:35]:<35}         [bold {AVOCADO_BRIGHT}]║[/]"
                 else:
-                    status_text = f"[bold {AVOCADO_BRIGHT}]║[/]  [bold]{i18n.t('onboarding.welcome.api_key.not_configured', '⚠ API Key not configured')[:35]:<35}         [bold {AVOCADO_BRIGHT}]║[/]"
+                    status_text = f"[bold {AVOCADO_BRIGHT}]║[/]  [bold]{i18n.t('onboarding.welcome.api_key.not_configured')[:35]:<35}         [bold {AVOCADO_BRIGHT}]║[/]"
                 
                 yield Static(status_text, classes="status-row")
             
@@ -310,20 +310,20 @@ class WelcomeScreen(Static):
             # 操作按钮
             with Grid(id="welcome-actions"):
                 yield Button(
-                    i18n.t('onboarding.welcome.button.start', '▶ Start'),
+                    i18n.t('onboarding.welcome.button.start'),
                     id="btn-start",
                     variant="primary",
                     classes="button-primary"
                 )
                 yield Button(
-                    i18n.t('onboarding.welcome.button.skip', 'Skip'),
+                    i18n.t('onboarding.welcome.button.skip'),
                     id="btn-skip",
                     classes="button-secondary"
                 )
             
             # 跳过提示
             yield Static(
-                i18n.t('onboarding.welcome.skip_hint', 'You can configure later in Settings'),
+                i18n.t('onboarding.welcome.skip_hint'),
                 id="skip-hint"
             )
     
