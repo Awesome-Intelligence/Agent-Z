@@ -181,6 +181,11 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object):
         self._message_widgets: dict[str, Static | Markdown] = {}
         self._logger = get_access_logger("MessageList", sublayer="tui")
 
+        # 自动滚动优化
+        self._user_scrolled_to_bottom: bool = True  # 用户是否在底部
+        self._scroll_throttle_ms: int = 100  # 滚动节流时间
+        self._last_scroll_time: float = 0  # 上次滚动时间
+
     # ========================================================================
     # 消息添加方法
     # ========================================================================
@@ -451,6 +456,54 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object):
     def scroll_to_bottom(self) -> None:
         self.scroll_end(animate=True)
 
+    def _should_auto_scroll(self) -> bool:
+        """判断是否应该自动滚动到最新消息
+
+        策略:
+        1. auto_scroll 开关必须打开
+        2. 用户必须在底部位置（_user_scrolled_to_bottom 为 True）
+        3. 距离上次滚动时间要超过节流时间
+        """
+        if not self.auto_scroll:
+            return False
+
+        if not self._user_scrolled_to_bottom:
+            return False
+
+        current_time = time.time() * 1000
+        if current_time - self._last_scroll_time < self._scroll_throttle_ms:
+            return False
+
+        return True
+
+    def _do_smart_scroll(self) -> None:
+        """智能滚动 - 只在必要时滚动"""
+        if self._should_auto_scroll():
+            self._last_scroll_time = time.time() * 1000
+            self.scroll_end(animate=False)
+
+    def _check_if_at_bottom(self) -> bool:
+        """检查滚动区域是否在底部附近（用于检测用户是否在底部）"""
+        try:
+            # 获取可滚动区域的尺寸
+            scroll_height = self.scroll_home  # 滚动区域总高度
+            max_scroll = self.max_scroll_y  # 最大滚动偏移
+            current_y = self.scroll_y  # 当前滚动位置
+
+            # 如果最大滚动接近当前滚动位置，说明在底部
+            # 允许 50 像素的误差
+            return (max_scroll - current_y) < 50
+        except Exception:
+            return True  # 默认认为在底部
+
+    def _mark_scrolled_to_bottom(self) -> None:
+        """标记用户已滚动到/接近底部"""
+        self._user_scrolled_to_bottom = True
+
+    def _mark_scrolled_away(self) -> None:
+        """标记用户已离开底部区域"""
+        self._user_scrolled_to_bottom = False
+
     # ========================================================================
     # 内部方法
     # ========================================================================
@@ -547,15 +600,15 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object):
 
         widget.id = f"msg-widget-{msg.id}"
         self._message_widgets[msg.id] = widget
-        
+
         def _do_mount():
             try:
                 self.mount(widget)
-                if self.auto_scroll:
-                    self.scroll_end(animate=False)
+                # 使用智能滚动 - 只在用户位于底部时自动滚动
+                self._do_smart_scroll()
             except Exception as e:
                 self._logger.error(f"Failed to mount widget: {e}")
-        
+
         self.call_later(_do_mount)
 
     def _update_message_widget(self, msg: MessageItem) -> None:
@@ -577,8 +630,8 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object):
         elif isinstance(widget, Markdown):
             pass
 
-        if self.auto_scroll:
-            self.call_later(self.scroll_end, animate=False)
+        # 使用智能滚动 - 只在用户位于底部时自动滚动
+        self.call_later(self._do_smart_scroll)
 
     def _upgrade_to_markdown(self, msg: MessageItem) -> None:
         if msg.id not in self._message_widgets:
@@ -595,15 +648,15 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object):
             new_widget = Markdown(full_content, classes=f"message-{msg.role.value}")
             new_widget.id = f"msg-widget-{msg.id}"
             self._message_widgets[msg.id] = new_widget
-            
+
             def _do_mount():
                 try:
                     self.mount(new_widget)
-                    if self.auto_scroll:
-                        self.scroll_end(animate=False)
+                    # 使用智能滚动 - 只在用户位于底部时自动滚动
+                    self._do_smart_scroll()
                 except Exception as e:
                     self._logger.error(f"Failed to mount markdown widget: {e}")
-            
+
             self.call_later(_do_mount)
 
     def _render_or_update_message(self, msg: MessageItem) -> None:
@@ -618,6 +671,23 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object):
 
     def on_mount(self) -> None:
         self._logger.info("MessageList mounted")
+
+    def on_scroll(self) -> None:
+        """监听滚动事件，检测用户是否在底部"""
+        if self._check_if_at_bottom():
+            self._mark_scrolled_to_bottom()
+        else:
+            self._mark_scrolled_away()
+
+    def on_scroll_to(self, event) -> None:
+        """监听 scroll_to 事件"""
+        self.on_scroll()
+
+    def scroll_to_bottom(self, animate: bool = True) -> None:
+        """手动滚动到底部，同时标记用户在底部"""
+        super().scroll_end(animate=animate)
+        self._user_scrolled_to_bottom = True
+        self._last_scroll_time = time.time() * 1000
 
 
 # ============================================================================
