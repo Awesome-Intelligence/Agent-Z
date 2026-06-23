@@ -591,3 +591,16 @@ onboarding:
     finish: "✓ Finish"
     start_using: "▶ Start Using"
     configure_more: "⚙ Configure More"
+
+# =============================================================================
+# Message Role Labels (TUI)
+# =============================================================================
+
+message:
+  role:
+    user: "Me"
+    assistant: "Assistant"
+    system: "System"
+    tool: "Tool"
+    error: "Error"
+    thinking: "Thinking"

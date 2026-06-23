@@ -571,3 +571,16 @@ onboarding:
     finish: "✓ 完成"
     start_using: "▶ 开始使用"
     configure_more: "⚙ 进一步配置"
+
+# =============================================================================
+# Message Role Labels (TUI)
+# =============================================================================
+
+message:
+  role:
+    user: "我"
+    assistant: "助手"
+    system: "系统"
+    tool: "工具"
+    error: "错误"
+    thinking: "思考"
