@@ -41,6 +41,17 @@ class DeepSeekProvider(BaseProvider):
         self._client: Optional[httpx.AsyncClient] = None
         self.logger = get_llm_logger(self.__class__.__name__)
 
+    def _get_request_body_extra(self, kwargs):
+        """获取额外的请求体参数"""
+        tools = kwargs.get("tools")
+        if tools:
+            return {"tools": tools}
+        return {}
+
+    def _should_handle_function_call(self, message):
+        """检查是否有 tool_calls 或 function_call"""
+        return message.get("tool_calls") or message.get("function_call")
+
     async def _get_client(self) -> httpx.AsyncClient:
         """获取 HTTP 客户端"""
         if self._client is None:
@@ -85,6 +96,7 @@ class DeepSeekProvider(BaseProvider):
             "max_tokens": kwargs.get("max_tokens", self.config.max_tokens),
             "stream": False,
         }
+        request_body.update(self._get_request_body_extra(kwargs))
 
         try:
             client = await self._get_client()
@@ -97,8 +109,26 @@ class DeepSeekProvider(BaseProvider):
             data = response.json()
             latency_ms = (time.time() - start_time) * 1000
 
-            content = data["choices"][0]["message"]["content"]
+            message = data["choices"][0]["message"]
+            content = message.get("content", "")
             usage = data.get("usage", {})
+
+            function_call = self._should_handle_function_call(message)
+            if function_call:
+                self._log_output_content(json.dumps(function_call))
+                self._log_response_debug(message, function_call)
+                self.logger.debug(f"LLM Usage - prompt_tokens: {usage.get('prompt_tokens', 0)}, "
+                                  f"completion_tokens: {usage.get('completion_tokens', 0)}, "
+                                  f"total_tokens: {usage.get('total_tokens', 0)}")
+                self._log_request_completed(latency_ms)
+                return ProviderResponse(
+                    content=json.dumps(function_call),
+                    model=data.get("model", self.config.model),
+                    finish_reason=data["choices"][0].get("finish_reason", "stop"),
+                    usage=usage,
+                    latency_ms=latency_ms,
+                    function_call=function_call[0] if isinstance(function_call, list) else function_call,
+                )
 
             self._log_output_content(content)
             self.logger.debug(f"LLM Usage - prompt_tokens: {usage.get('prompt_tokens', 0)}, "
@@ -108,7 +138,7 @@ class DeepSeekProvider(BaseProvider):
             self._log_request_completed(latency_ms)
 
             return ProviderResponse(
-                content=content,
+                content=content if content is not None else "",
                 model=data.get("model", self.config.model),
                 finish_reason=data["choices"][0].get("finish_reason", "stop"),
                 usage=usage,

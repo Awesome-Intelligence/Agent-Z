@@ -136,10 +136,15 @@ class BaseProvider(ABC):
                     content = ""
                 
                 if role == "system":
-                    # System 消息特殊处理：提取名称（标题）
-                    # 优先使用传入的 system_prompt_meta，否则尝试从消息获取
                     prompt_meta = system_prompt_meta or msg.get("_prompt_meta")
                     preview = self._format_system_prompt_name(content, prompt_meta)
+                elif role == "assistant":
+                    tool_calls = msg.get("tool_calls", [])
+                    if tool_calls:
+                        tool_names = [tc.get("function", {}).get("name", "") for tc in tool_calls]
+                        preview = f"[tool_calls: {', '.join(tool_names)}]"
+                    else:
+                        preview = self._format_message_for_log(role, content)
                 else:
                     preview = self._format_message_for_log(role, content)
                 

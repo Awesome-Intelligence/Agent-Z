@@ -66,13 +66,85 @@ class GeminiProvider(BaseProvider):
                     role = msg.role
                     content = msg.content
 
-                # Gemini 使用 user/model 而不是 user/assistant
                 gemini_role = "user" if role in ["user", "system"] else "model"
-                contents.append({"role": gemini_role, "parts": [{"text": content}]})
+                parts = []
+                if content:
+                    parts.append({"text": content})
 
-        contents.append({"role": "user", "parts": [{"text": prompt}]})
+                tool_calls = msg.get("tool_calls", []) if isinstance(msg, dict) else []
+                for tc in tool_calls:
+                    func = tc.get("function", {})
+                    try:
+                        args = json.loads(func.get("arguments", "{}"))
+                    except (json.JSONDecodeError, TypeError):
+                        args = {}
+                    parts.append({
+                        "functionCall": {
+                            "name": func.get("name", ""),
+                            "args": args,
+                        }
+                    })
+
+                if msg.get("role") == "tool" and isinstance(msg, dict):
+                    tool_name = msg.get("name", "tool_result")
+                    parts.append({
+                        "functionResponse": {
+                            "name": tool_name,
+                            "response": {"result": content},
+                        }
+                    })
+                    gemini_role = "function"
+
+                if parts:
+                    contents.append({"role": gemini_role, "parts": parts})
+
+        if prompt:
+            contents.append({"role": "user", "parts": [{"text": prompt}]})
 
         return {"contents": contents}
+
+    def _convert_tools_to_gemini(self, tools: List[Any]) -> List[Dict[str, Any]]:
+        """将工具列表转换为 Gemini 格式"""
+        from tools.schema_registry import generate_openai_tools_schema
+
+        if not tools:
+            return []
+
+        oai_tools = generate_openai_tools_schema(tools)
+        if not oai_tools:
+            return []
+
+        function_declarations = []
+        for tool in oai_tools:
+            func = tool.get("function", {})
+            function_declarations.append({
+                "name": func.get("name", ""),
+                "description": func.get("description", ""),
+                "parameters": func.get("parameters", {}),
+            })
+
+        return [{"functionDeclarations": function_declarations}]
+
+    def _extract_function_call_from_gemini(self, candidate: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """从 Gemini 响应中提取函数调用"""
+        content = candidate.get("content", {})
+        parts = content.get("parts", [])
+
+        for part in parts:
+            if "functionCall" in part:
+                fc = part["functionCall"]
+                name = fc.get("name", "")
+                args = fc.get("args", {})
+                try:
+                    arguments_str = json.dumps(args, ensure_ascii=False)
+                except (TypeError, ValueError):
+                    arguments_str = str(args)
+                return {
+                    "name": name,
+                    "arguments": arguments_str,
+                }
+
+        return None
 
     async def generate(
         self,
@@ -97,7 +169,12 @@ class GeminiProvider(BaseProvider):
             "topP": kwargs.get("top_p", self.config.top_p),
         }
 
-        # 记录输入内容（DEBUG级别）
+        tools = kwargs.get("tools")
+        if tools:
+            gemini_tools = self._convert_tools_to_gemini(tools)
+            if gemini_tools:
+                body["tools"] = gemini_tools
+
         if self.logger:
             contents = body.get("contents", [])
             self.logger.debug(f"{self.provider_display_name} Input Messages ({len(contents)} messages):")
@@ -120,8 +197,28 @@ class GeminiProvider(BaseProvider):
             data = response.json()
             latency_ms = (time.time() - start_time) * 1000
 
-            content = data["candidates"][0]["content"]["parts"][0]["text"]
+            candidate = data.get("candidates", [{}])[0]
             usage = data.get("usageMetadata", {})
+
+            function_call = self._extract_function_call_from_gemini(candidate)
+            if function_call:
+                self._log_response_debug({"role": "assistant"}, function_call)
+                self._log_request_completed(latency_ms)
+                return ProviderResponse(
+                    content=json.dumps(function_call),
+                    model=self.config.model,
+                    finish_reason=candidate.get("finishReason", "stop"),
+                    usage={
+                        "prompt_tokens": usage.get("promptTokenCount", 0),
+                        "completion_tokens": usage.get("candidatesTokenCount", 0),
+                        "total_tokens": usage.get("totalTokenCount", 0),
+                    },
+                    latency_ms=latency_ms,
+                    function_call=function_call,
+                )
+
+            parts = candidate.get("content", {}).get("parts", [])
+            content = parts[0].get("text", "") if parts else ""
 
             self._log_output_content(content)
             self._log_request_completed(latency_ms)
@@ -129,7 +226,7 @@ class GeminiProvider(BaseProvider):
             return ProviderResponse(
                 content=content,
                 model=self.config.model,
-                finish_reason="stop",
+                finish_reason=candidate.get("finishReason", "stop"),
                 usage={
                     "prompt_tokens": usage.get("promptTokenCount", 0),
                     "completion_tokens": usage.get("candidatesTokenCount", 0),

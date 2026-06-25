@@ -54,6 +54,22 @@ class AzureProvider(BaseProvider):
             await self._client.aclose()
             self._client = None
 
+    def _get_request_body_extra(self, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+        """获取额外的请求体参数"""
+        from tools.schema_registry import generate_openai_tools_schema
+
+        extra = {}
+        tools = kwargs.get("tools")
+        if tools:
+            tools_schema = generate_openai_tools_schema(tools)
+            if tools_schema:
+                extra["tools"] = tools_schema
+        return extra
+
+    def _extract_function_call(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """从响应消息中提取函数调用"""
+        return self._should_handle_function_call(message)
+
     async def generate(
         self,
         prompt: str,
@@ -79,6 +95,7 @@ class AzureProvider(BaseProvider):
             "top_p": kwargs.get("top_p", self.config.top_p),
             "stream": False,
         }
+        request_body.update(self._get_request_body_extra(kwargs))
 
         try:
             client = await self._get_client()
@@ -91,9 +108,23 @@ class AzureProvider(BaseProvider):
             data = response.json()
             latency_ms = (time.time() - start_time) * 1000
 
-            content = data["choices"][0]["message"]["content"]
+            message = data["choices"][0]["message"]
             usage = data.get("usage", {})
 
+            function_call = self._extract_function_call(message)
+            if function_call:
+                self._log_response_debug(message, function_call)
+                self._log_request_completed(latency_ms)
+                return ProviderResponse(
+                    content=json.dumps(function_call),
+                    model=data.get("model", self.config.model),
+                    finish_reason=data["choices"][0].get("finish_reason", "stop"),
+                    usage=usage,
+                    latency_ms=latency_ms,
+                    function_call=function_call,
+                )
+
+            content = message.get("content", "")
             self._log_output_content(content)
             self._log_request_completed(latency_ms)
 

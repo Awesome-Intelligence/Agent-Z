@@ -4,10 +4,12 @@ SiliconFlow Provider 实现
 """
 
 import os
+import httpx
 import json
 import time
-from typing import Optional, List, AsyncIterator
+from typing import Optional, List, Dict, Any, AsyncIterator
 from .base import BaseProvider, ProviderConfig, ProviderResponse, Message, StreamChunk
+from common.logging_manager import get_llm_logger
 from common.config import DEFAULT_LLM_BASE_URLS
 
 
@@ -32,12 +34,49 @@ class SiliconFlowProvider(BaseProvider):
 
     def __init__(self, config: ProviderConfig):
         super().__init__(config)
-        # 优先级: 配置 > 环境变量 > Provider默认URL
         self.base_url = (
             config.base_url
             or os.getenv("SILICONFLOW_BASE_URL")
             or DEFAULT_LLM_BASE_URLS.get("siliconflow")
         )
+        self.api_key = config.api_key
+        self._client: Optional[httpx.AsyncClient] = None
+        self.logger = get_llm_logger(self.__class__.__name__)
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        """获取 HTTP 客户端"""
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                base_url=self.base_url,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                timeout=self.config.timeout,
+            )
+        return self._client
+
+    async def close(self) -> None:
+        """关闭客户端"""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
+
+    def _get_request_body_extra(self, kwargs):
+        """获取额外的请求体参数"""
+        from tools.schema_registry import generate_openai_tools_schema
+
+        extra = {}
+        tools = kwargs.get("tools")
+        if tools:
+            tools_schema = generate_openai_tools_schema(tools)
+            if tools_schema:
+                extra["tools"] = tools_schema
+        return extra
+
+    def _extract_function_call(self, message):
+        """从响应消息中提取函数调用"""
+        return self._should_handle_function_call(message)
 
     async def generate(
         self,
@@ -47,6 +86,10 @@ class SiliconFlowProvider(BaseProvider):
         **kwargs
     ) -> ProviderResponse:
         """生成文本响应"""
+        start_time = time.time()
+
+        self._log_request_started()
+
         system, msg_list = self._build_messages(prompt, messages, system_prompt)
         if system:
             msg_list.insert(0, {"role": "system", "content": system})
@@ -58,9 +101,52 @@ class SiliconFlowProvider(BaseProvider):
             "messages": msg_list,
             "temperature": kwargs.get("temperature", self.config.temperature),
             "max_tokens": kwargs.get("max_tokens", self.config.max_tokens),
+            "stream": False,
         }
+        request_body.update(self._get_request_body_extra(kwargs))
 
-        return await self._make_request(request_body)
+        try:
+            client = await self._get_client()
+            response = await client.post("/chat/completions", json=request_body)
+
+            if response.status_code != 200:
+                self.logger.error(f"SiliconFlow API error - status: {response.status_code}")
+                raise Exception(f"SiliconFlow API error: {response.status_code}")
+
+            data = response.json()
+            latency_ms = (time.time() - start_time) * 1000
+
+            message = data["choices"][0]["message"]
+            usage = data.get("usage", {})
+
+            function_call = self._extract_function_call(message)
+            if function_call:
+                self._log_response_debug(message, function_call)
+                self._log_request_completed(latency_ms)
+                return ProviderResponse(
+                    content=json.dumps(function_call),
+                    model=data.get("model", self.config.model or self.default_model),
+                    finish_reason=data["choices"][0].get("finish_reason", "stop"),
+                    usage=usage,
+                    latency_ms=latency_ms,
+                    function_call=function_call,
+                )
+
+            content = message.get("content", "")
+            self._log_output_content(content)
+            self._log_request_completed(latency_ms)
+
+            return ProviderResponse(
+                content=content,
+                model=data.get("model", self.config.model or self.default_model),
+                finish_reason=data["choices"][0].get("finish_reason", "stop"),
+                usage=usage,
+                latency_ms=latency_ms,
+            )
+
+        except httpx.HTTPError as e:
+            self.logger.error(f"SiliconFlow request failed - {e}")
+            raise Exception(f"Failed to call SiliconFlow API: {e}")
 
     async def generate_stream(
         self,
