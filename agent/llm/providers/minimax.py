@@ -95,12 +95,12 @@ class MiniMaxProvider(BaseProvider):
         start_time = time.time()
         self._log_request_started()
 
-        # 从原始 messages 中提取 _prompt_meta（在 _build_messages 处理之前）
-        system_prompt_meta = self._extract_system_prompt_meta(messages) if messages else None
-
-        system, msg_list = self._build_messages(prompt, messages, system_prompt)
+        system, msg_list, prompt_meta = self._build_messages(prompt, messages, system_prompt)
         if system:
-            msg_list.insert(0, {"role": "system", "content": system})
+            system_msg = {"role": "system", "content": system}
+            if prompt_meta:
+                system_msg["_prompt_meta"] = prompt_meta
+            msg_list.insert(0, system_msg)
 
         request_body = {
             "model": self.config.model or self.default_model,
@@ -113,7 +113,7 @@ class MiniMaxProvider(BaseProvider):
         try:
             client = await self._get_client()
             self._log_request_body(request_body)
-            self._log_input_messages(msg_list, system_prompt_meta)
+            self._log_input_messages(msg_list, prompt_meta)
             response = await client.post("/chat/completions", json=request_body)
 
             # 使用基类方法处理错误，确保 HTTPStatusError 携带 response
@@ -176,7 +176,7 @@ class MiniMaxProvider(BaseProvider):
         start_time = time.time()
         self._log_request_started()
 
-        system, msg_list = self._build_messages(prompt, messages, system_prompt)
+        system, msg_list, _ = self._build_messages(prompt, messages, system_prompt)
         if system:
             msg_list.insert(0, {"role": "system", "content": system})
 

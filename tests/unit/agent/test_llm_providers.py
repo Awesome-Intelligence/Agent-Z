@@ -206,7 +206,7 @@ class TestBaseProvider:
 
         provider = OpenAIProvider(ProviderConfig(api_key="test"))
 
-        system, msg_list = provider._build_messages(
+        system, msg_list, prompt_meta = provider._build_messages(
             prompt="Test prompt",
             messages=[Message(role="user", content="Previous")],
             system_prompt="You are helpful"
@@ -218,6 +218,8 @@ class TestBaseProvider:
         assert msg_list[0]["content"] == "Previous"
         assert msg_list[1]["role"] == "user"
         assert msg_list[1]["content"] == "Test prompt"
+        # prompt_meta 应为 None，因为传入的是简单字符串 system_prompt，不是 ContextBuilder 生成的
+        assert prompt_meta is None
 
     def test_estimate_tokens(self):
         """测试 token 估算"""

@@ -98,8 +98,12 @@ class ContextBuilder:
         include_tools: bool = True,
         user_message: str = "",
         model: str = None,
-        memory_context: str = "",
-        user_profile: str = "",
+        memory_snapshot: str = "",
+        context_files: str = "",
+        context_sources: list = None,
+        # 向后兼容别名
+        memory_context: str = None,
+        user_profile: str = None,
     ) -> List[Dict[str, Any]]:
         """
         构建消息列表格式的上下文（Hermes 风格）
@@ -122,21 +126,28 @@ class ContextBuilder:
             include_tools: 是否包含工具列表
             user_message: 用户消息
             model: 模型名称（用于注入模型特定指导）
-            memory_context: 预取的记忆上下文（由 ContextManager 提供）
-            user_profile: 用户画像内容（由调用方提供）
+            memory_snapshot: 记忆快照（USER.md + MEMORY.md，由 ContextManager 提供）
+            context_files: 上下文文件内容（AGENTS.md、项目规则等）
+            context_sources: 上下文文件来源列表（用于日志显示）
+            memory_context: 向后兼容，等同于 memory_snapshot
+            user_profile: 向后兼容，等同于 memory_snapshot
 
         Returns:
             标准消息列表
         """
-        # 🧠 Decision - 💾 Context - 开始构建消息列表
-        self.logger.info("Context Assembly: Building message list format (three-layer)")
-
-        # 1. 使用 build_parts() 获取三层结构（传入预取的记忆上下文和用户画像）
+        # 向后兼容：旧参数名
+        if memory_context is not None and not memory_snapshot:
+            memory_snapshot = memory_context
+        if user_profile is not None and not memory_snapshot:
+            memory_snapshot = user_profile
+        
+        # 1. 使用 build_parts() 获取三层结构（传入记忆快照和上下文文件）
         parts = self.build_parts(
             user_message=user_message,
             model=model,
-            memory_context=memory_context,
-            user_profile=user_profile,
+            memory_snapshot=memory_snapshot,
+            context_files=context_files,
+            context_sources=context_sources,
         )
 
         # 2. 合并为 system 消息（与 Hermes 一致）
@@ -158,6 +169,8 @@ class ContextBuilder:
             "context_chars": len(parts.get("context", "")),
             "volatile_chars": len(parts.get("volatile", "")),
             "stable_keys": parts.get("stable_keys", []),
+            "volatile_sources": parts.get("volatile_sources", []),
+            "context_sources": parts.get("context_sources", []),
         }
         messages.append(system_msg)
 
@@ -170,13 +183,30 @@ class ContextBuilder:
         if user_message:
             messages.append({"role": "user", "content": user_message})
 
-        # 🧠 Decision - 💾 Context - 消息列表构建完成
-        self.logger.debug(
-            f"Context Assembly: Message list built with {len(messages)} messages, "
-            f"stable={len(parts.get('stable', ''))} chars, "
-            f"context={len(parts.get('context', ''))} chars, "
-            f"volatile={len(parts.get('volatile', ''))} chars, "
-            f"tools_count={len(self.tools)}"
+        # 🧠 Decision - 💾 Context - 消息列表构建完成（摘要日志）
+        # 计算各层消息数
+        layer1_count = 1  # system 消息
+        layer2_count = len(conversation_history) if conversation_history else 0
+        layer3_count = 1 if user_message else 0
+        
+        # Token 估算（简单方法：总字符数 / 3，中文约 / 2）
+        total_chars = sum(len(m.get("content", "") or "") for m in messages)
+        # 中英混合估算：假设平均每 token 约 3 字符
+        estimated_tokens = int(total_chars / 3)
+        # 格式化 token 数显示
+        if estimated_tokens >= 1000:
+            tokens_display = f"≈{estimated_tokens/1000:.1f}k tokens"
+        else:
+            tokens_display = f"≈{estimated_tokens} tokens"
+        
+        # 工具数
+        tools_count = len(self.tools)
+        
+        # 输出摘要日志
+        self.logger.info(
+            f"📊 Context built: {len(messages)} msgs ({tokens_display}) | "
+            f"tools={tools_count} | "
+            f"layer1=system({layer1_count}) layer2=history({layer2_count}) layer3=current({layer3_count})"
         )
 
         return messages
@@ -304,30 +334,45 @@ class ContextBuilder:
         self,
         user_message: str = "",
         model: str = None,
-        memory_context: str = "",
-        user_profile: str = "",
+        memory_snapshot: str = "",
+        user_profile_snapshot: str = "",
+        context_files: str = "",
+        context_sources: list = None,
+        # 向后兼容别名
+        memory_context: str = None,
+        user_profile: str = None,
     ) -> Dict[str, str]:
         """
         构建系统提示词的三层结构（Hermes 风格）
         
-        三层架构：
-        - stable: Agent 身份 + 能力 + 工具指导 + 技能索引 + 模型特定指导（会话级缓存）
-        - context: 用户画像 + 项目上下文（配置相关）
-        - volatile: 记忆预取 + 时间戳（每次变化）
+        三层架构（参照 Hermes system_prompt.py）：
+        - stable:   Agent 身份 + 能力 + 工具指导 + 技能索引 + 模型特定指导（会话级缓存）
+        - context:  上下文文件（AGENTS.md、项目规则等）+ 调用方系统消息（工作目录级缓存）
+        - volatile: 记忆快照（USER.md + MEMORY.md）+ 时间戳（每次变化，永不缓存）
         
         注意：
-        - 记忆预取应在协调层（ContextManager）完成，这里只接收预取结果
-        - 用户画像由调用方通过 user_profile 参数传入
+        - 记忆快照由 ContextManager（协调层）提供，构建层只负责组装
+        - 用户画像（USER.md）属于 volatile 层，与 MEMORY.md 一起作为记忆快照传入
+        - 上下文文件属于 context 层，由调用方通过 context_files 参数传入
         
         Args:
             user_message: 用户消息
             model: 模型名称（用于模型特定指导）
-            memory_context: 预取的记忆上下文（由 ContextManager 提供）
-            user_profile: 用户画像内容（由调用方提供）
+            memory_snapshot: 记忆快照（USER.md + MEMORY.md，由 ContextManager 提供）
+            user_profile_snapshot: （已弃用，保留向后兼容，实际使用 memory_snapshot）
+            context_files: 上下文文件内容（AGENTS.md、项目规则等）
+            context_sources: 上下文文件来源列表（用于日志显示）
             
         Returns:
             Dict[str, str]: 包含 stable/context/volatile 三层内容的字典
         """
+        # 向后兼容：旧参数名 memory_context → memory_snapshot
+        if memory_context is not None and not memory_snapshot:
+            memory_snapshot = memory_context
+        # 向后兼容：旧参数名 user_profile → user_profile_snapshot
+        if user_profile is not None and not user_profile_snapshot:
+            user_profile_snapshot = user_profile
+        
         # 🧠 Decision - 💾 Context - 开始构建三层架构
         self.logger.debug("Context Assembly: Building three-layer architecture")
 
@@ -386,25 +431,35 @@ class ContextBuilder:
         self._stable_cache[cache_key] = stable_content
         
         # ─────────────────────────────────────────────────────────
-        # Context Layer - 配置相关，永不缓存
+        # Context Layer - 工作目录级缓存
+        # 包含：AGENTS.md、项目规则、上下文文件等
         # ─────────────────────────────────────────────────────────
-        context_content = self._get_user_profile(user_profile)
+        context_parts = []
+        if context_files and context_files.strip():
+            context_parts.append(context_files)
+        
+        context_content = "\n\n".join(p for p in context_parts if p and p.strip())
         
         # ─────────────────────────────────────────────────────────
         # Volatile Layer - 每次变化，永不缓存
+        # 包含：记忆快照（USER.md + MEMORY.md）+ 时间戳
+        # 参照 Hermes：volatile 层放记忆和时间戳
         # ─────────────────────────────────────────────────────────
         volatile_parts = []
         
-        # 记忆上下文由 ContextManager 在协调层预取后传入
-        # 构建层只负责组装，不再进行预取（职责分离）
-        if memory_context:
-            volatile_parts.append(memory_context)
+        # 记忆快照：USER.md + MEMORY.md（由 ContextManager 在协调层提供）
+        if memory_snapshot and memory_snapshot.strip():
+            volatile_parts.append(memory_snapshot)
+        
+        # 向后兼容：如果 memory_snapshot 为空但 user_profile_snapshot 有值，使用后者
+        elif user_profile_snapshot and user_profile_snapshot.strip():
+            volatile_parts.append(user_profile_snapshot)
         
         # 时间戳（使用日精度，与 Hermes 一致，避免 stable 层缓存失效）
         timestamp = time.strftime("%Y-%m-%d")
         volatile_parts.append(f"Conversation started: {timestamp}")
         
-        volatile_content = "\n\n".join(volatile_parts)
+        volatile_content = "\n\n".join(p for p in volatile_parts if p and p.strip())
         
         # 🧠 Decision - 💾 Context - 三层架构构建完成
         self.logger.debug(
@@ -419,6 +474,8 @@ class ContextBuilder:
             "context": context_content,
             "volatile": volatile_content,
             "stable_keys": stable_keys,
+            "volatile_sources": ["USER.md", "MEMORY.md"] if memory_snapshot else [],
+            "context_sources": context_sources or [],
         }
 
 

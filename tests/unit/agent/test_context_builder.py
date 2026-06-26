@@ -134,12 +134,24 @@ class TestContextBuilderIntegration:
         
         context_builder.set_tools({"test_tool": mock_tool})
 
+        # 模拟记忆快照（包含 USER.md + MEMORY.md 内容）
+        memory_snapshot = """## 👤 User Profile - 用户画像
+
+**姓名**: 测试用户
+**主语言**: 中文
+
+## 📝 Memory - 记忆条目
+- 用户喜欢简洁回复
+"""
+
         # 使用 build_messages() 测试完整上下文构建
         messages = context_builder.build_messages(
             conversation_history=[
                 {"role": "user", "content": "测试消息"}
             ],
-            user_message="用户偏好"
+            user_message="用户偏好",
+            memory_snapshot=memory_snapshot,
+            context_files="## 项目规则\n\n这是一个测试项目。"
         )
 
         # 验证消息列表格式
@@ -150,10 +162,27 @@ class TestContextBuilderIntegration:
         system_msg = messages[0]
         assert system_msg.get("role") == "system"
         content = system_msg.get("content", "")
+        # stable 层内容
         assert "Handsome Agent" in content
         assert "能力概览" in content
-        assert "User Profile" in content
         assert "Memory System" in content
+        # context 层内容
+        assert "项目规则" in content
+        # volatile 层内容
+        assert "User Profile" in content
+        assert "测试用户" in content
+        assert "Memory - 记忆条目" in content
+        assert "Conversation started:" in content
+
+        # 验证 system 消息包含 _prompt_meta 元数据
+        assert "_prompt_meta" in system_msg
+        meta = system_msg["_prompt_meta"]
+        assert "stable_chars" in meta
+        assert "context_chars" in meta
+        assert "volatile_chars" in meta
+        assert meta["stable_chars"] > 0
+        assert meta["context_chars"] > 0
+        assert meta["volatile_chars"] > 0
 
         # 验证对话历史在消息列表中
         history_msgs = [msg for msg in messages if msg.get("role") == "user"]
@@ -381,13 +410,24 @@ class TestBuildMessages:
         assert messages[0]["role"] == "system"
     
     def test_build_messages_system_content(self, context_builder):
-        """测试系统消息内容"""
+        """测试系统消息内容（默认无记忆快照时）"""
         messages = context_builder.build_messages()
         
         system_msg = messages[0]
-        assert "Handsome Agent" in system_msg["content"]
-        assert "能力概览" in system_msg["content"]
-        assert "User Profile" in system_msg["content"]
+        content = system_msg["content"]
+        # stable 层内容
+        assert "Handsome Agent" in content
+        assert "能力概览" in content
+        # 默认无 memory_snapshot 时不包含 User Profile
+        assert "User Profile" not in content
+        # volatile 层包含时间戳
+        assert "Conversation started:" in content
+        # 验证 _prompt_meta 存在
+        assert "_prompt_meta" in system_msg
+        meta = system_msg["_prompt_meta"]
+        assert meta["stable_chars"] > 0
+        assert meta["context_chars"] == 0  # 无上下文文件
+        assert meta["volatile_chars"] > 0  # 至少有时间戳
     
     def test_build_messages_none_history(self, context_builder):
         """测试 None 历史"""
@@ -446,6 +486,134 @@ class TestNormalizeToolCalls:
         """测试 None 工具调用"""
         result = context_builder._normalize_tool_calls(None)
         assert result == []
+
+
+class TestThreeLayerArchitecture:
+    """三层架构测试类 - 验证 stable/context/volatile 分层正确性"""
+    
+    @pytest.fixture
+    def context_builder(self):
+        from agent.context.context_builder import ContextBuilder
+        return ContextBuilder(enable_guidance=True)
+    
+    def test_build_parts_returns_three_layers(self, context_builder):
+        """验证 build_parts 返回三层结构"""
+        parts = context_builder.build_parts()
+        
+        assert "stable" in parts
+        assert "context" in parts
+        assert "volatile" in parts
+        assert "stable_keys" in parts
+        assert "volatile_sources" in parts
+    
+    def test_stable_layer_contains_agent_identity(self, context_builder):
+        """验证 stable 层包含 Agent 身份和能力定义"""
+        parts = context_builder.build_parts()
+        stable = parts["stable"]
+        
+        assert "Handsome Agent" in stable
+        assert "能力概览" in stable
+        assert "Memory System" in stable  # 指导性文本
+    
+    def test_stable_layer_without_guidance(self):
+        """验证禁用指导时 stable 层不包含指导性文本"""
+        from agent.context.context_builder import ContextBuilder
+        cb = ContextBuilder(enable_guidance=False)
+        parts = cb.build_parts()
+        stable = parts["stable"]
+        
+        assert "Handsome Agent" in stable
+        assert "Memory System" not in stable
+        assert "Skills System" not in stable
+    
+    def test_context_layer_empty_by_default(self, context_builder):
+        """验证默认情况下 context 层为空"""
+        parts = context_builder.build_parts()
+        
+        assert parts["context"] == ""
+    
+    def test_context_layer_with_context_files(self, context_builder):
+        """验证传入 context_files 时 context 层有内容"""
+        context_content = "## 项目规则\n\n这是测试项目。"
+        parts = context_builder.build_parts(context_files=context_content)
+        
+        assert parts["context"] == context_content
+        assert "项目规则" in parts["context"]
+    
+    def test_volatile_layer_has_timestamp(self, context_builder):
+        """验证 volatile 层始终包含时间戳"""
+        parts = context_builder.build_parts()
+        volatile = parts["volatile"]
+        
+        assert "Conversation started:" in volatile
+    
+    def test_volatile_layer_with_memory_snapshot(self, context_builder):
+        """验证传入 memory_snapshot 时 volatile 层包含记忆内容"""
+        memory = "## User Profile\n\n测试用户"
+        parts = context_builder.build_parts(memory_snapshot=memory)
+        volatile = parts["volatile"]
+        
+        assert "User Profile" in volatile
+        assert "测试用户" in volatile
+        assert "Conversation started:" in volatile
+    
+    def test_volatile_sources_with_memory(self, context_builder):
+        """验证有记忆快照时 volatile_sources 正确"""
+        memory = "test memory"
+        parts = context_builder.build_parts(memory_snapshot=memory)
+        
+        assert parts["volatile_sources"] == ["USER.md", "MEMORY.md"]
+    
+    def test_volatile_sources_without_memory(self, context_builder):
+        """验证无记忆快照时 volatile_sources 为空"""
+        parts = context_builder.build_parts()
+        
+        assert parts["volatile_sources"] == []
+    
+    def test_stable_keys_contains_template_names(self, context_builder):
+        """验证 stable_keys 包含模板变量名"""
+        parts = context_builder.build_parts()
+        keys = parts["stable_keys"]
+        
+        assert "AGENT_IDENTITY" in keys
+        assert "CAPABILITIES" in keys
+        assert "TOOL_USE_ENFORCEMENT" in keys
+    
+    def test_backward_compatibility_memory_context(self, context_builder):
+        """验证向后兼容：旧参数名 memory_context"""
+        memory = "test memory content"
+        parts = context_builder.build_parts(memory_context=memory)
+        
+        assert memory in parts["volatile"]
+    
+    def test_backward_compatibility_user_profile(self, context_builder):
+        """验证向后兼容：旧参数名 user_profile"""
+        profile = "test user profile"
+        parts = context_builder.build_parts(user_profile=profile)
+        
+        assert profile in parts["volatile"]
+    
+    def test_layers_are_separated(self, context_builder):
+        """验证三层内容互不污染"""
+        context_content = "CONTEXT_LAYER_UNIQUE_MARKER"
+        memory_content = "MEMORY_LAYER_UNIQUE_MARKER"
+        
+        parts = context_builder.build_parts(
+            context_files=context_content,
+            memory_snapshot=memory_content
+        )
+        
+        # stable 层不应包含 context 或 volatile 的标记
+        assert context_content not in parts["stable"]
+        assert memory_content not in parts["stable"]
+        
+        # context 层不应包含 stable（如 Agent 身份）或 volatile 的标记
+        assert "Handsome Agent" not in parts["context"]
+        assert memory_content not in parts["context"]
+        
+        # volatile 层不应包含 stable（如 Agent 身份）或 context 的标记
+        assert "Handsome Agent" not in parts["volatile"]
+        assert context_content not in parts["volatile"]
 
 
 if __name__ == "__main__":

@@ -81,11 +81,14 @@ class KimiProvider(BaseProvider):
 
         self._log_request_started()
 
-        system, msg_list = self._build_messages(prompt, messages, system_prompt)
+        system, msg_list, prompt_meta = self._build_messages(prompt, messages, system_prompt)
         if system:
-            msg_list.insert(0, {"role": "system", "content": system})
+            system_msg = {"role": "system", "content": system}
+            if prompt_meta:
+                system_msg["_prompt_meta"] = prompt_meta
+            msg_list.insert(0, system_msg)
 
-        self._log_input_messages(msg_list)
+        self._log_input_messages(msg_list, prompt_meta)
 
         request_body = {
             "model": self.config.model,
@@ -151,9 +154,12 @@ class KimiProvider(BaseProvider):
 
         self._log_request_started()
 
-        system, msg_list = self._build_messages(prompt, messages, system_prompt)
+        system, msg_list, prompt_meta = self._build_messages(prompt, messages, system_prompt)
         if system:
-            msg_list.insert(0, {"role": "system", "content": system})
+            system_msg = {"role": "system", "content": system}
+            if prompt_meta:
+                system_msg["_prompt_meta"] = prompt_meta
+            msg_list.insert(0, system_msg)
 
         self._log_input_messages(msg_list)
 

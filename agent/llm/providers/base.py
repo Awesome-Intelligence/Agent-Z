@@ -118,11 +118,11 @@ class BaseProvider(ABC):
                 body_str = body_str[:50] + " ... " + body_str[-50:]
             self.logger.debug(f"{self.provider_display_name} request body: {body_str}")
 
-    def _log_input_messages(self, messages: List[Dict[str, Any]], system_prompt_meta: Dict = None):
+    def _log_input_messages(self, messages: List[Dict[str, Any]], prompt_meta: Dict = None):
         """记录输入消息（DEBUG级别）
         
         特殊处理：
-        - system 消息：仅显示名称（第一行标题），如果有多行内容则附加 "(+N chars)"
+        - system 消息：分层显示，包含各层信息和提示词变量名
         - 其他消息：显示截断格式
         """
         if self.logger:
@@ -136,19 +136,94 @@ class BaseProvider(ABC):
                     content = ""
                 
                 if role == "system":
-                    prompt_meta = system_prompt_meta or msg.get("_prompt_meta")
-                    preview = self._format_system_prompt_name(content, prompt_meta)
+                    # 使用传入的 prompt_meta 或消息中的 _prompt_meta
+                    meta = prompt_meta or msg.get("_prompt_meta")
+                    # 分层显示 system 消息
+                    self._log_system_message分层(i, content, meta)
                 elif role == "assistant":
                     tool_calls = msg.get("tool_calls", [])
                     if tool_calls:
                         tool_names = [tc.get("function", {}).get("name", "") for tc in tool_calls]
                         preview = f"[tool_calls: {', '.join(tool_names)}]"
+                        self.logger.info(f"⬆️  [{i}] {role}: {preview}")
                     else:
                         preview = self._format_message_for_log(role, content)
+                        self.logger.info(f"⬆️  [{i}] {role}: {preview}")
                 else:
                     preview = self._format_message_for_log(role, content)
-                
-                self.logger.info(f"⬆️  [{i}] {role}: {preview}")
+                    self.logger.info(f"⬆️  [{i}] {role}: {preview}")
+    
+    def _log_system_message分层(self, index: int, content: str, prompt_meta: Dict = None):
+        """分层显示 system 消息
+        
+        格式：
+        ⬆️  [0] system: Agent Definition
+            ├─ stable: 3.5k chars (AGENT_IDENTITY, CAPABILITIES...)
+            ├─ context: 0.2k chars (user_profile)
+            └─ volatile: 0.1k chars (memory_context)
+        """
+        SYSTEM_COLOR = "\033[38;5;146m"
+        RESET = "\033[0m"
+        
+        # 提取标题
+        lines = content.split('\n')
+        first_line = lines[0].strip() if lines else ""
+        if first_line.startswith('#'):
+            title = first_line.lstrip('#').strip()
+        else:
+            title = first_line[:40] if len(first_line) > 40 else first_line
+        
+        # 主标题
+        self.logger.info(f"⬆️  [{index}] system: {SYSTEM_COLOR}{title}{RESET}")
+        
+        # 如果有 prompt_meta，显示分层信息
+        if prompt_meta:
+            stable_chars = prompt_meta.get("stable_chars", 0)
+            context_chars = prompt_meta.get("context_chars", 0)
+            volatile_chars = prompt_meta.get("volatile_chars", 0)
+            stable_keys = prompt_meta.get("stable_keys", [])
+            
+            # 格式化字符数（转换为 k 单位）
+            def format_chars(n):
+                if n >= 1000:
+                    return f"{n/1000:.1f}k"
+                return str(n)
+            
+            # stable 层
+            stable_info = f"{format_chars(stable_chars)} chars"
+            if stable_keys:
+                if len(stable_keys) <= 4:
+                    keys_str = ", ".join(stable_keys)
+                else:
+                    keys_str = ", ".join(stable_keys[:4]) + f" +{len(stable_keys)-4}"
+                stable_info += f" ({keys_str})"
+            self.logger.info(f"    ├─ stable: {stable_info}")
+            
+            # context 层（上下文文件：AGENTS.md、项目规则等）
+            volatile_sources = prompt_meta.get("volatile_sources", [])
+            context_sources = prompt_meta.get("context_sources", [])
+            if context_chars > 0:
+                if context_sources:
+                    sources_str = ", ".join(context_sources)
+                    self.logger.info(f"    ├─ context: {format_chars(context_chars)} chars ({sources_str})")
+                else:
+                    self.logger.info(f"    ├─ context: {format_chars(context_chars)} chars (context files)")
+            else:
+                self.logger.info(f"    ├─ context: 0 chars (no context files)")
+            
+            # volatile 层（记忆快照 + 时间戳）
+            volatile_label = ", ".join(volatile_sources) if volatile_sources else "memory snapshot"
+            if volatile_chars > 0:
+                self.logger.info(f"    └─ volatile: {format_chars(volatile_chars)} chars ({volatile_label} + timestamp)")
+            else:
+                self.logger.info(f"    └─ volatile: 0 chars (no memory)")
+        else:
+            # 没有 prompt_meta，显示总字符数
+            total_chars = len(content)
+            if total_chars >= 1000:
+                self.logger.info(f"    └─ total: {total_chars/1000:.1f}k chars")
+            else:
+                self.logger.info(f"    └─ total: {total_chars} chars")
     
     def _extract_system_prompt_meta(self, messages: List) -> Optional[Dict]:
         """从消息列表中提取 system prompt 的 _prompt_meta
@@ -470,20 +545,25 @@ class BaseProvider(ABC):
         prompt: str,
         messages: Optional[List[Message]] = None,
         system_prompt: Optional[str] = None
-    ) -> tuple[Optional[str], List[Dict[str, Any]]]:
+    ) -> tuple[Optional[str], List[Dict[str, Any]], Optional[Dict]]:
         """构建消息列表
 
         Returns:
-            (system_prompt, messages_list)
+            (system_prompt, messages_list, prompt_meta)
+            prompt_meta: system 消息的 _prompt_meta 元数据（如果有）
         """
         system = system_prompt or ""
         msg_list: List[Dict[str, Any]] = []
+        prompt_meta: Optional[Dict] = None
 
         if messages:
             for msg in messages:
                 if isinstance(msg, dict):
                     if msg.get("role") == "system":
                         system = (system + "\n" + msg.get("content", "")) if system else msg.get("content", "")
+                        # 保存 _prompt_meta（只取第一个 system 消息的）
+                        if prompt_meta is None and msg.get("_prompt_meta"):
+                            prompt_meta = msg["_prompt_meta"]
                     else:
                         msg_dict = {"role": msg.get("role"), "content": msg.get("content")}
                         # 保留 tool_calls（assistant 消息需要）
@@ -492,10 +572,16 @@ class BaseProvider(ABC):
                         # 保留 tool_call_id（tool 消息需要）
                         if msg.get("tool_call_id"):
                             msg_dict["tool_call_id"] = msg["tool_call_id"]
+                        # 保留 _prompt_meta（system 消息的元数据，用于日志分层显示）
+                        if msg.get("_prompt_meta"):
+                            msg_dict["_prompt_meta"] = msg["_prompt_meta"]
                         msg_list.append(msg_dict)
                 else:
                     if msg.role == "system":
                         system = (system + "\n" + msg.content) if system else msg.content
+                        # 保存 _prompt_meta
+                        if prompt_meta is None and getattr(msg, "_prompt_meta", None):
+                            prompt_meta = msg._prompt_meta
                     else:
                         msg_dict = {"role": msg.role, "content": msg.content}
                         # 保留 tool_calls
@@ -504,13 +590,16 @@ class BaseProvider(ABC):
                         # 保留 tool_call_id
                         if getattr(msg, "tool_call_id", None):
                             msg_dict["tool_call_id"] = msg.tool_call_id
+                        # 保留 _prompt_meta
+                        if getattr(msg, "_prompt_meta", None):
+                            msg_dict["_prompt_meta"] = msg._prompt_meta
                         msg_list.append(msg_dict)
 
         # 只有当 prompt 非空时才添加用户消息
         # 避免在消息列表已包含用户消息时添加空消息
         if prompt:
             msg_list.append({"role": "user", "content": prompt})
-        return (system if system else None, msg_list)
+        return (system if system else None, msg_list, prompt_meta)
 
     def _estimate_tokens(self, text: str) -> int:
         """估算 token 数量（简化实现）"""

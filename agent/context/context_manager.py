@@ -28,6 +28,35 @@ if TYPE_CHECKING:
     from agent.memory.memory_manager import MemoryManager
 
 
+# 默认 AGENTS.md 模板
+DEFAULT_AGENTS_TEMPLATE = """# Project Context - {project_name}
+
+项目级 Agent 定义和指令。用于指定项目结构、编码规范和特殊指令。
+
+## 项目结构
+
+请根据实际项目结构补充：
+
+```
+project/
+├── src/           # 源代码
+├── tests/         # 测试文件
+├── docs/          # 文档
+└── README.md      # 项目说明
+```
+
+## 编码规范
+
+- 使用类型提示
+- 遵循 PEP 8
+- 编写单元测试
+
+## 特殊指令
+
+如有特殊需求，请在此处添加。
+"""
+
+
 class ContextPurpose(Enum):
     """上下文构建的目的"""
     # 模式判断：判断是否使用 ReAct 模式
@@ -246,56 +275,136 @@ class ContextManager:
         return {}
     
     # =========================================================================
-    # 记忆与用户画像接口 - 协调层职责
+    # 记忆与上下文接口 - 协调层职责
     # =========================================================================
     
-    def _get_user_profile(self) -> str:
+    def _get_memory_snapshot(self) -> str:
         """
-        获取用户画像（协调层职责）
+        获取记忆快照（协调层职责）
+        
+        记忆快照包含：
+        - USER.md（用户画像）
+        - MEMORY.md（记忆条目）
+        
+        参照 Hermes：记忆属于 volatile 层，每次变化，永不缓存。
         
         职责分离：
-        - ContextManager（协调层）：负责调用 MemoryManager 获取用户画像
-        - ContextBuilder（构建层）：只接收用户画像参数，不持有 MemoryManager
+        - ContextManager（协调层）：负责调用 MemoryManager 获取记忆快照
+        - ContextBuilder（构建层）：只接收记忆快照参数，不持有 MemoryManager
         
         Returns:
-            用户画像内容，如果无则返回空字符串
+            记忆快照内容，如果无则返回空字符串
         """
         if not self._memory_manager:
             return ""
         
         try:
-            return self._memory_manager.build_system_prompt()
-        except Exception as e:
-            self.logger.debug(f"Failed to get user profile: {e}")
-            return ""
-    
-    def _prefetch_memories(self, user_message: str = "") -> str:
-        """
-        从记忆管理器预取相关记忆上下文（协调层职责）
-        
-        职责分离：
-        - ContextManager：协调层，负责预取时机和组装
-        - ContextBuilder：构建层，只负责组装传入的上下文
-        
-        Args:
-            user_message: 用户消息（用于相关性判断）
-            
-        Returns:
-            预取的记忆上下文，如果无记忆则返回空字符串
-        """
-        if not self._memory_manager:
-            return ""
-        
-        try:
-            # 使用 MemoryManager 构建系统提示块
-            memory_context = self._memory_manager.build_system_prompt()
-            if memory_context:
+            snapshot = self._memory_manager.build_system_prompt()
+            if snapshot and snapshot.strip():
                 # 添加记忆上下文标记（参考 Hermes 的 <memory-context> 格式）
-                return f"<memory-context>\n{memory_context}\n</memory-context>"
+                return f"<memory-context>\n{snapshot}\n</memory-context>"
         except Exception as e:
-            self.logger.debug(f"Memory pre-fetch failed: {e}")
+            self.logger.debug(f"Failed to get memory snapshot: {e}")
         
         return ""
+    
+    # 上下文文件列表（类变量，供日志显示使用）
+    _context_files_loaded: list = []
+
+    def _get_context_files(self) -> str:
+        """
+        获取上下文文件内容（协调层职责）
+        
+        上下文文件包括：
+        - AGENTS.md - 项目级 Agent 定义
+        - .cursorrules - Cursor 编辑器规则
+        - CLAUDE.md - Claude 规则
+        - .claude/commands/ - Claude 命令文件
+        - .github/AGENTS.md - GitHub 配置目录下的 Agent 定义
+        
+        参照 Hermes：上下文文件属于 context 层，工作目录级缓存。
+        
+        Returns:
+            上下文文件内容，如果无则返回空字符串
+        """
+        from pathlib import Path
+        import os
+        
+        # 获取工作目录（优先使用 cwd，兼容测试环境）
+        cwd = os.getcwd()
+        
+        # 上下文文件列表（按优先级排序）
+        context_files = [
+            "AGENTS.md",
+            ".cursorrules",
+            "CLAUDE.md",
+            ".github/AGENTS.md",
+        ]
+        
+        # Claude 命令目录下的文件
+        claude_commands_dir = Path(cwd) / ".claude" / "commands"
+        
+        contents = []
+        loaded_files = []
+        
+        for file_path in context_files:
+            full_path = Path(cwd) / file_path
+            if full_path.exists() and full_path.is_file():
+                try:
+                    content = full_path.read_text(encoding="utf-8")
+                    if content.strip():
+                        # 添加文件标记，便于调试
+                        contents.append(f"<file: {file_path}>\n{content}")
+                        loaded_files.append(file_path)
+                except Exception as e:
+                    self.logger.debug(f"Failed to read {file_path}: {e}")
+        
+        # 扫描 .claude/commands/ 目录
+        if claude_commands_dir.exists() and claude_commands_dir.is_dir():
+            try:
+                for cmd_file in sorted(claude_commands_dir.glob("*.md")):
+                    if cmd_file.is_file():
+                        try:
+                            content = cmd_file.read_text(encoding="utf-8")
+                            if content.strip():
+                                contents.append(f"<file: {cmd_file.name}>\n{content}")
+                                loaded_files.append(str(cmd_file.relative_to(cwd)))
+                        except Exception as e:
+                            self.logger.debug(f"Failed to read {cmd_file}: {e}")
+            except Exception as e:
+                self.logger.debug(f"Failed to scan {claude_commands_dir}: {e}")
+        
+        # 保存加载的文件列表（供日志使用）
+        self._context_files_loaded = loaded_files
+        
+        # 如果没有找到上下文文件，自动创建默认 AGENTS.md
+        # Hermes 风格：AGENTS.md 放在项目根目录（cwd），不同项目可有不同配置
+        if not contents:
+            agents_md_path = Path(cwd) / "AGENTS.md"
+            try:
+                # 获取项目名称
+                project_name = Path(cwd).name or "project"
+                
+                # 生成默认模板
+                default_content = DEFAULT_AGENTS_TEMPLATE.format(project_name=project_name)
+                
+                # 写入文件
+                agents_md_path.write_text(default_content, encoding="utf-8")
+                
+                self.logger.info(f"Created default AGENTS.md in project root: {cwd}")
+                
+                # 返回新创建的文件内容
+                return f"<file: AGENTS.md>\n{default_content}", ["AGENTS.md"]
+            except Exception as e:
+                self.logger.debug(f"Failed to create default AGENTS.md: {e}")
+                return "", []
+        
+        # 用分隔符拼接所有内容
+        result = "\n\n---\n\n".join(contents)
+        
+        self.logger.debug(f"Loaded {len(loaded_files)} context files: {loaded_files}")
+        
+        return result, loaded_files
     
     def on_session_end(self, messages: List[Dict[str, Any]]) -> None:
         """
@@ -359,17 +468,17 @@ class ContextManager:
         compressed_count = len(processed_history) if processed_history else original_count
         compressed = compressed_count < original_count
         
-        # 2. 获取用户画像（协调层职责）
-        # 用户画像由 MemoryManager 提供，传递给构建层
-        user_profile = self._get_user_profile()
-        if user_profile:
-            self.logger.debug(f"User profile loaded: {len(user_profile)} chars")
+        # 2. 获取记忆快照（协调层职责）
+        # 记忆快照（USER.md + MEMORY.md）由 MemoryManager 提供，传递给 volatile 层
+        memory_snapshot = self._get_memory_snapshot()
+        if memory_snapshot:
+            self.logger.debug(f"Memory snapshot loaded: {len(memory_snapshot)} chars")
         
-        # 3. 记忆预取（协调层职责）
-        # 预取相关记忆，在调用构建器之前完成
-        memory_context = self._prefetch_memories(user_message)
-        if memory_context:
-            self.logger.debug(f"Memory pre-fetched: {len(memory_context)} chars")
+        # 3. 获取上下文文件（协调层职责）
+        # 上下文文件属于 context 层
+        context_files, context_sources = self._get_context_files()
+        if context_files:
+            self.logger.debug(f"Context files loaded: {len(context_files)} chars from {context_sources}")
         
         # 4. 设置工具到 context_builder（如果调用方指定了 include_tools=True）
         # 注意：工具包含由调用方通过 include_tools 参数决定
@@ -378,15 +487,16 @@ class ContextManager:
         
         # 5. 调用 context_builder.build_parts() 获取三层结构
         # ContextBuilder.build_parts() 负责构建，如果失败会抛出异常
-        # 传入用户画像和记忆上下文，构建层只负责组装
+        # 传入记忆快照和上下文文件，构建层只负责组装
         parts: Dict[str, str] = {"stable": "", "context": "", "volatile": ""}
         
         if self._context_builder:
             parts = self._context_builder.build_parts(
                 user_message=user_message,
                 model=model,
-                memory_context=memory_context,
-                user_profile=user_profile,
+                memory_snapshot=memory_snapshot,
+                context_files=context_files,
+                context_sources=context_sources,
             )
             
             self.logger.info(
@@ -444,12 +554,13 @@ class ContextManager:
         compressed_count = len(processed_history) if processed_history else original_count
         compressed = compressed_count < original_count
         
-        # 2. 获取用户画像（协调层职责）
-        # 用户画像由 MemoryManager 提供，传递给构建层
-        user_profile = self._get_user_profile()
+        # 2. 获取记忆快照（协调层职责）
+        # 记忆快照（USER.md + MEMORY.md）属于 volatile 层
+        memory_snapshot = self._get_memory_snapshot()
         
-        # 3. 记忆预取（协调层职责）
-        memory_context = self._prefetch_memories(user_message)
+        # 3. 获取上下文文件（协调层职责）
+        # 上下文文件属于 context 层
+        context_files, context_sources = self._get_context_files()
         
         # 4. 设置工具到 context_builder（如果调用方指定了 include_tools=True）
         # 注意：工具包含由调用方通过 include_tools 参数决定
@@ -458,15 +569,16 @@ class ContextManager:
         
         # 5. 使用 ContextBuilder 构建消息列表
         # ContextBuilder.build_messages() 负责构建，如果失败会抛出异常
-        # 传入用户画像和记忆上下文，构建层只负责组装
+        # 传入记忆快照和上下文文件，构建层只负责组装
         if self._context_builder:
             messages = self._context_builder.build_messages(
                 conversation_history=processed_history,
                 include_tools=include_tools and bool(tools),
                 user_message=user_message,
                 model=model,
-                memory_context=memory_context,
-                user_profile=user_profile,
+                memory_snapshot=memory_snapshot,
+                context_files=context_files,
+                context_sources=context_sources,
             )
             
             self.logger.info(

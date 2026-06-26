@@ -138,7 +138,7 @@ def delegate_subtask(
     # 注意：这里只是模拟实现，真实的子代理需要完整的架构支持
     # 当前版本将返回一个模拟的任务创建结果
     
-    task_id = asyncio.run(_delegate_manager.create_task(task, context, constraints))
+    task_id = _run_async(_delegate_manager.create_task(task, context, constraints))
     
     result = {
         "success": True,
@@ -167,7 +167,7 @@ def delegate_batch(
     task_ids = []
     
     for task_info in tasks:
-        task_id = asyncio.run(_delegate_manager.create_task(
+        task_id = _run_async(_delegate_manager.create_task(
             task_info.get("task", ""),
             task_info.get("context"),
             task_info.get("constraints"),
@@ -196,7 +196,7 @@ def get_subtask_status(task_id: str) -> str:
     Returns:
         JSON 格式的结果字符串
     """
-    task = asyncio.run(_delegate_manager.get_task(task_id))
+    task = _run_async(_delegate_manager.get_task(task_id))
     
     if task:
         result = {
