@@ -144,7 +144,7 @@ def list_browsers() -> ToolResult:
 
 
 @register_tool(
-    name="terminal",
+    name="execute_terminal",
     description="执行终端命令",
     parameters=[
         {"name": "command", "type": "string", "required": True, "description": "要执行的命令"},

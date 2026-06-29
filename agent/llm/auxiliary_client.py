@@ -11,6 +11,7 @@
 """
 
 import asyncio
+import concurrent.futures
 import time
 from typing import Optional, Dict, Any, List
 
@@ -20,6 +21,21 @@ logger = get_execution_logger("AuxiliaryLLM")
 
 # 默认超时时间（秒）
 DEFAULT_TIMEOUT = 120.0
+
+
+def _run_async(coro):
+    """运行异步协程，自动处理已有 event loop 的情况
+
+    当在同步上下文中调用且没有 event loop 时，使用 asyncio.run()。
+    当已有 event loop 在运行时（如在 async 函数中调用同步代码），
+    使用线程池在新线程中运行 asyncio.run()，避免冲突。
+    """
+    try:
+        asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(lambda: asyncio.run(coro)).result()
+    except RuntimeError:
+        return asyncio.run(coro)
 
 
 def _get_provider_from_config(config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -136,7 +152,7 @@ def call_llm(
                 prompt = content
                 break
 
-        response = asyncio.run(
+        response = _run_async(
             client.generate(
                 prompt=prompt,
                 system_prompt=None,

@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# 🚪 Access - 🚪 Gateway - 网关核心
+
 """
 Gateway Core - Abstract Interface
 Does not directly call Agent, instead sends requests to Brain Service
@@ -20,7 +23,7 @@ class GatewayConfig:
     name: str = "HandsomeAgentGateway"
     host: str = "0.0.0.0"
     port: int = 8000
-    brain_service_url: str = "http://localhost:8001"
+    brain_service_url: str = "http://localhost:8000"  # 统一使用 8000 端口
     max_concurrent_sessions: int = 100
     session_timeout_seconds: int = 3600
     enable_cors: bool = True

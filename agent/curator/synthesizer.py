@@ -5,25 +5,11 @@ Reference Hermes's skill learning mechanism
 """
 
 from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, field
 from common.logging_manager import get_decision_logger
+from .types import SynthesizedSkill
 
 
 logger = get_decision_logger(__name__)
-
-
-@dataclass
-class SynthesizedSkill:
-    """合成的技能"""
-    name: str
-    description: str
-    trigger_patterns: List[str]
-    action_template: str
-    confidence: float
-    source_trajectory: str = ""
-    quality_score: float = 0.0
-    tags: List[str] = field(default_factory=list)
-    references: List[str] = field(default_factory=list)
 
 
 class SkillSynthesizer:

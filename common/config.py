@@ -293,7 +293,7 @@ class Settings(BaseSettings):
     handsome_home: str = str(HANDSOME_HOME)
     
     brain_service_host: str = "0.0.0.0"
-    brain_service_port: int = 8001
+    brain_service_port: int = 8000  # 统一使用 8000 端口 (合并 api/ 到 gateway/)
     gateway_host: str = "0.0.0.0"
     gateway_port: int = 8000
     executor_port: int = 8002

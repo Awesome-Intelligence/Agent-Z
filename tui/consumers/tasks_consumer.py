@@ -1,6 +1,7 @@
-"""TUIConsumer - 将流式事件转换为 TUI 消息
+"""TUIConsumer - 任务事件日志消费者
 
-订阅 StreamEmitter 的事件，转换为 Textual 消息发布到 TasksPane。
+订阅 StreamEmitter 的任务相关事件，用于日志记录。
+注意：由于 TasksPane 直接从 Kanban 读取，此消费者不再向 TasksPane 发送消息。
 """
 
 from typing import Dict, Optional
@@ -9,24 +10,25 @@ from datetime import datetime
 
 from common.streaming.consumer import StreamConsumer
 from common.streaming.events import StreamEvent, StreamEventType
+from common.logging_manager import get_decision_logger
 
-# 尝试导入 TUI 消息，使用降级方案
+# 任务规划日志
+task_logger = get_decision_logger("TaskEvent", sublayer="task")
+
+# 尝试导入 TUI 消息
 try:
-    from tui.messages import TaskItem, TasksPaneUpdated, CurrentTaskChanged
+    from tui.messages import TaskItem
 except ImportError:
-    # 降级方案：如果 tui.messages 不存在，先定义占位类型
     TaskItem = None
-    TasksPaneUpdated = None
-    CurrentTaskChanged = None
 
 
 @dataclass
 class TaskState:
-    """任务状态追踪"""
+    """任务状态追踪（用于本地日志）"""
     task_id: str
     main_task: str
     complexity: str = "unknown"
-    subtasks: Dict[int, "TaskItem"] = field(default_factory=dict)
+    subtasks: Dict[int, any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.now)
     completed_at: Optional[datetime] = None
     
@@ -36,7 +38,7 @@ class TaskState:
     
     @property
     def completed(self) -> int:
-        return sum(1 for s in self.subtasks.values() if s.status == "completed")
+        return sum(1 for s in self.subtasks.values() if getattr(s, 'status', '') == "completed")
     
     @property
     def progress_percent(self) -> int:
@@ -47,23 +49,23 @@ class TaskState:
 
 class TUIConsumer(StreamConsumer):
     """
-    TUI 任务消费者
+    TUI 任务事件日志消费者
     
-    将 StreamEmitter 的任务相关事件转换为 Textual 消息。
+    处理 StreamEmitter 的任务相关事件，仅用于日志记录。
+    TasksPane 直接从 Kanban 读取，无需此消费者发送消息。
     
     用法::
     
         # 在 TUI App 中
-        consumer = TUIConsumer(app)
+        consumer = TUIConsumer()
         registry.register(consumer)
     """
     
-    def __init__(self, app):
+    def __init__(self, tasks_pane=None):
         """
         Args:
-            app: Textual App 或组件实例，用于 post_message
+            tasks_pane: TasksPane 组件实例（已废弃，仅保持兼容性）
         """
-        self._app = app
         self._tasks: Dict[str, TaskState] = {}  # task_id -> TaskState
         self._current_task_id: Optional[str] = None
         self._current_subtask_id: Optional[int] = None
@@ -107,7 +109,7 @@ class TUIConsumer(StreamConsumer):
             complexity=data.get("complexity", "unknown"),
         )
         
-        await self._emit_update("task_created")
+        task_logger.info(f"📋 任务规划开始: {data.get('main_task', '')[:50]}...")
     
     async def _handle_plan_progress(self, event: StreamEvent) -> None:
         """处理任务规划进度（创建子任务）"""
@@ -123,34 +125,36 @@ class TUIConsumer(StreamConsumer):
         for i, st in enumerate(subtasks_data):
             subtask_id = st.get("id", i + 1)
             if subtask_id not in task_state.subtasks:
-                # 创建 TaskItem
-                task_item = TaskItem(
-                    task_id=task_state.task_id,
-                    subtask_id=subtask_id,
-                    title=st.get("title", st.get("name", "Unknown")),
-                    description=st.get("description", ""),
-                    status="pending",
-                    depends_on=st.get("depends_on", []),
-                )
+                # 创建简化的任务项
+                task_item = type('TaskItem', (), {
+                    'task_id': task_state.task_id,
+                    'subtask_id': subtask_id,
+                    'title': st.get("title", st.get("name", "Unknown")),
+                    'description': st.get("description", ""),
+                    'status': "pending",
+                    'started_at': None,
+                    'completed_at': None,
+                    'result': '',
+                    'error': '',
+                    'progress': 0,
+                })()
                 task_state.subtasks[subtask_id] = task_item
         
-        await self._emit_update("subtasks_updated")
+        task_logger.debug(f"任务规划进度: {len(task_state.subtasks)} 个子任务")
     
     async def _handle_plan_complete(self, event: StreamEvent) -> None:
         """处理任务规划完成"""
-        data = event.data
-        
         if self._tasks:
             task_state = list(self._tasks.values())[-1]
             task_state.completed_at = datetime.now()
-        
-        await self._emit_update("task_completed")
+            task_logger.info(f"✅ 任务规划完成: {len(task_state.subtasks)} 个子任务")
     
     async def _handle_subtask_started(self, event: StreamEvent) -> None:
         """处理子任务开始"""
         data = event.data
         task_id = data.get("task_id", "")
         subtask_id = data.get("subtask_id", 0)
+        subtask_title = data.get("subtask_title", "Unknown")
         
         if task_id in self._tasks:
             task_state = self._tasks[task_id]
@@ -160,18 +164,8 @@ class TUIConsumer(StreamConsumer):
                 
                 self._current_task_id = task_id
                 self._current_subtask_id = subtask_id
-                
-                # 发布当前任务变更消息
-                if CurrentTaskChanged:
-                    await self._post_message(CurrentTaskChanged(
-                        self._app,
-                        task_id=task_id,
-                        subtask_id=subtask_id,
-                        subtask_title=task_state.subtasks[subtask_id].title,
-                        status="running",
-                    ))
         
-        await self._emit_update("subtask_started")
+        task_logger.info(f"🔄 开始执行: {subtask_title}")
     
     async def _handle_subtask_progress(self, event: StreamEvent) -> None:
         """处理子任务进度"""
@@ -184,8 +178,6 @@ class TUIConsumer(StreamConsumer):
             task_state = self._tasks[task_id]
             if subtask_id in task_state.subtasks:
                 task_state.subtasks[subtask_id].progress = progress
-        
-        await self._emit_update("subtask_progress")
     
     async def _handle_subtask_completed(self, event: StreamEvent) -> None:
         """处理子任务完成"""
@@ -195,6 +187,7 @@ class TUIConsumer(StreamConsumer):
         success = data.get("success", True)
         result = data.get("result", "")
         error = data.get("error", "")
+        subtask_title = data.get("subtask_title", "Unknown")
         
         if task_id in self._tasks:
             task_state = self._tasks[task_id]
@@ -215,48 +208,24 @@ class TUIConsumer(StreamConsumer):
                     self._current_task_id = None
                     self._current_subtask_id = None
         
-        await self._emit_update("subtask_completed")
+        status_icon = "✅" if success else "❌"
+        duration_ms = 0
+        if task_id in self._tasks and subtask_id in self._tasks[task_id].subtasks:
+            duration_ms = getattr(self._tasks[task_id].subtasks[subtask_id], 'duration_ms', 0)
+        
+        if success:
+            task_logger.info(f"{status_icon} 完成: {subtask_title} ({(duration_ms/1000):.1f}s)")
+        else:
+            task_logger.warning(f"{status_icon} 失败: {subtask_title} - {error}")
     
     async def _handle_tool_start(self, event: StreamEvent) -> None:
         """处理工具开始"""
-        # 工具调用可以作为隐性子任务追踪
-        # 这里可以扩展实现
+        # 可选：记录工具调用
         pass
     
     async def _handle_tool_end(self, event: StreamEvent) -> None:
         """处理工具结束"""
         pass
-    
-    async def _emit_update(self, reason: str) -> None:
-        """发送面板更新消息"""
-        if not TasksPaneUpdated:
-            return
-        
-        tasks_dict = {
-            task_id: list(task_state.subtasks.values())
-            for task_id, task_state in self._tasks.items()
-        }
-        
-        current_progress = 0
-        if self._current_task_id and self._current_task_id in self._tasks:
-            current_progress = self._tasks[self._current_task_id].progress_percent
-        
-        await self._post_message(TasksPaneUpdated(
-            self._app,
-            reason=reason,
-            tasks=tasks_dict,
-            current_task_id=self._current_task_id,
-            current_subtask_id=self._current_subtask_id,
-            progress_percent=current_progress,
-        ))
-    
-    async def _post_message(self, message) -> None:
-        """安全地 post_message 到 App"""
-        try:
-            self._app.post_message(message)
-        except Exception:
-            # App 可能还未挂载，静默忽略
-            pass
     
     def get_tasks(self) -> Dict[str, TaskState]:
         """获取所有任务状态（供外部查询）"""

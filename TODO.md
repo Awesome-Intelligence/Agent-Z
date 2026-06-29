@@ -27,10 +27,10 @@
 
 ### OpenAI 兼容 API ✅
 
-- [x] 创建 `api/` 模块
-- [x] 实现 `api_server.py` - OpenAI 兼容 API
-- [x] 实现 `server.py` - CLI 入口
-- [x] 更新 `brain_service.yaml` - OpenAPI 规范
+- [x] 创建 `api/` 模块 [已废弃]
+- [x] 实现 `api_server.py` - OpenAI 兼容 API [已迁移到 gateway/adapters/]
+- [x] 实现 `server.py` - CLI 入口 [已迁移到 gateway/gateway_cli.py]
+- [x] 更新 `brain_service.yaml` - OpenAPI 规范 [已删除]
 - [x] 创建 Gateway 平台适配器
 - [x] 添加单元测试
 

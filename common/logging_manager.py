@@ -40,7 +40,8 @@ SUB_LAYERS = {
     # Decision layer submodules
     "memory": {"emoji": "💾", "name": "Memory"},
     "skills": {"emoji": "📋", "name": "Skills"},
-    "task": {"emoji": "✅", "name": "Task"},
+    "todo": {"emoji": "📋", "name": "Todo"},        # Layer 1: SessionTodoStore
+    "kanban": {"emoji": "📊", "name": "Kanban"},    # Layer 2: Kanban Task
     "trajectory": {"emoji": "📝", "name": "Trajectory"},
     "curator": {"emoji": "🔬", "name": "Curator"},
     "context": {"emoji": "📊", "name": "Context"},
@@ -54,6 +55,7 @@ SUB_LAYERS = {
     
     # Access layer submodules
     "api": {"emoji": "🌐", "name": "API"},
+    "a2a": {"emoji": "🔗", "name": "A2A"},          # Layer 3: A2A Protocol
     "cli": {"emoji": "💬", "name": "CLI"},
     "gateway": {"emoji": "🚪", "name": "Gateway"},
 }

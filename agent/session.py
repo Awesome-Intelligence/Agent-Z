@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# 🧠 Decision - Session 管理
+
 """
 Session Management Module - 会话管理
 
@@ -229,7 +231,7 @@ class Session:
         self._compression_records: List[CompressionRecord] = []
         self._parent_session_id: Optional[str] = None  # Parent session ID (from compression)
         self._child_session_ids: List[str] = []  # Child session ID list
-        
+
         if self.config.enable_persistence:
             self._load_session()
     
@@ -241,18 +243,18 @@ class Session:
                 self.messages = [
                     Message(**msg) for msg in data.get('messages', [])
                 ]
-                
+
                 self.context = data.get('context', {})
-                
+
                 if self.config.preserve_compressed_history:
                     compression_data = data.get('compression_records', [])
                     self._compression_records = [
                         CompressionRecord(**record) for record in compression_data
                     ]
-                
+
                 self._parent_session_id = data.get('parent_session_id')
                 self._child_session_ids = data.get('child_session_ids', [])
-                
+
                 self.logger.info(f"Loaded session with {len(self.messages)} messages")
                 if self._compression_records:
                     self.logger.info(f"Session has {len(self._compression_records)} compression records")
@@ -263,7 +265,7 @@ class Session:
         """Save session to storage."""
         if not self.config.enable_persistence:
             return
-        
+
         try:
             data = {
                 'messages': [
@@ -291,9 +293,9 @@ class Session:
                     for record in self._compression_records
                 ] if self.config.preserve_compressed_history else [],
                 'parent_session_id': self._parent_session_id,
-                'child_session_ids': self._child_session_ids
+                'child_session_ids': self._child_session_ids,
             }
-            
+
             self.store.save(self.session_id, data)
             self.last_save_time = time.time()
             self.logger.debug("Session saved")
@@ -460,15 +462,15 @@ class Session:
     def get_context(self) -> Dict[str, Any]:
         """Get current session context."""
         return self.context.copy()
-    
+
     def set_context(self, key: str, value: Any):
         """Set a context value."""
         self.context[key] = value
-    
+
     def update_context(self, updates: Dict[str, Any]):
         """Update multiple context values."""
         self.context.update(updates)
-    
+
     def get_message_count(self) -> int:
         """Get total number of messages in session."""
         return len(self.messages)
@@ -848,6 +850,65 @@ class SessionManager:
     def get_active_sessions(self) -> List[Session]:
         """Get all currently active sessions."""
         return list(self.sessions.values())
+    
+    def get_latest_session(self) -> Optional[Session]:
+        """
+        获取最新的会话（不限日期）。
+        
+        Returns:
+            最新的 Session 实例或 None
+        """
+        latest_session_id = self.store.get_latest_session()
+        if latest_session_id:
+            return self.get_session(latest_session_id)
+        return None
+    
+    def find_pending_goal_sessions(self, exclude_session_id: str = None) -> List[Session]:
+        """
+        查找包含未完成 Goal 的会话。
+        
+        未完成 Goal 的状态为：active 或 paused
+        
+        Args:
+            exclude_session_id: 要排除的会话 ID（通常是当前会话）
+            
+        Returns:
+            包含未完成 Goal 的 Session 列表（按时间倒序）
+        """
+        pending_sessions = []
+        
+        for session_id in self.store.list_sessions():
+            # 跳过排除的会话
+            if exclude_session_id and session_id == exclude_session_id:
+                continue
+            
+            try:
+                data = self.store.load(session_id)
+                if not data:
+                    continue
+                
+                goal_data = data.get('goal_state')
+                if not goal_data:
+                    continue
+                
+                # 检查状态是否为未完成（active 或 paused）
+                status = goal_data.get('status', 'active')
+                if status in ('active', 'paused'):
+                    session = self.get_session(session_id)
+                    if session:
+                        pending_sessions.append(session)
+                        
+            except Exception as e:
+                self.logger.debug(f"Failed to check goal state for session {session_id}: {e}")
+                continue
+        
+        # 按最后活跃时间倒序排列
+        pending_sessions.sort(
+            key=lambda s: s.get_last_message().timestamp if s.get_last_message() else 0,
+            reverse=True
+        )
+        
+        return pending_sessions
     
     def cleanup_inactive(self, timeout_seconds: int = 3600):
         """Clean up inactive sessions."""

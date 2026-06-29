@@ -26,13 +26,21 @@ from common.logging_manager import get_decision_logger
 logger = get_decision_logger(__name__)
 
 
-class SessionStatus(Enum):
-    """Session status enumeration."""
-    PENDING = "pending"
-    ACTIVE = "active"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-    ERROR = "error"
+# 统一状态枚举 - 从 agent.state 导入
+from agent.state import TaskStatus
+
+
+class SessionStatus(str, Enum):
+    """Session status enumeration.
+
+    注意：这是 ACP 会话的状态，与 AgentStatus/TaskStatus 不同。
+    SessionStatus 用于管理 ACP 协议层面的会话状态。
+    """
+    PENDING = "pending"     # 会话等待中
+    ACTIVE = "active"       # 会话活跃
+    COMPLETED = "completed" # 会话完成
+    CANCELLED = "cancelled" # 会话取消
+    ERROR = "error"         # 会话错误
 
 
 @dataclass

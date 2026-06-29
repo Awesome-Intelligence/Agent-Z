@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# 🏃 Execution - 🐚 ShellExec - Shell 命令执行
+
 """
 Shell 执行器
 本地命令执行

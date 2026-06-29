@@ -1,4 +1,7 @@
-# Dockerfile for Gateway Service
+# Dockerfile for Handsome Agent Gateway Service
+# 架构变更：合并 api/ 到 gateway/adapters/openai_adapter.py
+# 统一使用 8000 端口
+
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -15,13 +18,17 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
-COPY brain/ ./brain/
+COPY agent/ ./agent/
+COPY common/ ./common/
 COPY executor/ ./executor/
+COPY gateway/ ./gateway/
 COPY tools/ ./tools/
-COPY adapter/ ./adapter/
-COPY shared/ ./shared/
-COPY api/ ./api/
-COPY shared/ ./shared/
+COPY skills/ ./skills/
+COPY cli/ ./cli/
+COPY tui/ ./tui/
+
+# 创建数据目录
+RUN mkdir -p /app/data /root/.skills
 
 # 暴露端口
 EXPOSE 8000
@@ -31,4 +38,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # 启动命令
-CMD ["python", "-m", "adapter.gateway"]
+CMD ["python", "-m", "gateway.gateway_cli"]

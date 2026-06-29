@@ -13,10 +13,10 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from common.logging_manager import get_decision_logger
+from common.logging_manager import get_execution_logger
 from agent.a2a.models import AgentCard, Message, Part, Task, TextPart, TaskStatus
 
-logger = get_decision_logger(__name__)
+logger = get_execution_logger("a2a")
 
 
 class A2AClient:

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# 🚪 Access - 💬 CLI - 主入口
+
 """
 Main entry point for the Handsome Agent
 
 Provides Text User Interface for testing and interaction.
 Updated to use the new _parser.py and commands.py modules.
-
-🚪 Access - 💬 CLI - 主入口
 
 参考 Hermes 的 main.py 设计，使用统一的参数解析器。
 """

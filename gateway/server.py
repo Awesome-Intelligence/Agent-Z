@@ -55,19 +55,14 @@ class HealthCheck:
 # Global instances for Hermes-style architecture
 _agent = None
 _llm_provider = None
-_acp_adapter = None
 
 
 def init_agent(agent, llm_provider=None):
     """Initialize the agent and provider for Gateway use."""
-    global _agent, _llm_provider, _acp_adapter
+    global _agent, _llm_provider
     
     _agent = agent
     _llm_provider = llm_provider
-    
-    if agent is not None:
-        from agent.acp_adapter import ACPAdapter
-        _acp_adapter = ACPAdapter(agent)
 
 
 class GatewayHandler(BaseHTTPRequestHandler):

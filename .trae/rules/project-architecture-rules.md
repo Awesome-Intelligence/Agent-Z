@@ -55,6 +55,7 @@ Handsome-Agent/
 | `llm_integration/` | → `agent/llm/` |
 | `adapter/` | → `gateway/` |
 | `lightweight/` | → 已废弃 |
+| `api/` | → `gateway/adapters/openai_adapter.py` (2026-06-26 合并) |
 
 ---
 
@@ -113,8 +114,13 @@ INFO - [🚪Access] - [/💬CLI] - (MainCLI) 收到用户输入
 | `tools/` | 🏃 Execution | 工具定义 |
 | `executor/` | 🏃 Execution | Shell/Docker 执行器 |
 | `gateway/` | 🚪 Access | HTTP 网关 |
+| `gateway/adapters/` | 🚪 Access | 渠道适配器（HTTP/CLI/OpenAI） |
 | `cli/` | 🚪 Access | 命令行入口 |
 | `common/` | 🔧 System | 基础设施，**禁止放其他层代码** |
+| `tui/` | 🚪 Access | Textual TUI 界面 |
+| `tests/` | 🧪 Test | 测试套件 |
+| `docs/` | 📖 Docs | 文档 |
+| `skills/` | 🧠 Decision | 技能系统 |
 
 ---
 
@@ -180,4 +186,16 @@ tools/, executor/ (通过抽象接口)
 
 ---
 
-*本文档版本: v3.0.0 | 最后更新: 2026-06-05*
+*本文档版本: v4.0.0 | 最后更新: 2026-06-26*
+
+## 变更历史
+
+### v4.0.0 (2026-06-26)
+- 新增 `gateway/adapters/` 目录映射（OpenAI 适配器）
+- 新增 `tui/` 目录映射（Textual TUI）
+- 新增 `tests/`、`docs/`、`skills/` 目录映射
+- 将 `api/` 标记为废弃（合并到 `gateway/adapters/openai_adapter.py`）
+- 统一 HTTP 服务端口为 8000
+
+### v3.0.0 (2026-06-05)
+- 初始版本

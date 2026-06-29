@@ -2,17 +2,25 @@
 """
 Kanban Tool Module
 
-Provides kanban/task management functionality based on SQLite database:
-- Board creation and management
-- Task CRUD operations
-- Task state transitions (triage → todo → ready → running → done)
-- Dependencies and comments
-- Full Hermes-style API support
+Layer 2: Kanban Task（持久化层）- 项目任务管理
 
-Based on Hermes Agent's kanban_tools.py and kanban_db.py implementation.
+提供基于 SQLite 数据库的看板/任务管理功能：
+- 看板创建和管理
+- 任务 CRUD 操作
+- 任务状态流转（triage → todo → ready → running → done）
+- 依赖关系和评论
+- 运行历史记录
+- 完整 Hermes 风格 API 支持
+
+状态: triage | todo | ready | running | blocked | done | archived
 
 Usage:
     from tools.kanban_tool import kanban_create, kanban_show, kanban_list
+
+See also:
+- agent/task/__init__.py: 三层任务架构说明
+- tools/todo_tool.py: Layer 1 - 会话级任务管理
+- agent/a2a/models.py: Layer 3 - A2A 协议任务
 """
 
 import json
@@ -22,6 +30,8 @@ from typing import Any, Dict, List, Optional
 
 from common.logging_manager import get_execution_logger
 from tools.registry import registry
+
+logger = get_execution_logger("kanban")
 
 from tools.kanban_db import (
     KanbanDB,
@@ -130,16 +140,18 @@ class KanbanManager:
                 cursor = conn.cursor()
                 cursor.execute(
                     "SELECT COUNT(*) as count FROM tasks WHERE board_id = ?",
-                    (board.id,)
+                    (board.id,),
                 )
                 task_count = cursor.fetchone()["count"]
-                result.append({
-                    "id": board.id,
-                    "name": board.name,
-                    "created_at": board.created_at,
-                    "tenant": board.tenant,
-                    "task_count": task_count,
-                })
+                result.append(
+                    {
+                        "id": board.id,
+                        "name": board.name,
+                        "created_at": board.created_at,
+                        "tenant": board.tenant,
+                        "task_count": task_count,
+                    }
+                )
             return result
         finally:
             self._db.close()
@@ -463,307 +475,72 @@ def _run_to_dict(run: Any) -> Dict[str, Any]:
 
 
 # =============================================================================
-# 保留的工具函数（兼容性）
+# Worker 保护机制（参考 Hermes）
 # =============================================================================
 
-def kanban_create_board(name: str) -> str:
-    """
-    创建看板。
+def _default_task_id(arg: Optional[str]) -> Optional[str]:
+    """解析 task_id 参数，回退到环境变量"""
+    if arg:
+        return arg
+    return os.environ.get("HERMES_KANBAN_TASK") or None
 
-    Args:
-        name: 看板名称
+
+def _enforce_worker_task_ownership(tid: str) -> Optional[str]:
+    """
+    拒绝 Worker 对外部任务 ID 的破坏性调用。
+
+    当进程由 dispatcher 启动时，环境变量 HERMES_KANBAN_TASK 被设置为
+    自身的任务 ID。像 kanban_complete/block/heartbeat 这样的工具会修改
+    运行生命周期状态，因此存在 bug 或 prompt 注入的 worker 可能传入
+    显式 task_id 来修改其他任务，从而污染同级或跨租户的运行。
+
+    Orchestrator profiles（启用了 kanban toolset 但环境中没有
+    HERMES_KANBAN_TASK）不受此检查限制——他们的工作是路由，
+    有时需要合理地关闭子任务或重新打开被阻塞的任务。
+    Workers 被严格限制在其一个任务上。
 
     Returns:
-        JSON 格式的结果字符串
+        None 表示允许调用，或工具错误字符串表示必须拒绝
     """
-    try:
-        board_id = _kanban_manager.create_board(name)
-        result = {
-            "success": True,
-            "board_id": board_id,
-            "name": name,
-            "message": f"看板已创建: {name}",
-        }
-        return json.dumps(result, ensure_ascii=False)
-    except Exception as e:
-        logger.error(f"Failed to create board: {e}")
-        result = {"success": False, "error": str(e)}
-        return json.dumps(result, ensure_ascii=False)
+    env_tid = os.environ.get("HERMES_KANBAN_TASK")
+    if not env_tid:
+        # Orchestrator 或 CLI 上下文 — 无任务范围限制
+        return None
+    if tid != env_tid:
+        return json.dumps({
+            "success": False,
+            "error": (
+                f"worker is scoped to task {env_tid}; refusing to mutate "
+                f"{tid}. Use kanban_comment to hand off information to other "
+                f"tasks, or kanban_create to spawn follow-up work."
+            )
+        }, ensure_ascii=False)
+    return None
 
 
-def kanban_delete_board(board_id: str) -> str:
+def _require_orchestrator_tool(tool_name: str) -> Optional[str]:
     """
-    删除看板。
+    Orchestrator 专用工具的运行时保护。
 
-    Args:
-        board_id: 看板ID
-
-    Returns:
-        JSON 格式的结果字符串
+    check_fn 会在 worker schema 中排除这些工具，但为了防止
+    陈旧注册或测试工具链路由 worker 到这些工具，返回结构化的
+    工具错误让模型获得清晰的拒绝而不是静默修改 board 状态。
     """
-    try:
-        success = _kanban_manager.delete_board(board_id)
-        if success:
-            result = {"success": True, "message": "看板已删除"}
-        else:
-            result = {"success": False, "error": f"看板不存在: {board_id}"}
-        return json.dumps(result, ensure_ascii=False)
-    except Exception as e:
-        logger.error(f"Failed to delete board: {e}")
-        result = {"success": False, "error": str(e)}
-        return json.dumps(result, ensure_ascii=False)
-
-
-def kanban_list_boards() -> str:
-    """
-    列出所有看板。
-
-    Returns:
-        JSON 格式的结果字符串
-    """
-    try:
-        boards = _kanban_manager.list_boards()
-        result = {
-            "success": True,
-            "boards": boards,
-            "total": len(boards),
-        }
-        return json.dumps(result, ensure_ascii=False)
-    except Exception as e:
-        logger.error(f"Failed to list boards: {e}")
-        result = {"success": False, "error": str(e)}
-        return json.dumps(result, ensure_ascii=False)
-
-
-def kanban_add_task(
-    board_id: str,
-    title: str,
-    description: Optional[str] = None,
-    priority: str = "medium",
-    column_id: str = "todo",
-) -> str:
-    """
-    添加任务到看板。
-
-    Args:
-        board_id: 看板ID
-        title: 任务标题
-        description: 可选的任务描述
-        priority: 优先级 (low, medium, high)
-        column_id: 目标列ID (todo, in_progress, done)
-
-    Returns:
-        JSON 格式的结果字符串
-    """
-    try:
-        # 映射列ID到状态
-        status_map = {
-            "todo": "todo",
-            "in_progress": "running",
-            "done": "done",
-        }
-        status = status_map.get(column_id, "todo")
-
-        # 优先级映射
-        priority_map = {"low": 0, "medium": 1, "high": 2}
-        priority_value = priority_map.get(priority, 1)
-
-        task_id = _kanban_manager.create_task(
-            board_id=board_id,
-            title=title,
-            body=description,
-            status=status,
-            priority=priority_value,
-            created_by=_get_author(),
-        )
-
-        result = {
-            "success": True,
-            "task_id": task_id,
-            "title": title,
-            "message": f"任务已添加: {title}",
-        }
-        return json.dumps(result, ensure_ascii=False)
-    except Exception as e:
-        logger.error(f"Failed to add task: {e}")
-        result = {"success": False, "error": str(e)}
-        return json.dumps(result, ensure_ascii=False)
-
-
-def kanban_move_task(
-    board_id: str,
-    task_id: str,
-    target_column_id: str,
-) -> str:
-    """
-    移动任务到另一列。
-
-    Args:
-        board_id: 看板ID
-        task_id: 任务ID
-        target_column_id: 目标列ID
-
-    Returns:
-        JSON 格式的结果字符串
-    """
-    try:
-        # 映射列ID到状态
-        status_map = {
-            "todo": "todo",
-            "in_progress": "running",
-            "done": "done",
-        }
-        status = status_map.get(target_column_id, "todo")
-
-        task = _kanban_manager.update_task(task_id, status=status)
-        if task:
-            result = {
-                "success": True,
-                "message": f"任务已移动到: {target_column_id}",
-            }
-        else:
-            result = {"success": False, "error": f"任务不存在: {task_id}"}
-        return json.dumps(result, ensure_ascii=False)
-    except Exception as e:
-        logger.error(f"Failed to move task: {e}")
-        result = {"success": False, "error": str(e)}
-        return json.dumps(result, ensure_ascii=False)
-
-
-def kanban_update_task(
-    board_id: str,
-    task_id: str,
-    title: Optional[str] = None,
-    description: Optional[str] = None,
-    priority: Optional[str] = None,
-) -> str:
-    """
-    更新任务。
-
-    Args:
-        board_id: 看板ID
-        task_id: 任务ID
-        title: 可选的新标题
-        description: 可选的新描述
-        priority: 可选的新优先级
-
-    Returns:
-        JSON 格式的结果字符串
-    """
-    try:
-        updates = {}
-        if title is not None:
-            updates["title"] = title
-        if description is not None:
-            updates["body"] = description
-        if priority is not None:
-            priority_map = {"low": 0, "medium": 1, "high": 2}
-            updates["priority"] = priority_map.get(priority, 1)
-
-        task = _kanban_manager.update_task(task_id, **updates)
-        if task:
-            result = {"success": True, "message": "任务已更新"}
-        else:
-            result = {"success": False, "error": f"任务不存在: {task_id}"}
-        return json.dumps(result, ensure_ascii=False)
-    except Exception as e:
-        logger.error(f"Failed to update task: {e}")
-        result = {"success": False, "error": str(e)}
-        return json.dumps(result, ensure_ascii=False)
-
-
-def kanban_delete_task(
-    board_id: str,
-    task_id: str,
-) -> str:
-    """
-    删除任务。
-
-    Args:
-        board_id: 看板ID
-        task_id: 任务ID
-
-    Returns:
-        JSON 格式的结果字符串
-    """
-    try:
-        success = _kanban_manager.delete_task(task_id)
-        if success:
-            result = {"success": True, "message": "任务已删除"}
-        else:
-            result = {"success": False, "error": f"任务不存在: {task_id}"}
-        return json.dumps(result, ensure_ascii=False)
-    except Exception as e:
-        logger.error(f"Failed to delete task: {e}")
-        result = {"success": False, "error": str(e)}
-        return json.dumps(result, ensure_ascii=False)
-
-
-def kanban_view_board(board_id: str) -> str:
-    """
-    查看看板详情。
-
-    Args:
-        board_id: 看板ID
-
-    Returns:
-        JSON 格式的结果字符串
-    """
-    try:
-        board = _kanban_manager.get_board(board_id)
-        if not board:
-            result = {"success": False, "error": f"看板不存在: {board_id}"}
-            return json.dumps(result, ensure_ascii=False)
-
-        # 获取该看板的所有任务
-        tasks = _kanban_manager.list_tasks(board_id=board_id, limit=500)
-
-        # 按状态分组
-        columns = {
-            "todo": [],
-            "in_progress": [],
-            "done": [],
-        }
-
-        status_to_column = {
-            "triage": "todo",
-            "todo": "todo",
-            "ready": "todo",
-            "running": "in_progress",
-            "blocked": "in_progress",
-            "done": "done",
-            "archived": "done",
-            "timed_out": "done",
-        }
-
-        for task in tasks:
-            task_dict = _task_to_dict(task)
-            column_key = status_to_column.get(task.status, "todo")
-            columns[column_key].append(task_dict)
-
-        board_data = {
-            "id": board.id,
-            "name": board.name,
-            "created_at": board.created_at,
-            "tenant": board.tenant,
-            "columns": [
-                {"id": "todo", "name": "待办", "tasks": columns["todo"]},
-                {"id": "in_progress", "name": "进行中", "tasks": columns["in_progress"]},
-                {"id": "done", "name": "已完成", "tasks": columns["done"]},
-            ],
-        }
-
-        result = {"success": True, "board": board_data}
-        return json.dumps(result, ensure_ascii=False)
-    except Exception as e:
-        logger.error(f"Failed to view board: {e}")
-        result = {"success": False, "error": str(e)}
-        return json.dumps(result, ensure_ascii=False)
-
+    if os.environ.get("HERMES_KANBAN_TASK"):
+        return json.dumps({
+            "success": False,
+            "error": (
+                f"{tool_name} is orchestrator-only; dispatcher-spawned workers "
+                "must use kanban_complete, kanban_block, kanban_heartbeat, or "
+                "kanban_comment for their assigned task."
+            )
+        }, ensure_ascii=False)
+    return None
 
 # =============================================================================
-# 新增工具函数
+# 工具函数（参考 Hermes 设计）
 # =============================================================================
+
 
 def kanban_create(
     board_id: Optional[str] = None,
@@ -905,6 +682,8 @@ def kanban_list(
     """
     列出任务，支持筛选器。
 
+    注意: 此工具仅限 Orchestrator 使用，Worker 无法访问。
+
     Args:
         assignee: 负责人筛选
         status: 状态筛选
@@ -916,6 +695,11 @@ def kanban_list(
     Returns:
         JSON 格式的结果字符串
     """
+    # Orchestrator 检查
+    guard = _require_orchestrator_tool("kanban_list")
+    if guard:
+        return guard
+
     try:
         tasks = _kanban_manager.list_tasks(
             board_id=board,
@@ -1000,7 +784,7 @@ def kanban_complete(
     完成任务，支持 handoff 信息。
 
     Args:
-        task_id: 任务ID
+        task_id: 任务ID（可选，默认使用当前 Worker 的任务）
         summary: 完成摘要
         metadata: 元数据
         result: 结果
@@ -1012,12 +796,19 @@ def kanban_complete(
         JSON 格式的结果字符串
     """
     try:
-        if not task_id:
+        # 解析 task_id，支持从环境变量回退
+        tid = _default_task_id(task_id)
+        if not tid:
             result = {"success": False, "error": "task_id 是必填的"}
             return json.dumps(result, ensure_ascii=False)
 
+        # Worker 所有权检查
+        ownership_err = _enforce_worker_task_ownership(tid)
+        if ownership_err:
+            return ownership_err
+
         task = _kanban_manager.complete_task(
-            task_id=task_id,
+            task_id=tid,
             result=result,
             summary=summary,
             metadata=metadata,
@@ -1032,7 +823,7 @@ def kanban_complete(
                 "message": "任务已完成",
             }
         else:
-            result = {"success": False, "error": f"任务不存在或无法完成: {task_id}"}
+            result = {"success": False, "error": f"任务不存在或无法完成: {tid}"}
         return json.dumps(result, ensure_ascii=False)
     except ValueError as e:
         # 状态转换错误
@@ -1045,15 +836,15 @@ def kanban_complete(
 
 
 def kanban_block(
-    task_id: str,
-    reason: str,
+    task_id: Optional[str] = None,
+    reason: str = "",
     board: Optional[str] = None,
 ) -> str:
     """
     阻塞任务。
 
     Args:
-        task_id: 任务ID
+        task_id: 任务ID（可选，默认使用当前 Worker 的任务）
         reason: 阻塞原因
         board: 看板ID（可选，用于兼容）
 
@@ -1061,7 +852,22 @@ def kanban_block(
         JSON 格式的结果字符串
     """
     try:
-        task = _kanban_manager.block_task(task_id, reason)
+        if not reason or not str(reason).strip():
+            result = {"success": False, "error": "reason 是必填的 — 说明你需要什么输入才能继续"}
+            return json.dumps(result, ensure_ascii=False)
+
+        # 解析 task_id，支持从环境变量回退
+        tid = _default_task_id(task_id)
+        if not tid:
+            result = {"success": False, "error": "task_id 是必填的"}
+            return json.dumps(result, ensure_ascii=False)
+
+        # Worker 所有权检查
+        ownership_err = _enforce_worker_task_ownership(tid)
+        if ownership_err:
+            return ownership_err
+
+        task = _kanban_manager.block_task(tid, reason)
         if task:
             result = {
                 "success": True,
@@ -1069,7 +875,7 @@ def kanban_block(
                 "message": f"任务已阻塞: {reason}",
             }
         else:
-            result = {"success": False, "error": f"任务不存在: {task_id}"}
+            result = {"success": False, "error": f"任务不存在: {tid}"}
         return json.dumps(result, ensure_ascii=False)
     except ValueError as e:
         result = {"success": False, "error": str(e)}
@@ -1094,6 +900,11 @@ def kanban_unblock(
     Returns:
         JSON 格式的结果字符串
     """
+    # Orchestrator 检查
+    guard = _require_orchestrator_tool("kanban_unblock")
+    if guard:
+        return guard
+
     try:
         task = _kanban_manager.unblock_task(task_id)
         if task:
@@ -1123,7 +934,7 @@ def kanban_heartbeat(
     心跳保活。
 
     Args:
-        task_id: 任务ID（可选）
+        task_id: 任务ID（可选，默认使用当前 Worker 的任务）
         note: 心跳备注
         board: 看板ID（可选，用于兼容）
 
@@ -1131,30 +942,32 @@ def kanban_heartbeat(
         JSON 格式的结果字符串
     """
     try:
-        # 如果没有指定任务，获取当前运行中的任务
-        if not task_id:
-            tasks = _kanban_manager.list_tasks(status="running", limit=1)
-            if tasks:
-                task_id = tasks[0].id
-            else:
-                result = {"success": False, "error": "没有运行中的任务"}
-                return json.dumps(result, ensure_ascii=False)
+        # 解析 task_id，支持从环境变量回退
+        tid = _default_task_id(task_id)
+        if not tid:
+            result = {"success": False, "error": "task_id 是必填的"}
+            return json.dumps(result, ensure_ascii=False)
 
-        task = _kanban_manager.get_task(task_id)
+        # Worker 所有权检查
+        ownership_err = _enforce_worker_task_ownership(tid)
+        if ownership_err:
+            return ownership_err
+
+        task = _kanban_manager.get_task(tid)
         if not task:
-            result = {"success": False, "error": f"任务不存在: {task_id}"}
+            result = {"success": False, "error": f"任务不存在: {tid}"}
             return json.dumps(result, ensure_ascii=False)
 
         # 添加心跳事件
         author = _get_author()
         if note:
-            _kanban_manager.add_comment(task_id, author, f"[心跳] {note}")
+            _kanban_manager.add_comment(tid, author, f"[心跳] {note}")
         else:
-            _kanban_manager.add_comment(task_id, author, "[心跳]")
+            _kanban_manager.add_comment(tid, author, "[心跳]")
 
         result = {
             "success": True,
-            "task_id": task_id,
+            "task_id": tid,
             "message": "心跳已记录",
         }
         return json.dumps(result, ensure_ascii=False)
@@ -1296,155 +1109,78 @@ def kanban_delete(
 
 
 def check_kanban_requirements() -> bool:
-    """看板工具无外部依赖，始终可用"""
-    return True
+    """
+    检查是否启用 Kanban 工具
+
+    参考 Hermes 的设计，Kanban 工具默认不加载，仅在以下条件之一满足时启用：
+    1. 环境变量 HANDSOME_KANBAN_ENABLED 设置为 "1" 或 "true"
+    2. 环境变量 HERMES_KANBAN_TASK 已设置（兼容 Hermes）
+    3. 当前正在运行 Kanban 任务（通过 kanban_manager 检测）
+
+    Returns:
+        bool: 是否启用 Kanban 工具
+    """
+    enabled_flag = os.environ.get("HANDSOME_KANBAN_ENABLED", "").lower()
+    hermes_task = os.environ.get("HERMES_KANBAN_TASK", "")
+
+    if enabled_flag in ("1", "true", "yes") or hermes_task:
+        logger.debug("Kanban tools enabled via environment variable")
+        return True
+
+    return False
 
 
 # =============================================================================
-# 工具 Schema 定义
+# 工具 Schema 定义（参考 Hermes 设计）
 # =============================================================================
 
-# 保留的工具 Schema
-KANBAN_CREATE_BOARD_SCHEMA = {
-    "name": "kanban_create_board",
-    "description": "创建新的看板。",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "name": {"type": "string", "description": "看板名称"},
-        },
-        "required": ["name"],
-    },
-}
-
-KANBAN_DELETE_BOARD_SCHEMA = {
-    "name": "kanban_delete_board",
-    "description": "删除看板。",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "board_id": {"type": "string", "description": "看板ID"},
-        },
-        "required": ["board_id"],
-    },
-}
-
-KANBAN_LIST_BOARDS_SCHEMA = {
-    "name": "kanban_list_boards",
-    "description": "列出所有看板。",
-    "parameters": {"type": "object", "properties": {}},
-}
-
-KANBAN_ADD_TASK_SCHEMA = {
-    "name": "kanban_add_task",
-    "description": "添加任务到看板。",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "board_id": {"type": "string", "description": "看板ID"},
-            "title": {"type": "string", "description": "任务标题"},
-            "description": {"type": "string", "description": "任务描述"},
-            "priority": {
-                "type": "string",
-                "enum": ["low", "medium", "high"],
-                "default": "medium",
-                "description": "优先级",
-            },
-            "column_id": {
-                "type": "string",
-                "enum": ["todo", "in_progress", "done"],
-                "default": "todo",
-                "description": "目标列",
-            },
-        },
-        "required": ["board_id", "title"],
-    },
-}
-
-KANBAN_MOVE_TASK_SCHEMA = {
-    "name": "kanban_move_task",
-    "description": "移动任务到不同列。",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "board_id": {"type": "string", "description": "看板ID"},
-            "task_id": {"type": "string", "description": "任务ID"},
-            "target_column_id": {
-                "type": "string",
-                "enum": ["todo", "in_progress", "done"],
-                "description": "目标列ID",
-            },
-        },
-        "required": ["board_id", "task_id", "target_column_id"],
-    },
-}
-
-KANBAN_UPDATE_TASK_SCHEMA = {
-    "name": "kanban_update_task",
-    "description": "更新任务详情。",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "board_id": {"type": "string", "description": "看板ID"},
-            "task_id": {"type": "string", "description": "任务ID"},
-            "title": {"type": "string", "description": "新标题"},
-            "description": {"type": "string", "description": "新描述"},
-            "priority": {
-                "type": "string",
-                "enum": ["low", "medium", "high"],
-                "description": "新优先级",
-            },
-        },
-        "required": ["board_id", "task_id"],
-    },
-}
-
-KANBAN_DELETE_TASK_SCHEMA = {
-    "name": "kanban_delete_task",
-    "description": "从看板删除任务。",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "board_id": {"type": "string", "description": "看板ID"},
-            "task_id": {"type": "string", "description": "任务ID"},
-        },
-        "required": ["board_id", "task_id"],
-    },
-}
-
-KANBAN_VIEW_BOARD_SCHEMA = {
-    "name": "kanban_view_board",
-    "description": "查看看板完整详情。",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "board_id": {"type": "string", "description": "看板ID"},
-        },
-        "required": ["board_id"],
-    },
-}
-
-# 新增工具 Schema
 KANBAN_CREATE_SCHEMA = {
     "name": "kanban_create",
     "description": "创建任务，支持完整参数。",
     "parameters": {
         "type": "object",
         "properties": {
-            "board_id": {"type": "string", "description": "看板ID（可选，默认使用第一个看板）"},
+            "board_id": {
+                "type": "string",
+                "description": "看板ID（可选，默认使用第一个看板）",
+            },
             "title": {"type": "string", "description": "任务标题"},
             "assignee": {"type": "string", "description": "负责人"},
             "body": {"type": "string", "description": "任务描述"},
-            "parents": {"type": "array", "items": {"type": "string"}, "description": "父任务ID列表"},
+            "parents": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "父任务ID列表",
+            },
             "tenant": {"type": "string", "description": "租户标识"},
-            "priority": {"type": "integer", "default": 0, "description": "优先级（0-2）"},
-            "workspace_kind": {"type": "string", "default": "scratch", "description": "工作区类型"},
+            "priority": {
+                "type": "integer",
+                "default": 0,
+                "description": "优先级（0-2）",
+            },
+            "workspace_kind": {
+                "type": "string",
+                "default": "scratch",
+                "description": "工作区类型",
+            },
             "workspace_path": {"type": "string", "description": "工作区路径"},
-            "triage": {"type": "boolean", "default": False, "description": "是否在 triage 状态"},
+            "triage": {
+                "type": "boolean",
+                "default": False,
+                "description": "是否在 triage 状态",
+            },
             "idempotency_key": {"type": "string", "description": "幂等键"},
             "max_runtime_seconds": {"type": "integer", "description": "最大运行时间"},
-            "initial_status": {"type": "string", "default": "running", "description": "初始状态"},
-            "skills": {"type": "array", "items": {"type": "string"}, "description": "技能列表"},
+            "initial_status": {
+                "type": "string",
+                "default": "running",
+                "description": "初始状态",
+            },
+            "skills": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "技能列表",
+            },
             "session_id": {"type": "string", "description": "会话ID"},
         },
         "required": ["title"],
@@ -1473,7 +1209,11 @@ KANBAN_LIST_SCHEMA = {
             "assignee": {"type": "string", "description": "负责人筛选"},
             "status": {"type": "string", "description": "状态筛选"},
             "tenant": {"type": "string", "description": "租户筛选"},
-            "include_archived": {"type": "boolean", "default": False, "description": "包含已归档任务"},
+            "include_archived": {
+                "type": "boolean",
+                "default": False,
+                "description": "包含已归档任务",
+            },
             "limit": {"type": "integer", "default": 50, "description": "返回数量限制"},
             "board": {"type": "string", "description": "看板ID筛选"},
         },
@@ -1503,12 +1243,23 @@ KANBAN_COMPLETE_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "task_id": {"type": "string", "description": "任务ID"},
+            "task_id": {
+                "type": "string",
+                "description": "任务ID（可选，默认使用当前 Worker 的任务）"
+            },
             "summary": {"type": "string", "description": "完成摘要"},
             "metadata": {"type": "object", "description": "元数据"},
             "result": {"type": "string", "description": "结果"},
-            "created_cards": {"type": "array", "items": {"type": "string"}, "description": "创建的卡片ID列表"},
-            "artifacts": {"type": "array", "items": {"type": "string"}, "description": "产出物列表"},
+            "created_cards": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "创建的卡片ID列表",
+            },
+            "artifacts": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "产出物列表",
+            },
             "board": {"type": "string", "description": "看板ID（可选）"},
         },
     },
@@ -1520,11 +1271,14 @@ KANBAN_BLOCK_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "task_id": {"type": "string", "description": "任务ID"},
+            "task_id": {
+                "type": "string",
+                "description": "任务ID（可选，默认使用当前 Worker 的任务）"
+            },
             "reason": {"type": "string", "description": "阻塞原因"},
             "board": {"type": "string", "description": "看板ID（可选）"},
         },
-        "required": ["task_id", "reason"],
+        "required": ["reason"],
     },
 }
 
@@ -1547,7 +1301,10 @@ KANBAN_HEARTBEAT_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "task_id": {"type": "string", "description": "任务ID（可选，默认使用运行中的任务）"},
+            "task_id": {
+                "type": "string",
+                "description": "任务ID（可选，默认使用运行中的任务）",
+            },
             "note": {"type": "string", "description": "心跳备注"},
             "board": {"type": "string", "description": "看板ID（可选）"},
         },
@@ -1614,99 +1371,6 @@ KANBAN_DELETE_SCHEMA = {
 # 工具注册
 # =============================================================================
 
-# 保留的工具注册
-registry.register(
-    name="kanban_create_board",
-    toolset="kanban",
-    schema=KANBAN_CREATE_BOARD_SCHEMA,
-    handler=lambda args, **kw: kanban_create_board(args.get("name", "")),
-    check_fn=check_kanban_requirements,
-    emoji="📋",
-)
-
-registry.register(
-    name="kanban_delete_board",
-    toolset="kanban",
-    schema=KANBAN_DELETE_BOARD_SCHEMA,
-    handler=lambda args, **kw: kanban_delete_board(args.get("board_id", "")),
-    check_fn=check_kanban_requirements,
-    emoji="🗑️",
-)
-
-registry.register(
-    name="kanban_list_boards",
-    toolset="kanban",
-    schema=KANBAN_LIST_BOARDS_SCHEMA,
-    handler=lambda args, **kw: kanban_list_boards(),
-    check_fn=check_kanban_requirements,
-    emoji="📋",
-)
-
-registry.register(
-    name="kanban_add_task",
-    toolset="kanban",
-    schema=KANBAN_ADD_TASK_SCHEMA,
-    handler=lambda args, **kw: kanban_add_task(
-        board_id=args.get("board_id", ""),
-        title=args.get("title", ""),
-        description=args.get("description"),
-        priority=args.get("priority", "medium"),
-        column_id=args.get("column_id", "todo"),
-    ),
-    check_fn=check_kanban_requirements,
-    emoji="➕",
-)
-
-registry.register(
-    name="kanban_move_task",
-    toolset="kanban",
-    schema=KANBAN_MOVE_TASK_SCHEMA,
-    handler=lambda args, **kw: kanban_move_task(
-        board_id=args.get("board_id", ""),
-        task_id=args.get("task_id", ""),
-        target_column_id=args.get("target_column_id", ""),
-    ),
-    check_fn=check_kanban_requirements,
-    emoji="➡️",
-)
-
-registry.register(
-    name="kanban_update_task",
-    toolset="kanban",
-    schema=KANBAN_UPDATE_TASK_SCHEMA,
-    handler=lambda args, **kw: kanban_update_task(
-        board_id=args.get("board_id", ""),
-        task_id=args.get("task_id", ""),
-        title=args.get("title"),
-        description=args.get("description"),
-        priority=args.get("priority"),
-    ),
-    check_fn=check_kanban_requirements,
-    emoji="✏️",
-)
-
-registry.register(
-    name="kanban_delete_task",
-    toolset="kanban",
-    schema=KANBAN_DELETE_TASK_SCHEMA,
-    handler=lambda args, **kw: kanban_delete_task(
-        board_id=args.get("board_id", ""),
-        task_id=args.get("task_id", ""),
-    ),
-    check_fn=check_kanban_requirements,
-    emoji="🗑️",
-)
-
-registry.register(
-    name="kanban_view_board",
-    toolset="kanban",
-    schema=KANBAN_VIEW_BOARD_SCHEMA,
-    handler=lambda args, **kw: kanban_view_board(args.get("board_id", "")),
-    check_fn=check_kanban_requirements,
-    emoji="👁️",
-)
-
-# 新增工具注册
 registry.register(
     name="kanban_create",
     toolset="kanban",

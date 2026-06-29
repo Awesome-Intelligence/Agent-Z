@@ -3,68 +3,7 @@ from tools.schema_registry import UnifiedToolSchema, ToolSource
 
 
 TASK_TOOLS = [
-    UnifiedToolSchema(
-        name="todo",
-        description="任务管理：创建、列表、更新、完成任务",
-        source=ToolSource.HERMES,
-        source_name="todo",
-        parameters={
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string",
-                    "enum": ["create", "list", "update", "complete", "delete"],
-                    "description": "操作类型"
-                },
-                "title": {
-                    "type": "string",
-                    "description": "任务标题"
-                },
-                "description": {
-                    "type": "string",
-                    "description": "任务描述"
-                },
-                "task_id": {
-                    "type": "string",
-                    "description": "任务 ID"
-                },
-                "status": {
-                    "type": "string",
-                    "enum": ["pending", "in_progress", "completed", "cancelled"],
-                    "description": "任务状态"
-                },
-                "priority": {
-                    "type": "string",
-                    "enum": ["low", "medium", "high", "urgent"],
-                    "description": "优先级",
-                    "default": "medium"
-                },
-                "due_date": {
-                    "type": "string",
-                    "description": "截止日期 (YYYY-MM-DD)"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "任务标签"
-                }
-            },
-            "required": ["action"]
-        },
-        returns={
-            "type": "object",
-            "properties": {
-                "success": {"type": "boolean"},
-                "tasks": {
-                    "type": "array",
-                    "items": {"type": "object"}
-                },
-                "task_id": {"type": "string"}
-            }
-        },
-        safety_level="low",
-        category="task",
-    ),
+    # 注意: todo 工具已迁移到 tools/todo_tool.py，通过 registry.register() 自注册
     UnifiedToolSchema(
         name="memory",
         description="持久化记忆：保存和检索用户信息、偏好设置和历史记录",

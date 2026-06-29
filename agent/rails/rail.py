@@ -1,4 +1,5 @@
-# 🧠 Decision - 🔧 Rail - Rail 基类定义
+#!/usr/bin/env python3
+# 🧠 Decision - Rail 安全拦截
 
 """
 Rail 机制 - 可插拔的安全检查和控制框架

@@ -253,6 +253,7 @@ class HandsomeAgentApp(App):
         Binding("ctrl+2", "switch_to_tasks", "", show=False),
         Binding("ctrl+3", "switch_to_agent", "", show=False),
         Binding("ctrl+4", "switch_to_logs", "", show=False),
+        Binding("ctrl+g", "switch_to_goal", "", show=False),  # Goal 面板快捷键
         Binding("ctrl+shift+a", "change_theme", "", show=False),
         Binding("ctrl+shift+b", "toggle_transparency", "", show=False),
         Binding("ctrl+shift+m", "toggle_markdown", "", show=False),
@@ -419,7 +420,9 @@ class HandsomeAgentApp(App):
             yield ChatView(id="chat-area")
             if SidebarContainer:
                 with Container(id="sidebar-container"):
-                    yield SidebarContainer(cwd=self.cwd, agent=self._agent)
+                    # 获取 Agent 的 GoalManager（如果存在）
+                    goal_manager = getattr(self._agent, '_goal_manager', None) if self._agent else None
+                    yield SidebarContainer(cwd=self.cwd, agent=self._agent, goal_manager=goal_manager)
 
         with Container(id="input-area"):
             with Container(id="status-bar"):
@@ -449,7 +452,7 @@ class HandsomeAgentApp(App):
             event.stop()
             return
 
-        if event.control and event.key in ['1', '2', '3', '4']:
+        if event.control and event.key in ['1', '2', '3', '4', 'g']:
             if event.key == '1':
                 self.action_switch_to_file_tree()
             elif event.key == '2':
@@ -458,6 +461,8 @@ class HandsomeAgentApp(App):
                 self.action_switch_to_agent()
             elif event.key == '4':
                 self.action_switch_to_logs()
+            elif event.key == 'g':
+                self.action_switch_to_goal()
             event.prevent_default()
             event.stop()
 
@@ -496,26 +501,18 @@ class HandsomeAgentApp(App):
             self._logger.info("Applying saved transparency settings")
             self._update_transparency_styles(True)
 
-        # 初始化 TUIConsumer 并注册到 Agent 的事件系统
+        # 初始化 TUIConsumer 并注册到 Agent 的事件系统（用于日志）
         if TUIConsumer and self._agent is not None:
             try:
-                self._tui_consumer = TUIConsumer(self)
+                # TUIConsumer 现在只需要用于日志，不再需要 tasks_pane
+                self._tui_consumer = TUIConsumer()
                 
                 # 尝试获取 Agent 的 registry 并注册消费者
                 if hasattr(self._agent, '_stream_emitter') and self._agent._stream_emitter is not None:
                     emitter = self._agent._stream_emitter
                     if hasattr(emitter, 'registry'):
                         emitter.registry.register(self._tui_consumer)
-                        self._logger.info("TUIConsumer registered to agent registry")
-                
-                # 同时设置 TaskPlanner 的 emitter
-                if hasattr(self._agent, '_task_planning_middleware') and self._agent._task_planning_middleware is not None:
-                    planner = getattr(self._agent._task_planning_middleware, 'planner', None)
-                    if planner and hasattr(planner, 'set_emitter'):
-                        if hasattr(self._agent, '_stream_emitter'):
-                            planner.set_emitter(self._agent._stream_emitter)
-                            self._logger.info("TaskPlanner emitter set")
-                            
+                        self._logger.info("TUIConsumer registered to agent registry (for logging)")
             except Exception as e:
                     self._logger.warning(f"Failed to initialize TUIConsumer: {e}")
 
@@ -1705,6 +1702,9 @@ class HandsomeAgentApp(App):
 
     def action_switch_to_logs(self) -> None:
         self._get_sidebar_and_switch("logs")
+
+    def action_switch_to_goal(self) -> None:
+        self._get_sidebar_and_switch("goal")
 
     def set_agent_status(self, status: str) -> None:
         self._agent_status = status

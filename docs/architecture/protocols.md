@@ -22,12 +22,6 @@ Handsome Agent 支持多种通信协议，用于不同的通信场景：
 ```
 Handsome-Agent/
 │
-├── api/                      # 🚪 Access - OpenAI 兼容 API
-│   ├── __init__.py          #   模块入口
-│   ├── api_server.py        #   OpenAI 兼容 API 服务器
-│   ├── server.py            #   CLI 入口
-│   └── brain_service.yaml   #   OpenAPI 规范文档
-│
 ├── agent/                    # 🧠 Decision
 │   ├── acp/                 #   💾 Memory - ACP 协议
 │   │   ├── __init__.py     #     模块入口
@@ -57,11 +51,12 @@ Handsome-Agent/
 │   └── ...
 │
 └── gateway/                  # 🚪 Access - 🚪 Gateway
-    ├── platforms/            #   消息平台适配器
+    ├── adapters/            #   渠道适配器
     │   ├── __init__.py
-    │   ├── base.py
-    │   ├── api_server.py
-    │   └── ...
+    │   ├── http_adapter.py  #   HTTP 适配器
+    │   ├── cli_adapter.py   #   CLI 适配器
+    │   └── openai_adapter.py #  OpenAI 兼容 API (2026-06-26 从 api/ 迁移)
+    ├── platforms/           #   消息平台适配器 (待清理)
     └── ...
 ```
 

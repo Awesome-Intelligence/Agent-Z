@@ -71,7 +71,7 @@ class TestBuildGuidance:
     
     def test_build_guidance(self, context_builder):
         """测试指导性文本构建（通过 build_parts 验证 stable 层）"""
-        parts = context_builder.build_parts(user_message="", model=None, memory_context="")
+        parts = context_builder.build_parts(user_message="", model=None, memory_snapshot="")
         
         # 验证 stable 层包含指导性内容
         stable = parts.get("stable", "")
@@ -85,7 +85,7 @@ class TestBuildGuidance:
         """测试禁用指导性文本"""
         from agent.context.context_builder import ContextBuilder
         cb = ContextBuilder(enable_guidance=False)
-        parts = cb.build_parts(user_message="", model=None, memory_context="")
+        parts = cb.build_parts(user_message="", model=None, memory_snapshot="")
 
         # 验证 stable 层包含基础内容（身份和能力）
         assert "Handsome Agent" in parts["stable"]
@@ -578,20 +578,6 @@ class TestThreeLayerArchitecture:
         assert "AGENT_IDENTITY" in keys
         assert "CAPABILITIES" in keys
         assert "TOOL_USE_ENFORCEMENT" in keys
-    
-    def test_backward_compatibility_memory_context(self, context_builder):
-        """验证向后兼容：旧参数名 memory_context"""
-        memory = "test memory content"
-        parts = context_builder.build_parts(memory_context=memory)
-        
-        assert memory in parts["volatile"]
-    
-    def test_backward_compatibility_user_profile(self, context_builder):
-        """验证向后兼容：旧参数名 user_profile"""
-        profile = "test user profile"
-        parts = context_builder.build_parts(user_profile=profile)
-        
-        assert profile in parts["volatile"]
     
     def test_layers_are_separated(self, context_builder):
         """验证三层内容互不污染"""

@@ -1,5 +1,5 @@
 """
-TUI 侧边栏组件 - 提供文件树、任务、Agent、日志面板
+TUI 侧边栏组件 - 提供文件树、任务、Goal、Agent、日志面板
 使用 Textual TabbedContent + TabPane 组件实现
 """
 
@@ -41,7 +41,7 @@ except ImportError:
     TASK_STATUS_ICONS = {}
     AGENT_STATUS_ICONS = {"idle": "🟢", "busy": "🟠"}
     LOG_LEVEL_ICONS = {"INFO": "ℹ️", "DEBUG": "🐛", "WARNING": "⚠️", "ERROR": "❌"}
-    PANEL_ICONS = {"file_tree": "📁", "tasks": "📋", "agent": "🤖", "logs": "📜"}
+    PANEL_ICONS = {"file_tree": "📁", "tasks": "📋", "goal": "🎯", "agent": "🤖", "logs": "📜"}
 
     def get_file_icon(filename: str) -> str:
         ext = Path(filename).suffix.lower()
@@ -95,18 +95,265 @@ class SidebarPane(TabPane):
 
 
 # ============================================================================
+# Goal 面板
+# ============================================================================
+
+
+class GoalPane(SidebarPane):
+    """
+    Goal 面板 - 实时显示当前 Goal 的状态
+    
+    功能:
+    1. 显示 Goal 状态（活跃/暂停/完成/过期/清除）
+    2. 显示目标描述
+    3. 显示剩余轮次和迭代进度
+    4. 支持通过 GoalManager 动态更新
+    """
+    
+    # Goal 状态图标
+    STATUS_ICONS = {
+        "active": "🎯",
+        "paused": "⏸️",
+        "done": "✅",
+        "cleared": "🗑️",
+        "expired": "⏰",
+    }
+    
+    # 默认 CSS
+    DEFAULT_CSS = """
+    GoalPane {
+        width: 100%;
+        height: 100%;
+    }
+    
+    GoalPane #goal-container {
+        width: 100%;
+        height: 100%;
+        padding: 1;
+    }
+    
+    GoalPane #goal-header {
+        width: 100%;
+        padding: 1;
+        background: $accent 15%;
+        border: solid $accent;
+        margin-bottom: 1;
+    }
+    
+    GoalPane #goal-progress {
+        width: 100%;
+        padding: 1;
+    }
+    
+    GoalPane #goal-empty {
+        color: $text-muted;
+        text-style: italic;
+        padding: 1;
+    }
+    
+    GoalPane .status-badge {
+        padding: 0 1;
+    }
+    
+    GoalPane .status-badge.active {
+        color: $success;
+        text-style: bold;
+    }
+    
+    GoalPane .status-badge.paused {
+        color: $warning;
+        text-style: bold;
+    }
+    
+    GoalPane .status-badge.done {
+        color: $success;
+    }
+    
+    GoalPane .status-badge.expired {
+        color: $error;
+    }
+    
+    GoalPane .status-badge.cleared {
+        color: $text-muted;
+    }
+    
+    GoalPane #goal-detail {
+        padding: 1;
+        color: $text-muted;
+    }
+    """
+    
+    def __init__(self, goal_manager=None) -> None:
+        self._goal_manager = goal_manager
+        self._refresh_interval: float = 1.0  # 刷新间隔（秒）
+        self._logger = None
+        super().__init__(id="goal", title="Goal")
+    
+    def set_goal_manager(self, goal_manager) -> None:
+        """设置 GoalManager 实例"""
+        self._goal_manager = goal_manager
+    
+    def compose(self) -> ComposeResult:
+        """组合子组件."""
+        with Vertical(id="goal-container"):
+            # Goal 头部（状态+目标描述）
+            yield Static("", id="goal-header")
+            # 进度条
+            yield Static("", id="goal-progress")
+            # 详细状态
+            yield Static("", id="goal-detail")
+            # 空状态提示
+            yield Static("[dim]暂无活跃的 Goal[/dim]\n\n使用 /goal <目标> 创建新 Goal", id="goal-empty")
+    
+    def on_mount(self) -> None:
+        """组件挂载时初始化."""
+        try:
+            from common.logging_manager import get_tui_logger
+            self._logger = get_tui_logger("GoalPane")
+        except ImportError:
+            self._logger = None
+        
+        # 启动定时刷新
+        self._start_refresh_timer()
+    
+    def _start_refresh_timer(self) -> None:
+        """启动定时刷新定时器"""
+        self.set_interval(self._refresh_interval, self._refresh_goal)
+        self._refresh_goal()  # 立即刷新一次
+    
+    def _refresh_goal(self) -> None:
+        """从 GoalManager 刷新 Goal 状态"""
+        if not self._goal_manager:
+            self._show_empty_state()
+            return
+        
+        try:
+            goal_state = self._goal_manager._current_goal
+            
+            if not goal_state:
+                self._show_empty_state()
+                return
+            
+            # 更新显示
+            self._update_display(goal_state)
+        except Exception as e:
+            if self._logger:
+                self._logger.warning(f"Failed to refresh Goal state: {e}")
+            self._show_empty_state()
+    
+    def _show_empty_state(self) -> None:
+        """显示空状态"""
+        try:
+            header = self.query_one("#goal-header", Static)
+            progress = self.query_one("#goal-progress", Static)
+            detail = self.query_one("#goal-detail", Static)
+            empty = self.query_one("#goal-empty", Static)
+            
+            header.update("")
+            progress.update("")
+            detail.update("")
+            empty.display = True
+        except Exception:
+            pass
+    
+    def _update_display(self, goal_state) -> None:
+        """更新 Goal 状态显示"""
+        try:
+            header = self.query_one("#goal-header", Static)
+            progress = self.query_one("#goal-progress", Static)
+            detail = self.query_one("#goal-detail", Static)
+            empty = self.query_one("#goal-empty", Static)
+            
+            empty.display = False
+            
+            # 获取状态信息
+            status = goal_state.status
+            status_icon = self.STATUS_ICONS.get(status, "❓")
+            status_text = self._get_status_text(status)
+            
+            # 获取目标描述（截断过长文本）
+            goal_text = goal_state.goal
+            display_goal = goal_text[:60] + "..." if len(goal_text) > 60 else goal_text
+            
+            # 获取进度信息
+            budget = self._goal_manager._budget
+            current_turn = budget.turns_used
+            max_turns = budget.max_turns
+            remaining_turns = budget.remaining_turns()
+            turn_progress = int((current_turn / max_turns) * 100) if max_turns > 0 else 0
+            
+            # 更新头部
+            header.update(f"""[bold]{status_icon} {status_text}[/bold]
+
+[accent]{display_goal}[/accent]""")
+            
+            # 更新进度条
+            progress_bar = self._make_progress_bar(turn_progress)
+            progress.update(f"""[dim]轮次进度:[/dim] {current_turn}/{max_turns}
+{progress_bar} {turn_progress}% | 剩余 {remaining_turns} 轮""")
+            
+            # 更新详细信息
+            detail_lines = []
+            
+            # 迭代信息
+            if budget:
+                detail_lines.append(f"[dim]迭代:[/dim] {budget.used}/{budget.max_iterations}")
+            
+            # Judge 判决信息
+            if goal_state.last_verdict is not None:
+                verdict_icon = "✅" if goal_state.last_verdict else "🔄"
+                detail_lines.append(f"[dim]上次判决:[/dim] {verdict_icon} {'完成' if goal_state.last_verdict else '继续'}")
+                if goal_state.last_reason:
+                    reason = goal_state.last_reason[:40] + "..." if len(goal_state.last_reason) > 40 else goal_state.last_reason
+                    detail_lines.append(f"  {reason}")
+            
+            # Subgoals 数量
+            if goal_state.subgoals:
+                detail_lines.append(f"[dim]子目标:[/dim] {len(goal_state.subgoals)} 个")
+            
+            # 暂停原因
+            if status == "paused" and goal_state.paused_reason:
+                paused = goal_state.paused_reason[:50] + "..." if len(goal_state.paused_reason) > 50 else goal_state.paused_reason
+                detail_lines.append(f"[dim]暂停原因:[/dim] {paused}")
+            
+            detail.update("\n".join(detail_lines) if detail_lines else "[dim]无详细信息[/dim]")
+            
+        except Exception as e:
+            if self._logger:
+                self._logger.warning(f"Failed to update Goal display: {e}")
+    
+    def _get_status_text(self, status: str) -> str:
+        """获取状态的中文文本"""
+        status_map = {
+            "active": "执行中",
+            "paused": "已暂停",
+            "done": "已完成",
+            "cleared": "已清除",
+            "expired": "已过期",
+        }
+        return status_map.get(status, status)
+    
+    def _make_progress_bar(self, percent: int, width: int = 12) -> str:
+        """生成进度条"""
+        filled = int(width * percent / 100)
+        empty = width - filled
+        return f"[success]{'█' * filled}[/success][dim]{'░' * empty}[/dim]"
+
+
+# ============================================================================
 # 任务面板
 # ============================================================================
 
 
 class TasksPane(SidebarPane):
     """
-    任务面板 - 实时显示 Agent 拆分出的任务
+    任务面板 - 实时显示当前会话的 Todo 任务
     
     功能:
-    1. 显示当前执行的任务（置顶，高亮）
-    2. 显示所有子任务列表
+    1. 直接从 SessionTodoStore 读取任务状态（Layer 1）
+    2. 定期刷新任务列表
     3. 显示任务状态和进度
+    4. 会话结束自动清除（符合 Layer 1 设计）
     """
     
     # 内部数据结构
@@ -115,14 +362,14 @@ class TasksPane(SidebarPane):
     _current_subtask_id: Optional[int] = None
     _progress_percent: int = 0
     _expanded_tasks: set = set()  # 展开的任务 ID
+    _todo_store = None  # SessionTodoStore 实例
+    _refresh_interval: float = 1.0  # 刷新间隔（秒）
     
-    # 状态图标
+    # 状态图标（映射 todo 状态到图标）
     STATUS_ICONS = {
         "pending": "⏳",
-        "running": "🔄",
+        "in_progress": "🔄",
         "completed": "✅",
-        "failed": "❌",
-        "error": "❌",
         "cancelled": "➖",
     }
     
@@ -182,12 +429,8 @@ class TasksPane(SidebarPane):
     
     def __init__(self) -> None:
         super().__init__(id="tasks", title="任务")
-        # 尝试导入消息类型
-        try:
-            from tui.messages import TaskItem, TasksPaneUpdated, CurrentTaskChanged
-            self._has_messages = True
-        except ImportError:
-            self._has_messages = False
+        self._has_messages = False  # 暂时禁用旧消息机制，使用 Kanban 直读
+        self._logger = None
     
     def compose(self) -> ComposeResult:
         """组合子组件."""
@@ -198,37 +441,153 @@ class TasksPane(SidebarPane):
             # 任务列表
             yield Static("[dim]暂无任务[/dim]", id="tasks-list")
     
-    # ==================== 消息处理 ====================
-    
     def on_mount(self) -> None:
         """组件挂载时初始化."""
-        # 订阅消息
-        if self._has_messages:
-            from tui.messages import TasksPaneUpdated, CurrentTaskChanged
-            self._tasks_pane_updated = TasksPaneUpdated
-            self._current_task_changed = CurrentTaskChanged
-    
-    async def _on_tasks_pane_updated(self, event) -> None:
-        """处理任务面板更新"""
-        self._tasks = event.tasks if hasattr(event, 'tasks') else {}
-        self._current_task_id = event.current_task_id if hasattr(event, 'current_task_id') else None
-        self._current_subtask_id = event.current_subtask_id if hasattr(event, 'current_subtask_id') else None
-        self._progress_percent = event.progress_percent if hasattr(event, 'progress_percent') else 0
+        # 先初始化 logger
+        try:
+            from common.logging_manager import get_tui_logger
+            self._logger = get_tui_logger("TasksPane")
+        except ImportError:
+            self._logger = None
         
-        self._update_display()
-    
-    async def _on_current_task_changed(self, event) -> None:
-        """处理当前任务变更"""
-        self._current_task_id = event.task_id if hasattr(event, 'task_id') else None
-        self._current_subtask_id = event.subtask_id if hasattr(event, 'subtask_id') else None
+        # 初始化 SessionTodoStore
+        self._init_todo_store()
         
-        if event.task_id and event.task_id in self._tasks:
-            # 更新当前任务显示
+        # 启动定时刷新
+        self._start_refresh_timer()
+    
+    def _init_todo_store(self) -> None:
+        """初始化 SessionTodoStore"""
+        try:
+            from tools.todo_tool import get_session_todo_store
+            self._todo_store = get_session_todo_store()
+            if self._logger:
+                self._logger.debug("SessionTodoStore initialized")
+        except ImportError as e:
+            if self._logger:
+                self._logger.warning(f"Failed to init SessionTodoStore: {e}")
+            self._todo_store = None
+    
+    def _start_refresh_timer(self) -> None:
+        """启动定时刷新定时器"""
+        self.set_interval(self._refresh_interval, self._refresh_tasks)
+        self._refresh_tasks()  # 立即刷新一次
+    
+    def _refresh_tasks(self) -> None:
+        """从 SessionTodoStore 刷新任务列表（Layer 1 - 当前会话）"""
+        if self._todo_store is None:
+            return
+        
+        try:
+            # 直接从 SessionTodoStore 读取任务
+            todos = self._todo_store.read()
+            
+            if not todos:
+                self._tasks = {}
+                self._update_display()
+                return
+            
+            # 转换为 TasksPane 内部格式
+            self._tasks = {"session": self._convert_todos(todos)}
+            
+            # 找出当前进行中的任务
+            in_progress = [t for t in todos if t.get("status") == "in_progress"]
+            if in_progress:
+                self._current_task_id = in_progress[0].get("id")
+                self._update_current_task_display(in_progress[0])
+            
+            self._update_display()
+        except Exception as e:
+            if self._logger:
+                self._logger.warning(f"Failed to refresh tasks from SessionTodoStore: {e}")
+    
+    def _convert_todos(self, todos: List[Dict]) -> List:
+        """将 Todo 项转换为 TasksPane 内部格式
+        
+        Args:
+            todos: SessionTodoStore 返回的任务列表
+            
+        Returns:
+            List: 转换后的任务列表
+        """
+        converted = []
+        
+        for todo in todos:
+            # 创建简化的任务项
+            task_item = type('TodoItem', (), {
+                'task_id': todo.get("id", ""),
+                'subtask_id': todo.get("id", ""),
+                'title': todo.get("content", ""),
+                'description': '',
+                'status': todo.get("status", "pending"),
+                'progress': self._get_todo_progress(todo.get("status", "pending")),
+            })()
+            converted.append(task_item)
+        
+        return converted
+    
+    def _get_todo_progress(self, todo_status: str) -> int:
+        """获取 Todo 任务进度"""
+        progress_map = {
+            "pending": 0,
+            "in_progress": 50,
+            "completed": 100,
+            "cancelled": 100,
+        }
+        return progress_map.get(todo_status, 0)
+    
+    def _update_current_task_display(self, todo: Dict) -> None:
+        """更新当前执行任务显示"""
+        try:
             current_task_widget = self.query_one("#current-task", Static)
-            if hasattr(event, 'status') and event.status == "running":
-                current_task_widget.update(
-                    self._format_current_task(event.subtask_title if hasattr(event, 'subtask_title') else "")
-                )
+            
+            status_icon = self.STATUS_ICONS.get("in_progress", "🔄")
+            title = todo.get("content", "")[:40] if len(todo.get("content", "")) > 40 else todo.get("content", "")
+            
+            # 格式化状态文本
+            status_text = self._get_status_text("in_progress")
+            progress_bar = self._make_progress_bar(50)
+            
+            current_task_widget.update(f"""[bold]{status_icon} {status_text}[/bold]
+ 
+ [accent]{title}[/accent]
+ 
+ {progress_bar} 50%
+ """)
+        except Exception as e:
+            if self._logger:
+                self._logger.warning(f"Failed to update current task display: {e}")
+    
+    def _get_status_text(self, status: str) -> str:
+        """获取状态的中文文本"""
+        status_map = {
+            "triage": "待分类",
+            "todo": "待处理",
+            "ready": "准备就绪",
+            "pending": "待处理",
+            "running": "执行中",
+            "blocked": "已阻塞",
+            "done": "已完成",
+            "completed": "已完成",
+            "failed": "已失败",
+            "error": "错误",
+            "cancelled": "已取消",
+            "archived": "已归档",
+            "timed_out": "已超时",
+        }
+        return status_map.get(status, status)
+    
+    # ==================== 保留旧消息处理（兼容性） ====================
+    
+    def on_tasks_pane_updated(self, event) -> None:
+        """处理任务面板更新消息（保留兼容性）"""
+        # 如果收到外部消息，也触发刷新以保持同步
+        self._refresh_tasks()
+    
+    def on_current_task_changed(self, event) -> None:
+        """处理当前任务变更消息（保留兼容性）"""
+        # 收到消息时也触发刷新
+        self._refresh_tasks()
     
     # ==================== 显示逻辑 ====================
     
@@ -241,36 +600,71 @@ class TasksPane(SidebarPane):
             return
         
         lines = []
-        for task_id, subtasks in self._tasks.items():
-            if not subtasks:
+        
+        # 按状态分类收集所有任务（只支持 todo 的四种状态）
+        status_groups: Dict[str, List] = {
+            "in_progress": [],
+            "pending": [],
+            "completed": [],
+            "cancelled": [],
+        }
+        
+        for board_id, subtasks in self._tasks.items():
+            for subtask in subtasks:
+                status = getattr(subtask, 'status', 'unknown')
+                
+                if status == "in_progress":
+                    status_groups["in_progress"].append(subtask)
+                elif status == "pending":
+                    status_groups["pending"].append(subtask)
+                elif status == "completed":
+                    status_groups["completed"].append(subtask)
+                elif status == "cancelled":
+                    status_groups["cancelled"].append(subtask)
+        
+        # 按状态分组显示
+        status_order = ["in_progress", "pending", "cancelled", "completed"]
+        status_labels = {
+            "in_progress": "🔄 进行中",
+            "pending": "⏳ 待处理",
+            "completed": "✅ 已完成",
+            "cancelled": "➖ 已取消",
+        }
+        
+        has_tasks = False
+        for status_key in status_order:
+            tasks = status_groups[status_key]
+            if not tasks:
                 continue
             
-            # 获取主任务信息
-            main_task = subtasks[0].title if hasattr(subtasks[0], 'title') and subtasks[0].title else "未知任务"
+            has_tasks = True
+            lines.append(f"[dim]{status_labels.get(status_key, status_key)}[/dim]")
             
-            # 任务分组
-            lines.append(f"[dim]┌─ {main_task[:30]}[/dim]")
-            
-            for subtask in subtasks:
+            for subtask in tasks[:10]:  # 限制每组最多显示10个
                 icon = self.STATUS_ICONS.get(
-                    subtask.status if hasattr(subtask, 'status') else "pending", 
+                    getattr(subtask, 'status', 'unknown'),
                     "❓"
                 )
                 
-                # 构建显示行
-                title = subtask.title if hasattr(subtask, 'title') else str(subtask)
-                display_title = title[:35] if len(title) > 35 else title
+                title = getattr(subtask, 'title', '未知任务')
+                display_title = title[:38] if len(title) > 38 else title
                 
-                if hasattr(subtask, 'status') and subtask.status == "running" and hasattr(subtask, 'progress') and subtask.progress > 0:
-                    # 显示进度
-                    progress_bar = self._make_progress_bar(subtask.progress)
+                progress = getattr(subtask, 'progress', 0)
+                if progress > 0 and progress < 100:
+                    progress_bar = self._make_progress_bar(progress)
                     lines.append(f"  {icon} {display_title} {progress_bar}")
                 else:
                     lines.append(f"  {icon} {display_title}")
             
-            lines.append("[dim]└{'─' * 30}[/dim]")
+            if len(tasks) > 10:
+                lines.append(f"  [dim]... 还有 {len(tasks) - 10} 个任务[/dim]")
+            
+            lines.append("")  # 组之间空行
         
-        tasks_list_widget.update("\n".join(lines) if lines else "[dim]暂无任务[/dim]")
+        if not has_tasks:
+            lines.append("[dim]暂无任务[/dim]")
+        
+        tasks_list_widget.update("\n".join(lines).strip())
     
     def _format_current_task(self, title: str) -> str:
         """格式化当前执行任务"""
@@ -451,21 +845,24 @@ class SidebarContainer(Vertical, can_focus=False, can_focus_children=True):
         Binding("ctrl+right", "next_tab", "Next tab", show=False),
     ]
 
-    def __init__(self, cwd: str = None, agent=None):
+    def __init__(self, cwd: str = None, agent=None, goal_manager=None):
         super().__init__(id="sidebar-container-inner")
         self._cwd = cwd
         self._agent = agent
+        self._goal_manager = goal_manager
 
     def compose(self) -> ComposeResult:
         """组合子组件."""
         # 创建面板实例
         self._tasks_pane = TasksPane()
+        self._goal_pane = GoalPane(self._goal_manager)
         self._file_tree_pane = FileTreePane(self._cwd)
         self._agent_pane = AgentPane(self._agent)
         self._logs_pane = LogsPane()
 
         with TabbedContent():
             yield self._tasks_pane
+            yield self._goal_pane
             yield self._file_tree_pane
             yield self._agent_pane
             yield self._logs_pane
@@ -474,6 +871,11 @@ class SidebarContainer(Vertical, can_focus=False, can_focus_children=True):
     def tasks_pane(self) -> TasksPane:
         """任务面板."""
         return self._tasks_pane
+    
+    @property
+    def goal_pane(self) -> GoalPane:
+        """Goal 面板."""
+        return self._goal_pane
 
     @property
     def file_tree_pane(self) -> FileTreePane:
@@ -494,11 +896,17 @@ class SidebarContainer(Vertical, can_focus=False, can_focus_children=True):
         """切换到指定面板.
 
         Args:
-            panel_id: 面板 ID (tasks, file_tree, agent, logs)
+            panel_id: 面板 ID (tasks, goal, file_tree, agent, logs)
         """
         tabs = self.query_one(Tabs)
-        if panel_id in ["tasks", "file_tree", "agent", "logs"]:
+        if panel_id in ["tasks", "goal", "file_tree", "agent", "logs"]:
             tabs.active = panel_id
+
+    def set_goal_manager(self, goal_manager) -> None:
+        """设置 GoalManager 实例并更新 Goal 面板"""
+        self._goal_manager = goal_manager
+        if self._goal_pane:
+            self._goal_pane.set_goal_manager(goal_manager)
 
     @on(Tabs.TabActivated)
     def on_tab_activated(self, event: Tabs.TabActivated) -> None:
@@ -637,6 +1045,7 @@ __all__ = [
     "SidebarContainer",
     "SidebarPane",
     "TasksPane",
+    "GoalPane",
     "FileTreePane",
     "FilteredDirectoryTree",
     "AgentPane",

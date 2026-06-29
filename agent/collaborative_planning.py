@@ -3,15 +3,16 @@
 """
 Collaborative Task Planning - 协作式任务规划
 
-TaskPlanning + AdvancedReasoning 协同工作:
-1. TaskPlanning 拆解任务
-2. AdvancedReasoning 提供技术选型建议
-3. 两者递进式协作
+使用 LLM + Todo 工具进行任务规划。
 
 设计原则:
-- TaskPlanning 负责"做什么"（任务拆解）
+- LLM 负责"做什么"（任务拆解），使用 todo 工具
 - AdvancedReasoning 负责"为什么"（技术选型解释）
 - 两者协同，提供带推理的完整执行计划
+
+注意：
+- 任务规划现在由 LLM 直接使用 todo 工具完成
+- 保留此模块用于高级推理功能
 """
 
 import json
@@ -19,8 +20,10 @@ import re
 from typing import Dict, Any, Optional, List
 from enum import Enum
 
-from .task_planner import TaskPlanner, SubTask, TaskStatus, TaskPlan
-from .task_logger import TaskLogger, create_task_logger
+from tools.todo_tool import (
+    VALID_STATUSES,
+    KANBAN_TO_TODO_STATUS,
+)
 
 
 class CollaborationStrategy(Enum):
@@ -45,35 +48,32 @@ class TechnicalDomain(Enum):
 
 class CollaborativeTaskPlanner:
     """
-    协作式任务规划器
-    
-    TaskPlanning 和 AdvancedReasoning 协同工作：
-    
+    协作式任务规划器（简化版）
+
+    保留此模块用于高级推理功能。
+    任务拆解由 LLM 直接使用 todo 工具完成。
+
     ┌─────────────────────────────────────────────────────────────┐
-    │  1. TaskPlanning 拆解任务                                   │
-    │     "帮我开发一个用户注册功能"                               │
-    │     ↓                                                      │
+    │  1. LLM 使用 todo 工具拆解任务                             │
+    │     "帮我开发一个用户注册功能"                              │
+    │     ↓                                                     │
     │  2. AdvancedReasoning 提供技术建议                         │
-    │     "认证: JWT vs Session → 推荐 JWT (无状态，适合微服务)"  │
-    │     ↓                                                      │
+    │     "认证: JWT vs Session → 推荐 JWT (无状态，适合微服务)" │
+    │     ↓                                                     │
     │  3. 生成带推理的执行计划                                   │
-    │     #1 需求分析                                          │
-    │     #2 技术选型 [理由: JWT 无状态，适合分布式]                │
-    │     #3 数据库设计 [理由: PostgreSQL，事务支持强]            │
     └─────────────────────────────────────────────────────────────┘
     """
-    
+
     def __init__(
         self,
-        task_planner: TaskPlanner,
+        llm_provider=None,
         advanced_reasoning=None,
         enable_collaboration: bool = True
     ):
-        self.task_planner = task_planner
+        self.llm_provider = llm_provider
         self.advanced_reasoning = advanced_reasoning
         self.enable_collaboration = enable_collaboration
-        self.logger = create_task_logger("CollaborativePlanner")
-        
+
         self._technical_keywords = {
             TechnicalDomain.DATABASE: [],
             TechnicalDomain.AUTHENTICATION: [],
@@ -82,18 +82,18 @@ class CollaborativeTaskPlanner:
             TechnicalDomain.SECURITY: [],
             TechnicalDomain.TESTING: [],
         }
-    
+
     def _identify_technical_domains(self, task: str) -> List[TechnicalDomain]:
         """识别任务涉及的技术领域"""
         task_lower = task.lower()
         domains = []
-        
+
         for domain, keywords in self._technical_keywords.items():
             if any(kw.lower() in task_lower for kw in keywords):
                 domains.append(domain)
-        
+
         return domains
-    
+
     def _generate_reasoning_prompt(self, domain: TechnicalDomain, context: str) -> str:
         """生成推理提示"""
         prompts = {
@@ -139,209 +139,115 @@ class CollaborativeTaskPlanner:
             TechnicalDomain.ARCHITECTURE: f"""对于一个{context}的系统，请提供架构建议。
 
 考虑因素：
+- 单体 vs 微服务
+- 可扩展性
+- 维护性
 - 团队规模
-- 业务复杂度
-- 部署环境
-- 扩展需求
 
 请简洁回答：
-1. 推荐架构（单体/微服务/模块化）
+1. 推荐方案
 2. 主要理由
-3. 演进建议""",
+3. 演进路径""",
 
             TechnicalDomain.SECURITY: f"""对于一个{context}的系统，请提供安全建议。
 
 考虑因素：
-- 常见攻击防护
+- 认证授权
 - 数据加密
-- 身份验证
-- 权限控制
+- 漏洞防护
+- 合规要求
 
 请简洁回答：
-1. 关键安全措施
-2. 建议方案
-3. 注意事项""",
+1. 推荐方案
+2. 主要理由
+3. 实现要点""",
+
+            TechnicalDomain.TESTING: f"""对于一个{context}的系统，请提供测试建议。
+
+考虑因素：
+- 单元测试
+- 集成测试
+- E2E 测试
+- 覆盖率目标
+
+请简洁回答：
+1. 推荐方案
+2. 主要理由
+3. 工具推荐""",
+
+            TechnicalDomain.DEPLOYMENT: f"""对于一个{context}的系统，请提供部署建议。
+
+考虑因素：
+- 容器化
+- CI/CD
+- 监控日志
+- 扩缩容
+
+请简洁回答：
+1. 推荐方案
+2. 主要理由
+3. 工具推荐""",
         }
-        
-        return prompts.get(domain, f"请提供关于{domain.value}的建议")
-    
-    async def plan_with_collaboration(self, user_request: str) -> Dict[str, Any]:
+        return prompts.get(domain, "")
+
+    async def get_technical_reasoning(self, task: str) -> Dict[str, Any]:
         """
-        协作式任务规划
-        
-        流程:
-        1. TaskPlanning 拆解任务
-        2. AdvancedReasoning 提供技术建议
-        3. 生成带推理的执行计划
+        获取技术领域推理建议
+
+        这是一个简化版本，保留用于需要高级推理的场景。
         """
         result = {
             'success': True,
-            'main_task': user_request,
-            'subtasks': [],
-            'technical_reasoning': {},
-            'plan': ''
+            'reasoning': {},
+            'domains': []
         }
-        
-        # 1. 分析技术领域
-        domains = self._identify_technical_domains(user_request)
-        
-        # 2. 获取技术建议
-        if self.enable_collaboration and self.advanced_reasoning and domains:
-            for domain in domains:
-                reasoning_prompt = self._generate_reasoning_prompt(domain, user_request)
+
+        if not self.advanced_reasoning:
+            return result
+
+        domains = self._identify_technical_domains(task)
+        result['domains'] = [d.value for d in domains]
+
+        for domain in domains:
+            prompt = self._generate_reasoning_prompt(domain, task)
+            if prompt and self.advanced_reasoning:
                 try:
-                    reasoning_response = await self.advanced_reasoning.process(reasoning_prompt)
-                    if hasattr(reasoning_response, 'content'):
-                        result['technical_reasoning'][domain.value] = reasoning_response.content
+                    response = await self.advanced_reasoning.process(prompt)
+                    if hasattr(response, 'content'):
+                        result['reasoning'][domain.value] = response.content
                     else:
-                        result['technical_reasoning'][domain.value] = str(reasoning_response)
-                except Exception as e:
-                    result['technical_reasoning'][domain.value] = f"建议: 请根据实际需求选择"
-        
-        # 3. TaskPlanning 拆解任务
-        try:
-            complexity = await self.task_planner.analyze_complexity(user_request)
-            
-            if complexity.get('needs_decomposition', False):
-                plan = await self.task_planner.decompose_task(
-                    user_request,
-                    complexity.get('complexity', 'moderate')
-                )
-                
-                result['subtasks'] = [
-                    {
-                        'id': t.id,
-                        'title': t.title,
-                        'description': t.description,
-                        'depends_on': t.depends_on
-                    }
-                    for t in plan.subtasks
-                ]
-                result['main_task'] = plan.main_task
-            else:
-                # 简单任务
-                result['subtasks'] = [
-                    {
-                        'id': 1,
-                        'title': user_request,
-                        'description': '执行任务',
-                        'depends_on': []
-                    }
-                ]
-        except Exception as e:
-            result['success'] = False
-            result['error'] = str(e)
-        
-        # 4. 生成带推理的计划
-        result['plan'] = self._format_collaborative_plan(result)
-        
+                        result['reasoning'][domain.value] = str(response)
+                except Exception:
+                    result['reasoning'][domain.value] = "推理生成失败"
+
         return result
-    
-    def _format_collaborative_plan(self, result: Dict[str, Any]) -> str:
-        """格式化协作式计划"""
+
+    def format_result(self, result: Dict[str, Any]) -> str:
+        """
+        格式化规划结果
+
+        兼容 todo 工具返回的格式。
+        """
         lines = []
-        
-        # 表头
-        lines.append("🎯 **智能执行计划** (TaskPlanning + AdvancedReasoning)")
-        lines.append("")
-        lines.append(f"📋 主任务: {result['main_task']}")
-        lines.append("")
-        
-        # 技术建议摘要
-        if result['technical_reasoning']:
+
+        # 技术推理
+        if result.get('reasoning'):
             lines.append("💡 **技术选型建议:**")
-            for domain, reasoning in result['technical_reasoning'].items():
-                lines.append(f"\n**{domain.upper()}:**")
-                if len(reasoning) > 200:
-                    reasoning = reasoning[:200] + "..."
-                lines.append(f"  {reasoning}")
-            lines.append("")
-        
-        # 子任务列表
-        if result['subtasks']:
-            lines.append("📋 **执行计划:**")
-            for i, task in enumerate(result['subtasks'], 1):
-                lines.append(f"\n  {i}. **{task['title']}**")
-                if task.get('description'):
-                    lines.append(f"     └─ {task['description']}")
-                if task.get('depends_on'):
-                    lines.append(f"     └─ 依赖: {task['depends_on']}")
-        
-        return "\n".join(lines)
+            for domain, reasoning in result['reasoning'].items():
+                lines.append(f"\n**{domain}:**")
+                lines.append(f"{reasoning}")
 
-
-class SubTaskExecutor:
-    """
-    子任务执行器
-    
-    支持在子任务执行时调用 AdvancedReasoning
-    """
-    
-    def __init__(self, advanced_reasoning=None):
-        self.advanced_reasoning = advanced_reasoning
-        self.logger = create_task_logger("SubTaskExecutor")
-    
-    async def execute_with_reasoning(
-        self,
-        subtask: SubTask,
-        context: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
-        """
-        带推理的子任务执行
-        
-        检测子任务是否需要推理，如果需要则调用 AdvancedReasoning
-        """
-        result = {
-            'success': True,
-            'output': '',
-            'reasoning': '',
-            'needs_reasoning': False
-        }
-        
-        # DEPRECATED: 检测是否需要推理应该由 LLM 来判断，这里仅作为降级使用
-        # 简化：默认不需要推理
-        needs_reasoning = False
-        
-        if needs_reasoning and self.advanced_reasoning:
-            result['needs_reasoning'] = True
-            
-            try:
-                prompt = f"""任务: {subtask.title}
-描述: {subtask.description}
-上下文: {context or {}}
-
-请提供:
-1. 为什么要这样做
-2. 最佳实践建议
-3. 常见问题提示
-
-请简洁回答。"""
-                
-                reasoning_response = await self.advanced_reasoning.process(prompt)
-                if hasattr(reasoning_response, 'content'):
-                    result['reasoning'] = reasoning_response.content
-                else:
-                    result['reasoning'] = str(reasoning_response)
-                    
-            except Exception as e:
-                result['reasoning'] = f"推理生成失败: {str(e)}"
-        
-        return result
+        return "\n".join(lines) if lines else ""
 
 
 def create_collaborative_planner(
-    task_planner: TaskPlanner,
+    llm_provider=None,
     advanced_reasoning=None,
     enable_collaboration: bool = True
 ) -> CollaborativeTaskPlanner:
     """创建协作式任务规划器"""
     return CollaborativeTaskPlanner(
-        task_planner=task_planner,
+        llm_provider=llm_provider,
         advanced_reasoning=advanced_reasoning,
         enable_collaboration=enable_collaboration
     )
-
-
-def create_subtask_executor(advanced_reasoning=None) -> SubTaskExecutor:
-    """创建子任务执行器"""
-    return SubTaskExecutor(advanced_reasoning=advanced_reasoning)

@@ -91,7 +91,6 @@ handsome-agent/
 │   │   └── registry.py      # 技能注册表
 │   └── curator/
 │       ├── __init__.py
-│       ├── evaluator.py      # 轨迹评估
 │       ├── synthesizer.py   # 技能提炼
 │       └── writer.py        # Skill DB 写入
 │

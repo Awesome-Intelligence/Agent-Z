@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# 🧠 Decision - 📊 Context - 上下文管理器
+
 """
 Context Manager - 统一的上下文管理入口
 
@@ -59,7 +61,7 @@ project/
 
 class ContextPurpose(Enum):
     """上下文构建的目的"""
-    # 模式判断：判断是否使用 ReAct 模式
+    # 模式判断：判断是否使用 Agent 循环
     MODE_DECISION = "mode_decision"
     # 工具选择：选择合适的工具
     TOOL_SELECTION = "tool_selection"
@@ -69,8 +71,8 @@ class ContextPurpose(Enum):
     CLARIFICATION = "clarification"
     # 工具执行后总结：工具执行后生成自然语言回复
     TOOL_RESULT_SUMMARY = "tool_result_summary"
-    # ReAct 循环：ReAct 模式的推理循环
-    REACT_LOOP = "react_loop"
+    # Agent 循环：Agent 循环引擎的推理循环
+    AGENT_LOOP = "agent_loop"
     # 消息列表构建：构建标准消息列表格式
     MESSAGES_BUILD = "messages_build"
 
@@ -170,6 +172,34 @@ class ContextManager:
     def set_memory_manager(self, memory_manager: "MemoryManager") -> None:
         """设置记忆管理器"""
         self._memory_manager = memory_manager
+    
+    # =========================================================================
+    # 统一上下文准备入口
+    # =========================================================================
+    
+    async def _prepare_history(
+        self,
+        conversation_history: List[Dict[str, Any]],
+        estimated_tokens: int
+    ) -> List[Dict[str, Any]]:
+        """
+        统一的上下文准备逻辑（包含压缩）
+        
+        这是 build_messages() 和 build_parts() 的共享入口。
+        
+        Args:
+            conversation_history: 对话历史
+            estimated_tokens: 估算的 token 数
+            
+        Returns:
+            处理后的对话历史（可能被压缩）
+        """
+        if self._context_compressor.should_compress(estimated_tokens):
+            return self._context_compressor.compress(
+                conversation_history, 
+                estimated_tokens
+            )
+        return conversation_history
     
     # =========================================================================
     # 压缩接口 - 完全委托给 ContextCompressor
@@ -437,7 +467,8 @@ class ContextManager:
         purpose: ContextPurpose = ContextPurpose.DIRECT_RESPONSE,
         tools: Optional[Dict[str, Any]] = None,
         include_tools: bool = None,
-        model: str = None
+        model: str = None,
+        skip_compression: bool = False
     ) -> BuildPartsResult:
         """
         构建上下文的三层结构（Hermes 风格）
@@ -454,6 +485,7 @@ class ContextManager:
             tools: 工具字典
             include_tools: 是否包含工具列表
             model: 模型名称
+            skip_compression: 是否跳过自动压缩（避免重复压缩）
             
         Returns:
             BuildPartsResult: 包含三层结构和元数据
@@ -462,11 +494,19 @@ class ContextManager:
             f"ContextManager.build_parts() called with purpose={purpose.value}"
         )
         
-        # 1. 自动上下文压缩（委托给 Compressor）
+        # 1. 上下文压缩（仅在需要时进行）
         original_count = len(conversation_history) if conversation_history else 0
-        processed_history = self.compress(conversation_history) if conversation_history else None
-        compressed_count = len(processed_history) if processed_history else original_count
-        compressed = compressed_count < original_count
+        if skip_compression or not self._context_compressor:
+            processed_history = conversation_history
+            compressed_count = original_count
+            compressed = False
+        else:
+            # 使用统一的上下文准备逻辑
+            from agent.context.token_estimator import estimate_messages_tokens_rough
+            estimated_tokens = estimate_messages_tokens_rough(conversation_history) if conversation_history else 0
+            processed_history = await self._prepare_history(conversation_history, estimated_tokens)
+            compressed_count = len(processed_history) if processed_history else original_count
+            compressed = compressed_count < original_count
         
         # 2. 获取记忆快照（协调层职责）
         # 记忆快照（USER.md + MEMORY.md）由 MemoryManager 提供，传递给 volatile 层
@@ -525,7 +565,8 @@ class ContextManager:
         purpose: ContextPurpose = ContextPurpose.MESSAGES_BUILD,
         tools: Optional[Dict[str, Any]] = None,
         include_tools: bool = None,
-        model: str = None
+        model: str = None,
+        skip_compression: bool = False
     ) -> BuildMessagesResult:
         """
         构建标准消息列表格式的上下文（统一入口）
@@ -540,6 +581,7 @@ class ContextManager:
             tools: 工具字典（用于工具选择场景）
             include_tools: 是否包含工具列表（默认根据 purpose 自动判断）
             model: 模型名称（用于模型特定指导）
+            skip_compression: 是否跳过自动压缩（避免重复压缩）
             
         Returns:
             BuildMessagesResult: 包含消息列表和元数据
@@ -548,11 +590,19 @@ class ContextManager:
             f"ContextManager.build_messages() called with purpose={purpose.value}"
         )
         
-        # 1. 自动上下文压缩（委托给 Compressor）
+        # 1. 上下文压缩（仅在需要时进行）
         original_count = len(conversation_history) if conversation_history else 0
-        processed_history = self.compress(conversation_history) if conversation_history else None
-        compressed_count = len(processed_history) if processed_history else original_count
-        compressed = compressed_count < original_count
+        if skip_compression or not self._context_compressor:
+            processed_history = conversation_history
+            compressed_count = original_count
+            compressed = False
+        else:
+            # 使用统一的上下文准备逻辑
+            from agent.context.token_estimator import estimate_messages_tokens_rough
+            estimated_tokens = estimate_messages_tokens_rough(conversation_history) if conversation_history else 0
+            processed_history = await self._prepare_history(conversation_history, estimated_tokens)
+            compressed_count = len(processed_history) if processed_history else original_count
+            compressed = compressed_count < original_count
         
         # 2. 获取记忆快照（协调层职责）
         # 记忆快照（USER.md + MEMORY.md）属于 volatile 层

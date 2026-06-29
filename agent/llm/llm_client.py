@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# 🧠 Decision - 🤖 LLM - 统一 LLM 调用入口
+
 """
 LLM Client - 统一的 LLM 调用入口
 
@@ -7,8 +9,6 @@ LLM Client - 统一的 LLM 调用入口
 提供双轨制 LLM 调用：
 - main_call(): 主对话，使用完整上下文 (ContextManager)
 - auxiliary_call(): 辅助任务，使用轻量级上下文
-
-日志子层：🤖 LLM
 """
 
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
@@ -30,15 +30,15 @@ class LLMTaskType(Enum):
     DIRECT_RESPONSE = "direct_response"       # 直接回复
     CLARIFICATION = "clarification"           # 澄清回复
     TOOL_RESULT_SUMMARY = "tool_result_summary"  # 工具结果总结
-    REACT_LOOP = "react_loop"                  # ReAct 循环
-    
+    AGENT_LOOP = "agent_loop"                  # Agent 循环
+
     # 辅助任务相关
     COMPRESSION = "compression"               # 上下文压缩
     TITLE_GENERATION = "title_generation"      # 标题生成
     SKILL_SYNTHESIS = "skill_synthesis"      # 技能合成
     MEMORY_SUMMARY = "memory_summary"          # 记忆摘要
     ANALYSIS = "analysis"                     # 分析任务
-    
+
     # 其他
     OTHER = "other"                           # 其他任务
 

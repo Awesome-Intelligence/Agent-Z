@@ -25,6 +25,12 @@ class StreamEventType(Enum):
     SUBTASK_PROGRESS = "stream.subtask_progress"    # 子任务进度更新
     SUBTASK_COMPLETED = "stream.subtask_completed"  # 子任务完成
     SUBTASK_FAILED = "stream.subtask_failed"        # 子任务失败
+    # 目标管理事件
+    GOAL_START = "stream.goal_start"                # 目标开始
+    GOAL_PROGRESS = "stream.goal_progress"          # 目标进度更新
+    GOAL_COMPLETE = "stream.goal_complete"          # 目标完成
+    GOAL_PAUSED = "stream.goal_paused"              # 目标暂停
+    GOAL_RESUMED = "stream.goal_resumed"            # 目标恢复
 
 
 @dataclass

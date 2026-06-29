@@ -153,11 +153,8 @@ Handsome-Agent/
 ├── docs/                     # 文档
 │   └── flows.md             #   用户交互流程详解
 │
-├── api/                      # 🚪 Access - OpenAI-compatible API Server
-│   ├── __init__.py          #   API 模块入口
-│   ├── api_server.py        #   OpenAI 兼容 API 服务器适配器
-│   ├── server.py            #   API Server CLI
-│   └── brain_service.yaml   #   OpenAPI 规范文档
+├── api/                      # 🚪 Access - [已废弃，请使用 gateway/adapters/openai_adapter.py]
+│   └── __init__.py          #   重定向模块（保留向后兼容）
 └── workspace/                # 工作空间
 ```
 

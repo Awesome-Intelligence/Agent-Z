@@ -1147,10 +1147,8 @@ class GreetingSkill(BaseSkill):
         """
         Execute greeting skill.
         
-        DEPRECATED: 应该使用 LLM 来判断意图和生成响应
+        Note: 直接返回友好响应，不使用硬编码关键词判断意图
         """
-        # 简化：直接返回友好响应
-        # 不再使用硬编码关键词判断
         return SkillResult(
             success=True,
             output="你好！我是你的智能助手。有什么我可以帮助你的吗？"
@@ -1259,7 +1257,7 @@ class ToolWrapperSkill(BaseSkill):
     def get_metadata(self) -> SkillMetadata:
         aliases = []
         
-        if self._tool_name == "terminal":
+        if self._tool_name in ("terminal", "execute_terminal"):
             aliases = ["terminal", "run_terminal", "execute_terminal"]
         
         params = []

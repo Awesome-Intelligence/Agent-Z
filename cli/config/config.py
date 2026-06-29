@@ -133,6 +133,21 @@ DEFAULT_CONFIG = {
     "terminal": {
         "backend": "local",
     },
+    "goal": {
+        "enabled": True,
+        "max_turns": 20,
+        "judge_timeout": 30.0,
+        "judge_max_tokens": 4096,
+        "judge_model": None,  # None 表示使用主模型
+    },
+    "auxiliary": {
+        "goal_judge": {
+            "provider": None,      # 可选，默认使用主 provider
+            "model": None,         # 可选，默认使用主 model
+            "timeout": 30.0,       # Judge 超时（秒）
+            "max_tokens": 4096,    # Judge 输出最大 tokens
+        },
+    },
 }
 
 

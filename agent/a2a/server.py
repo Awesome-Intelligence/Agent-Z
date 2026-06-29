@@ -29,7 +29,7 @@ from agent.a2a.models import (
     part_from_dict,
 )
 
-logger = get_decision_logger(__name__)
+logger = get_decision_logger("a2a")
 
 PROTOCOL_VERSION = "1.0.0"
 

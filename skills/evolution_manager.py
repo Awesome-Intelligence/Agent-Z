@@ -88,7 +88,7 @@ class SelfEvolutionManager:
 
         if self.config.enable_curator:
             try:
-                from agent.curator.enhanced_curator import get_curator
+                from agent.curator import get_curator
                 self._curator = get_curator()
                 logger.info("Initialized curator")
             except Exception as e:

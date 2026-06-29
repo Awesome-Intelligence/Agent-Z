@@ -21,15 +21,9 @@ from typing import Any, Dict, List, Literal, Optional, Union
 # Enums
 # ---------------------------------------------------------------------------
 
-
-class TaskStatus(str, Enum):
-    """Task status enumeration matching A2A specification."""
-    SUBMITTED = "submitted"      # Task submitted, not yet started
-    WORKING = "working"           # Task is being processed
-    INPUT_REQUIRED = "input-required"  # Needs more input from user/agent
-    COMPLETED = "completed"       # Task completed successfully
-    FAILED = "failed"            # Task failed
-    CANCELED = "canceled"        # Task was canceled
+# 统一状态枚举 - 从 agent.state 导入
+# 不要在此文件重复定义状态，请使用 agent.state.TaskStatus
+from agent.state import TaskStatus
 
 
 class MessageRole(str, Enum):

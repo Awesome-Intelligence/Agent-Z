@@ -53,8 +53,7 @@ class ContextBuilder:
     4. 组装完整的系统提示词（三层架构）
     
     注意：
-    - 记忆预取由 ContextManager（协调层）完成，结果通过 memory_context 参数传入
-    - 用户画像由调用方通过 user_profile 参数传入
+    - 记忆预取由 ContextManager（协调层）完成，结果通过 memory_snapshot 参数传入
     - 构建层只负责组装，不持有任何存储层引用（职责分离原则）
     
     日志子层：💾 Context
@@ -101,9 +100,6 @@ class ContextBuilder:
         memory_snapshot: str = "",
         context_files: str = "",
         context_sources: list = None,
-        # 向后兼容别名
-        memory_context: str = None,
-        user_profile: str = None,
     ) -> List[Dict[str, Any]]:
         """
         构建消息列表格式的上下文（Hermes 风格）
@@ -129,17 +125,10 @@ class ContextBuilder:
             memory_snapshot: 记忆快照（USER.md + MEMORY.md，由 ContextManager 提供）
             context_files: 上下文文件内容（AGENTS.md、项目规则等）
             context_sources: 上下文文件来源列表（用于日志显示）
-            memory_context: 向后兼容，等同于 memory_snapshot
-            user_profile: 向后兼容，等同于 memory_snapshot
 
         Returns:
             标准消息列表
         """
-        # 向后兼容：旧参数名
-        if memory_context is not None and not memory_snapshot:
-            memory_snapshot = memory_context
-        if user_profile is not None and not memory_snapshot:
-            memory_snapshot = user_profile
         
         # 1. 使用 build_parts() 获取三层结构（传入记忆快照和上下文文件）
         parts = self.build_parts(
@@ -335,12 +324,8 @@ class ContextBuilder:
         user_message: str = "",
         model: str = None,
         memory_snapshot: str = "",
-        user_profile_snapshot: str = "",
         context_files: str = "",
         context_sources: list = None,
-        # 向后兼容别名
-        memory_context: str = None,
-        user_profile: str = None,
     ) -> Dict[str, str]:
         """
         构建系统提示词的三层结构（Hermes 风格）
@@ -359,19 +344,12 @@ class ContextBuilder:
             user_message: 用户消息
             model: 模型名称（用于模型特定指导）
             memory_snapshot: 记忆快照（USER.md + MEMORY.md，由 ContextManager 提供）
-            user_profile_snapshot: （已弃用，保留向后兼容，实际使用 memory_snapshot）
             context_files: 上下文文件内容（AGENTS.md、项目规则等）
             context_sources: 上下文文件来源列表（用于日志显示）
             
         Returns:
             Dict[str, str]: 包含 stable/context/volatile 三层内容的字典
         """
-        # 向后兼容：旧参数名 memory_context → memory_snapshot
-        if memory_context is not None and not memory_snapshot:
-            memory_snapshot = memory_context
-        # 向后兼容：旧参数名 user_profile → user_profile_snapshot
-        if user_profile is not None and not user_profile_snapshot:
-            user_profile_snapshot = user_profile
         
         # 🧠 Decision - 💾 Context - 开始构建三层架构
         self.logger.debug("Context Assembly: Building three-layer architecture")
@@ -450,10 +428,6 @@ class ContextBuilder:
         # 记忆快照：USER.md + MEMORY.md（由 ContextManager 在协调层提供）
         if memory_snapshot and memory_snapshot.strip():
             volatile_parts.append(memory_snapshot)
-        
-        # 向后兼容：如果 memory_snapshot 为空但 user_profile_snapshot 有值，使用后者
-        elif user_profile_snapshot and user_profile_snapshot.strip():
-            volatile_parts.append(user_profile_snapshot)
         
         # 时间戳（使用日精度，与 Hermes 一致，避免 stable 层缓存失效）
         timestamp = time.strftime("%Y-%m-%d")

@@ -101,6 +101,7 @@ description: |
 | OpenClaw  | E:/openclaw-study |
 | CodeWhale  | E:/CodeWhale-study |
 | frogmouth  | E:/frogmouth |
+| jiuwenswarm  | E:/jiuwenswarm-study |
 
 ---
 

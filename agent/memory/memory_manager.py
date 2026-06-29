@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# 🧠 Decision - 💾 Memory - 记忆管理器
+
 """
 Memory Manager Module - Inspired by Hermes Agent
 

@@ -61,7 +61,6 @@ Handsome-Agent/
 │   ├── curator/             # 🔬 Curator（自我进化）
 │   │   ├── __init__.py
 │   │   ├── curator.py       # 主逻辑
-│   │   ├── evaluator.py     # 轨迹评估
 │   │   ├── synthesizer.py   # 技能合成
 │   │   └── writer.py        # 技能写入
 │   │

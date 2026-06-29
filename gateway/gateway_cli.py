@@ -37,8 +37,8 @@ Examples:
     )
     parser.add_argument(
         "--brain-url",
-        default="http://localhost:8001",
-        help="Brain Service address (default: http://localhost:8001)"
+        default="http://localhost:8000",
+        help="Brain Service address (default: http://localhost:8000)"
     )
     parser.add_argument(
         "--cli",

@@ -381,11 +381,18 @@ def cmd_daemon(args: argparse.Namespace) -> None:
     scheduler = KanbanScheduler(
         dispatch_interval=args.interval or 60,
         claim_timeout=args.timeout or 300,
+        max_spawn=args.max_spawn or 2,
+        max_in_progress=args.max_in_progress or 4,
+        workspaces_root=args.workspaces,
     )
 
-    print_success(f"Kanban scheduler started")
+    print_success("Kanban scheduler started")
     print_info(f"Dispatch interval: {args.interval or 60}s")
     print_info(f"Claim timeout: {args.timeout or 300}s")
+    print_info(f"Max spawn per cycle: {args.max_spawn or 2}")
+    print_info(f"Max in-progress: {args.max_in_progress or 4}")
+    if args.workspaces:
+        print_info(f"Workspaces root: {args.workspaces}")
     print()
 
     if args.foreground:
@@ -651,6 +658,27 @@ def main() -> None:
         type=int,
         default=300,
         help="Claim timeout in seconds (default: 300)",
+    )
+    daemon_parser.add_argument(
+        "--max-spawn",
+        "-m",
+        type=int,
+        default=2,
+        help="Max concurrent worker spawns per cycle (default: 2)",
+    )
+    daemon_parser.add_argument(
+        "--max-in-progress",
+        "-p",
+        type=int,
+        default=4,
+        help="Max running tasks allowed (default: 4)",
+    )
+    daemon_parser.add_argument(
+        "--workspaces",
+        "-w",
+        type=str,
+        default=None,
+        help="Workspaces root directory",
     )
     daemon_parser.add_argument(
         "--foreground",
