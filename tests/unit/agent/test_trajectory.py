@@ -1,219 +1,498 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-Trajectory 单元测试
+Unit tests for the trajectory module.
 
-测试 Trajectory 和 TrajectoryManager 的核心功能
+Tests cover:
+- ExecutionStep serialization and deserialization
+- Trajectory creation and manipulation
+- TrajectoryManager saving and loading
+- Hermes format conversion
+- Session integration
 """
 
 import pytest
 import json
-import os
 import tempfile
+import os
+from datetime import datetime
 from unittest.mock import MagicMock
 
 from agent.curator.trajectory import (
-    Trajectory,
-    ExecutionStep,
-    TrajectoryManager,
     TrajectoryStatus,
+    ExecutionStep,
+    Trajectory,
+    TrajectoryManager,
 )
-from agent.session import Message
 
 
 class TestExecutionStep:
-    """测试 ExecutionStep 类"""
+    """Test ExecutionStep class."""
 
-    def test_from_message(self):
-        """测试从 Message 对象创建 ExecutionStep"""
-        msg = Message(
-            role="user",
-            content="test message",
+    def test_step_creation(self):
+        """Test creating an execution step."""
+        step = ExecutionStep(
+            step_type="thought",
+            content="Thinking about the problem",
             timestamp=1234567890.0,
             metadata={"key": "value"},
+            tool_name="test_tool",
+            tool_result={"result": "success"},
         )
 
-        step = ExecutionStep.from_message(msg)
-
-        assert step.step_type == "user"
-        assert step.content == "test message"
+        assert step.step_type == "thought"
+        assert step.content == "Thinking about the problem"
         assert step.timestamp == 1234567890.0
         assert step.metadata == {"key": "value"}
-        assert step.tool_name is None
-        assert step.tool_result is None
+        assert step.tool_name == "test_tool"
+        assert step.tool_result == {"result": "success"}
 
-    def test_to_hermes_entry(self):
-        """测试转换为 Hermes 格式"""
+    def test_step_to_dict(self):
+        """Test converting step to dictionary."""
         step = ExecutionStep(
-            step_type="assistant",
-            content="Hello, world!",
+            step_type="tool_call",
+            content="Calling tool",
+            timestamp=1234567890.0,
+            metadata={"test": "data"},
+            tool_name="calculator",
+            tool_result={"value": 42},
+        )
+
+        result = step.to_dict()
+
+        assert result["step_type"] == "tool_call"
+        assert result["content"] == "Calling tool"
+        assert result["timestamp"] == 1234567890.0
+        assert result["metadata"] == {"test": "data"}
+        assert result["tool_name"] == "calculator"
+        assert result["tool_result"] == {"value": 42}
+
+    def test_step_from_dict(self):
+        """Test creating step from dictionary."""
+        data = {
+            "step_type": "response",
+            "content": "Hello",
+            "timestamp": 1234567890.0,
+            "metadata": {"source": "test"},
+            "tool_name": None,
+            "tool_result": None,
+        }
+
+        step = ExecutionStep.from_dict(data)
+
+        assert step.step_type == "response"
+        assert step.content == "Hello"
+        assert step.timestamp == 1234567890.0
+        assert step.metadata == {"source": "test"}
+
+    def test_step_to_hermes_entry(self):
+        """Test converting step to Hermes format."""
+        step = ExecutionStep(
+            step_type="user",
+            content="What is the weather?",
             timestamp=1234567890.0,
         )
 
         entry = step.to_hermes_entry()
 
-        assert entry == {"from": "assistant", "value": "Hello, world!"}
+        assert entry["from"] == "user"
+        assert entry["value"] == "What is the weather?"
+
+    def test_step_from_message(self):
+        """Test creating step from message object."""
+        class MockMessage:
+            role = "assistant"
+            content = "I'll check the weather"
+            timestamp = 1234567890.0
+            metadata = {"model": "gpt-4"}
+
+        msg = MockMessage()
+        step = ExecutionStep.from_message(msg)
+
+        assert step.step_type == "assistant"
+        assert step.content == "I'll check the weather"
+        assert step.timestamp == 1234567890.0
+        assert step.metadata == {"model": "gpt-4"}
+
+    def test_step_from_message_with_tool_info(self):
+        """Test creating step from message with tool information."""
+        class MockMessage:
+            role = "assistant"
+            content = "<tool_call>get_weather</tool_call>"
+            timestamp = 1234567890.0
+            metadata = {}
+            tool_name = "get_weather"
+            tool_result = {"weather": "sunny"}
+
+        msg = MockMessage()
+        step = ExecutionStep.from_message(msg)
+
+        assert step.tool_name == "get_weather"
+        assert step.tool_result == {"weather": "sunny"}
 
 
 class TestTrajectory:
-    """测试 Trajectory 类"""
+    """Test Trajectory class."""
 
-    def test_from_session(self):
-        """测试从 Session 创建 Trajectory"""
-        session = MagicMock()
-        session.session_id = "test_session_12345678"
-        session.get_history.return_value = [
-            Message(role="user", content="Hello", timestamp=1234567890.0),
-            Message(role="assistant", content="Hi there!", timestamp=1234567891.0),
-        ]
-
-        trajectory = Trajectory.from_session(session, metadata={"model": "test-model"})
-
-        assert trajectory.id.startswith("traj_")
-        assert trajectory.session_id == "test_session_12345678"
-        assert len(trajectory.messages) == 2
-        assert trajectory.messages[0] == {"from": "user", "value": "Hello"}
-        assert trajectory.messages[1] == {"from": "assistant", "value": "Hi there!"}
-        assert trajectory.metadata == {"model": "test-model"}
-
-    def test_to_hermes_format(self):
-        """测试转换为 Hermes 标准格式"""
+    def test_trajectory_creation(self):
+        """Test creating a trajectory."""
         trajectory = Trajectory(
-            id="test_traj_123",
-            session_id="test_session",
-            messages=[
-                {"from": "system", "value": "You are a helpful assistant"},
-                {"from": "user", "value": "Hello"},
-            ],
+            id="traj_123",
+            session_id="session_abc",
             start_time=1234567890.0,
-            metadata={"model": "gpt-4", "completed": True},
         )
 
-        hermes_format = trajectory.to_hermes_format()
+        assert trajectory.id == "traj_123"
+        assert trajectory.session_id == "session_abc"
+        assert trajectory.start_time == 1234567890.0
+        assert len(trajectory.steps) == 0
+        assert len(trajectory.messages) == 0
 
-        assert hermes_format["conversations"] == trajectory.messages
-        assert "2009-02-14" in hermes_format["timestamp"]
-        assert hermes_format["model"] == "gpt-4"
-        assert hermes_format["completed"] == True
+    def test_add_step(self):
+        """Test adding steps to trajectory."""
+        trajectory = Trajectory(id="traj_1", session_id="session_1")
 
-    def test_to_dict_and_from_dict(self):
-        """测试序列化和反序列化"""
+        step1 = ExecutionStep(
+            step_type="thought",
+            content="Step 1",
+            timestamp=1234567890.0,
+        )
+        step2 = ExecutionStep(
+            step_type="tool_call",
+            content="Step 2",
+            timestamp=1234567890.1,
+        )
+
+        trajectory.add_step(step1)
+        trajectory.add_step(step2)
+
+        assert len(trajectory.steps) == 2
+        assert trajectory.steps[0].step_type == "thought"
+        assert trajectory.steps[1].step_type == "tool_call"
+
+    def test_trajectory_to_dict(self):
+        """Test converting trajectory to dictionary."""
         trajectory = Trajectory(
-            id="test_traj_123",
-            session_id="test_session",
+            id="traj_1",
+            session_id="session_1",
+            start_time=1234567890.0,
+            end_time=1234567895.0,
+            metadata={"model": "test"},
+            messages=[{"from": "user", "value": "hello"}],
+        )
+
+        step = ExecutionStep(
+            step_type="thought",
+            content="test",
+            timestamp=1234567890.0,
+        )
+        trajectory.add_step(step)
+
+        result = trajectory.to_dict()
+
+        assert result["id"] == "traj_1"
+        assert result["session_id"] == "session_1"
+        assert result["start_time"] == 1234567890.0
+        assert result["end_time"] == 1234567895.0
+        assert result["metadata"] == {"model": "test"}
+        assert len(result["steps"]) == 1
+        assert len(result["messages"]) == 1
+
+    def test_trajectory_from_dict(self):
+        """Test creating trajectory from dictionary."""
+        data = {
+            "id": "traj_1",
+            "session_id": "session_1",
+            "start_time": 1234567890.0,
+            "end_time": 1234567895.0,
+            "metadata": {"model": "test"},
+            "messages": [{"from": "user", "value": "hello"}],
+            "steps": [
+                {
+                    "step_type": "thought",
+                    "content": "test",
+                    "timestamp": 1234567890.0,
+                }
+            ],
+        }
+
+        trajectory = Trajectory.from_dict(data)
+
+        assert trajectory.id == "traj_1"
+        assert trajectory.session_id == "session_1"
+        assert len(trajectory.steps) == 1
+        assert len(trajectory.messages) == 1
+
+    def test_trajectory_from_session(self):
+        """Test creating trajectory from session."""
+        class MockMessage:
+            role = "user"
+            content = "Hello"
+            timestamp = 1234567890.0
+            metadata = {}
+
+        class MockSession:
+            session_id = "test_session_123"
+
+            def get_history(self):
+                return [MockMessage()]
+
+        session = MockSession()
+        trajectory = Trajectory.from_session(session, metadata={"test": "value"})
+
+        assert trajectory.session_id == "test_session_123"
+        assert trajectory.id.startswith("traj_")
+        assert len(trajectory.messages) == 1
+        assert trajectory.messages[0]["from"] == "user"
+        assert trajectory.metadata == {"test": "value"}
+
+    def test_trajectory_to_hermes_format(self):
+        """Test converting trajectory to Hermes format."""
+        trajectory = Trajectory(
+            id="traj_1",
+            session_id="session_1",
+            start_time=datetime(2024, 1, 1, 0, 0, 0).timestamp(),
             messages=[
                 {"from": "user", "value": "Hello"},
                 {"from": "assistant", "value": "Hi!"},
             ],
-            start_time=1234567890.0,
-            metadata={"model": "test"},
+            metadata={"model": "gpt-4", "completed": True},
         )
 
-        # 序列化
-        data = trajectory.to_dict()
+        result = trajectory.to_hermes_format()
 
-        assert data["id"] == "test_traj_123"
-        assert data["session_id"] == "test_session"
-        assert data["messages"] == trajectory.messages
-        assert data["metadata"] == {"model": "test"}
-
-        # 反序列化
-        restored = Trajectory.from_dict(data)
-
-        assert restored.id == "test_traj_123"
-        assert restored.session_id == "test_session"
-        assert restored.messages == trajectory.messages
+        assert "conversations" in result
+        assert len(result["conversations"]) == 2
+        assert "timestamp" in result
+        assert result["model"] == "gpt-4"
+        assert result["completed"] is True
 
 
 class TestTrajectoryManager:
-    """测试 TrajectoryManager 类"""
+    """Test TrajectoryManager class."""
 
-    def setup_method(self):
-        """创建临时目录用于测试"""
-        self.temp_dir = tempfile.mkdtemp()
-        self.manager = TrajectoryManager(base_path=self.temp_dir)
+    def test_manager_initialization(self):
+        """Test manager initialization."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = TrajectoryManager(base_path=tmpdir)
 
-    def teardown_method(self):
-        """清理临时目录"""
-        import shutil
+            assert manager.base_path == tmpdir
+            assert os.path.exists(tmpdir)
 
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    def test_manager_default_path(self):
+        """Test manager with default path."""
+        manager = TrajectoryManager()
 
-    def test_save_and_load(self):
-        """测试保存和加载轨迹"""
-        trajectory = Trajectory(
-            id="test_traj_save_load",
-            session_id="test_session",
-            messages=[
-                {"from": "user", "value": "Save test"},
-                {"from": "assistant", "value": "Saved!"},
-            ],
-            metadata={"model": "test-model"},
-        )
+        assert manager.base_path is not None
+        assert "trajectories" in manager.base_path
 
-        # 保存
-        save_path = self.manager.save(trajectory)
+    def test_create_trajectory(self):
+        """Test creating a new trajectory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = TrajectoryManager(base_path=tmpdir)
 
-        assert os.path.exists(save_path)
-        assert save_path.endswith(".jsonl")
+            trajectory = manager.create_trajectory("session_123")
 
-        # 加载
-        loaded = self.manager.load("test_traj_save_load")
+            assert trajectory is not None
+            assert trajectory.id.startswith("traj_")
+            assert trajectory.session_id == "session_123"
 
-        assert loaded is not None
-        assert loaded.id == "test_traj_save_load"
-        assert loaded.session_id == "test_session"
-        assert loaded.messages == trajectory.messages
+    def test_save_and_load_trajectory(self):
+        """Test saving and loading a trajectory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = TrajectoryManager(base_path=tmpdir)
 
-    def test_list(self):
-        """测试列出轨迹"""
-        # 创建多个轨迹
-        for i in range(3):
             trajectory = Trajectory(
-                id=f"test_traj_{i}",
-                session_id="test_session",
+                id="traj_test_save",
+                session_id="session_test",
+                start_time=1234567890.0,
+                messages=[
+                    {"from": "user", "value": "Hello"},
+                    {"from": "assistant", "value": "Hi!"},
+                ],
+                metadata={"model": "test"},
+            )
+
+            filepath = manager.save(trajectory)
+
+            assert os.path.exists(filepath)
+
+            loaded = manager.load("traj_test_save")
+
+            assert loaded is not None
+            assert loaded.id == "traj_test_save"
+            assert loaded.session_id == "session_test"
+            assert len(loaded.messages) == 2
+
+    def test_load_nonexistent_trajectory(self):
+        """Test loading a non-existent trajectory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = TrajectoryManager(base_path=tmpdir)
+
+            result = manager.load("nonexistent_traj")
+
+            assert result is None
+
+    def test_list_trajectories(self):
+        """Test listing trajectories."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = TrajectoryManager(base_path=tmpdir)
+
+            trajectory1 = Trajectory(
+                id="traj_20240101_000001",
+                session_id="session_1",
+                start_time=1234567890.0,
                 messages=[],
             )
-            self.manager.save(trajectory)
+            trajectory2 = Trajectory(
+                id="traj_20240101_000002",
+                session_id="session_1",
+                start_time=1234567891.0,
+                messages=[],
+            )
 
-        # 列出所有轨迹
-        trajectories = self.manager.list()
+            manager.save(trajectory1)
+            manager.save(trajectory2)
 
-        assert len(trajectories) == 3
-        assert "test_traj_0" in trajectories
-        assert "test_traj_1" in trajectories
-        assert "test_traj_2" in trajectories
+            traj_ids = manager.list()
 
-    def test_list_with_filter(self):
-        """测试按 session_id 过滤"""
-        # 创建不同会话的轨迹
-        trajectory1 = Trajectory(
-            id="traj_session1_1",
-            session_id="session1",
-            messages=[],
-        )
-        trajectory2 = Trajectory(
-            id="traj_session2_1",
-            session_id="session2",
-            messages=[],
-        )
+            assert len(traj_ids) == 2
+            assert "traj_20240101_000001" in traj_ids
+            assert "traj_20240101_000002" in traj_ids
 
-        self.manager.save(trajectory1)
-        self.manager.save(trajectory2)
+    def test_list_trajectories_filter_by_session(self):
+        """Test listing trajectories filtered by session."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = TrajectoryManager(base_path=tmpdir)
 
-        # 过滤 session1
-        session1_traj = self.manager.list(session_id="session1")
+            trajectory1 = Trajectory(
+                id="traj_1",
+                session_id="session_a",
+                start_time=1234567890.0,
+                messages=[],
+            )
+            trajectory2 = Trajectory(
+                id="traj_2",
+                session_id="session_b",
+                start_time=1234567891.0,
+                messages=[],
+            )
 
-        assert len(session1_traj) == 1
-        assert "traj_session1_1" in session1_traj
+            manager.save(trajectory1)
+            manager.save(trajectory2)
 
-        # 过滤 session2
-        session2_traj = self.manager.list(session_id="session2")
+            traj_ids = manager.list(session_id="session_a")
 
-        assert len(session2_traj) == 1
-        assert "traj_session2_1" in session2_traj
+            assert len(traj_ids) == 1
+            assert traj_ids[0] == "traj_1"
 
-    def test_load_nonexistent(self):
-        """测试加载不存在的轨迹"""
-        loaded = self.manager.load("nonexistent_traj")
+    def test_delete_trajectory(self):
+        """Test deleting a trajectory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = TrajectoryManager(base_path=tmpdir)
 
-        assert loaded is None
+            trajectory = Trajectory(
+                id="traj_to_delete",
+                session_id="session_test",
+                start_time=1234567890.0,
+                messages=[],
+            )
+
+            manager.save(trajectory)
+
+            assert manager.delete_trajectory("traj_to_delete") is True
+            assert manager.load("traj_to_delete") is None
+
+    def test_delete_nonexistent_trajectory(self):
+        """Test deleting a non-existent trajectory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = TrajectoryManager(base_path=tmpdir)
+
+            result = manager.delete_trajectory("nonexistent")
+
+            assert result is False
+
+    def test_get_recent_trajectories(self):
+        """Test getting recent trajectories."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = TrajectoryManager(base_path=tmpdir)
+
+            for i in range(5):
+                trajectory = Trajectory(
+                    id=f"traj_{i}",
+                    session_id="session_1",
+                    start_time=1234567890.0 + i,
+                    messages=[],
+                )
+                manager.save(trajectory)
+
+            recent = manager.get_recent_trajectories(limit=3)
+
+            assert len(recent) == 3
+            assert recent[0].id == "traj_4"
+            assert recent[1].id == "traj_3"
+            assert recent[2].id == "traj_2"
+
+    def test_save_with_metadata(self):
+        """Test saving trajectory with additional metadata."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = TrajectoryManager(base_path=tmpdir)
+
+            trajectory = Trajectory(
+                id="traj_meta",
+                session_id="session_1",
+                start_time=1234567890.0,
+                messages=[],
+                metadata={"original_key": "original_value"},
+            )
+
+            manager.save(trajectory, metadata={"new_key": "new_value"})
+
+            loaded = manager.load("traj_meta")
+
+            assert loaded is not None
+            assert loaded.metadata["original_key"] == "original_value"
+            assert loaded.metadata["new_key"] == "new_value"
+            assert loaded.metadata["session_id"] == "session_1"
+
+    def test_save_without_id(self):
+        """Test saving trajectory without an ID."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = TrajectoryManager(base_path=tmpdir)
+
+            trajectory = Trajectory(
+                id="",
+                session_id="session_1",
+                start_time=1234567890.0,
+                messages=[],
+            )
+
+            filepath = manager.save(trajectory)
+
+            assert os.path.exists(filepath)
+            assert trajectory.id.startswith("traj_")
+
+
+class TestTrajectoryStatus:
+    """Test TrajectoryStatus enum."""
+
+    def test_status_values(self):
+        """Test that all status values are correct."""
+        assert TrajectoryStatus.SUCCESS == "success"
+        assert TrajectoryStatus.FAILURE == "failure"
+        assert TrajectoryStatus.RUNNING == "running"
+        assert TrajectoryStatus.CANCELLED == "cancelled"
+
+
+class TestBackwardsCompatibility:
+    """Test backwards compatibility aliases."""
+
+    def test_trajectory_step_alias(self):
+        """Test that TrajectoryStep is an alias for ExecutionStep."""
+        from agent.curator.trajectory import TrajectoryStep
+
+        assert TrajectoryStep is ExecutionStep
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

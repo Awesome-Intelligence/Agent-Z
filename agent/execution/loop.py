@@ -481,12 +481,15 @@ class AgentLoop:
                 "Always update the task list to reflect your progress."
             )
 
-            messages.append(
-                {
-                    "role": "user",
-                    "content": user_content,
-                }
-            )
+            if messages and messages[-1].get("role") == "user":
+                messages[-1]["content"] = user_content
+            else:
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": user_content,
+                    }
+                )
             self.logger.debug(f"Final messages: {len(messages)} messages")
 
             response = await self.llm.generate(

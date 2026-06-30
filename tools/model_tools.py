@@ -236,14 +236,29 @@ class ToolDispatcher:
         return {"valid": True, "error": None}
 
 
-# Global registry instance
-tool_registry = ToolRegistry()
+# ─────────────────────────────────────────────────────────────────────────────
+# 统一工具注册表
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 统一使用 registry.py 中的 registry
+# 延迟导入避免循环依赖
+_tool_registry = None
+
+
+def _get_tool_registry():
+    """获取统一的工具注册表"""
+    global _tool_registry
+    if _tool_registry is None:
+        # 从 registry.py 导入统一的注册表
+        from .registry import registry
+        _tool_registry = registry
+    return _tool_registry
 
 
 def register_tool(name: str, description: str, parameters: List[Dict[str, Any]],
                   requires_permission: bool = False, category: str = "general"):
     """
-    Decorator to register a tool.
+    装饰器：注册工具到统一的 ToolRegistry
     
     Example:
         @register_tool(
@@ -259,13 +274,29 @@ def register_tool(name: str, description: str, parameters: List[Dict[str, Any]],
             # implementation
     """
     def decorator(func):
-        tool_registry.register_tool(
+        reg = _get_tool_registry()
+        reg.register(
             name=name,
-            func=func,
+            toolset=category,
+            schema={"type": "object", "properties": {}, "description": description},
+            handler=func,
             description=description,
-            parameters=parameters,
-            requires_permission=requires_permission,
-            category=category
         )
         return func
     return decorator
+
+
+# 为了向后兼容，提供 module-level 的 tool_registry
+class _ToolRegistryProxy:
+    """tool_registry 的兼容层"""
+    def __getattr__(self, name):
+        return getattr(_get_tool_registry(), name)
+
+    def __len__(self):
+        return len(_get_tool_registry())
+
+    def __iter__(self):
+        return iter(_get_tool_registry())
+
+
+tool_registry = _ToolRegistryProxy()

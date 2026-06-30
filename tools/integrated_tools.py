@@ -165,6 +165,7 @@ def initialize_tools():
         import tools.mcp_tool
         import tools.kanban_tool
         import tools.cronjob_tool
+        import tools.terminal_tools
         logger.info("All tool modules imported successfully")
     except Exception as e:
         logger.error(f"Failed to import tool modules: {e}")

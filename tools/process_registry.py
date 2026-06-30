@@ -75,6 +75,7 @@ class ProcessSession:
     exited: bool = False                        # 是否已退出
     exit_code: Optional[int] = None             # 退出码
     verified: bool = False                      # 是否已验证启动成功
+    interactive: bool = False                   # 是否为交互式终端（需要控制台）
 
 
 class ProcessRegistry:
@@ -104,6 +105,9 @@ class ProcessRegistry:
         # 最大保留时间（秒）- 已结束的进程保留 30 分钟
         self._finished_ttl = 1800
 
+    # 交互式终端程序列表（需要控制台才能正常运行）
+    INTERACTIVE_TERMINALS = {"cmd.exe", "powershell.exe", "pwsh.exe", "bash.exe", "zsh.exe"}
+
     def spawn(
         self,
         command: List[str],
@@ -120,24 +124,53 @@ class ProcessRegistry:
         Returns:
             ProcessSession 对象
         """
+        # 检测是否为交互式终端
+        exe_name = os.path.basename(command[0]).lower() if command else ""
+        is_interactive = exe_name in self.INTERACTIVE_TERMINALS
+
         session = ProcessSession(
             id=f"proc_{uuid.uuid4().hex[:12]}",
             command=" ".join(command),
             app_name=app_name,
             started_at=time.time(),
+            interactive=is_interactive,
         )
 
         try:
-            proc = subprocess.Popen(
-                command,
-                cwd=cwd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-            )
+            if is_interactive:
+                # 交互式终端：不重定向 stdin，让其使用控制台
+                if _IS_WINDOWS:
+                    # Windows 下使用 CREATE_NEW_CONSOLE 让终端有独立控制台
+                    creation_flags = 0x00000010  # CREATE_NEW_CONSOLE
+                    proc = subprocess.Popen(
+                        command,
+                        cwd=cwd,
+                        stdout=None,
+                        stderr=None,
+                        stdin=None,
+                        creationflags=creation_flags,
+                    )
+                else:
+                    # Unix 系统直接启动
+                    proc = subprocess.Popen(
+                        command,
+                        cwd=cwd,
+                        stdout=None,
+                        stderr=None,
+                        stdin=None,
+                    )
+            else:
+                # 非交互式程序：重定向 I/O
+                proc = subprocess.Popen(
+                    command,
+                    cwd=cwd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                )
 
             session.pid = proc.pid
-            logger.info(f"启动进程: {app_name} (PID: {proc.pid})")
+            logger.info(f"启动进程: {app_name} (PID: {proc.pid}, interactive={is_interactive})")
 
             with self._lock:
                 self._running[session.id] = session
@@ -187,7 +220,10 @@ class ProcessRegistry:
         # 进程不存在或已退出
         session.exited = True
         session.exit_code = -1
-        logger.warning(f"进程验证失败: {session.app_name} (PID: {session.pid})")
+        if session.interactive:
+            logger.warning(f"交互式终端可能启动失败: {session.app_name} (PID: {session.pid})")
+        else:
+            logger.warning(f"进程验证失败: {session.app_name} (PID: {session.pid})")
         return False
 
     def poll(self, session_id: str) -> Dict[str, Any]:

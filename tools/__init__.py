@@ -29,9 +29,47 @@ Hermes 风格工具系统，包含：
 - 会话搜索工具 (Session Search Tool) - 历史会话搜索
 """
 
+from dataclasses import dataclass
+from typing import Any, Optional
+
 from .schema_registry import SchemaRegistry, UnifiedToolSchema, ToolSource
 from .registry import ToolRegistry, ToolEntry, registry, discover_builtin_tools
+from .model_tools import register_tool, tool_registry
 from .definitions.file_tools import FILE_TOOLS
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ToolResult - 工具返回值类型（兼容旧版工具）
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class ToolResult:
+    """工具返回值类型（兼容旧版工具）
+
+    Attributes:
+        success: 是否成功
+        output: 输出内容
+        error: 错误信息（失败时）
+        metadata: 元数据
+        data: 额外数据
+    """
+    success: bool
+    output: Any = ""
+    error: Optional[str] = None
+    metadata: Optional[dict] = None
+    data: Optional[dict] = None
+
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        return {
+            "success": self.success,
+            "output": self.output,
+            "error": self.error,
+            "metadata": self.metadata,
+            "data": self.data,
+        }
+
+
 from .definitions.shell_tools import SHELL_TOOLS
 from .definitions.web_tools import WEB_TOOLS
 from .definitions.code_tools import CODE_TOOLS
@@ -97,6 +135,10 @@ __all__ = [
     "ToolEntry",
     "registry",
     "discover_builtin_tools",
+    # 工具装饰器和类型
+    "register_tool",
+    "tool_registry",
+    "ToolResult",
     # 工具定义
     "FILE_TOOLS",
     "SHELL_TOOLS",

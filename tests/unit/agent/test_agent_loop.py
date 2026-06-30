@@ -389,22 +389,22 @@ class TestAgentState:
         """Test goal mode through GoalManager (参考 Hermes)."""
         from agent.state import AgentState, BudgetMode
         from agent.goal import GoalManager
-        
+
         state = AgentState(max_iterations=20, max_turns=10)
-        manager = GoalManager()
+        manager = GoalManager(on_state_change=state.sync_from_goal_state)
         state.set_goal_manager(manager)
-        
+
         # Set goal through GoalManager
         manager.set("Complete task X", max_turns=10)
         state.sync_from_goal_state(manager.state)
-        
+
         assert state.is_goal_mode is True
         assert state.budget_mode == BudgetMode.TURN
         assert state.budget_max == 10
-        
+
         # Clear goal through GoalManager
         manager.clear()
-        
+
         assert state.is_goal_mode is False
         assert state.budget_mode == BudgetMode.ITERATION
         assert state.budget_max == 20

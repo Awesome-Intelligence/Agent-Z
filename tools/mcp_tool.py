@@ -288,7 +288,8 @@ MCP_CALL_TOOL_SCHEMA = {
     "name": "mcp_call_tool",
     "description": (
         "Call a tool provided by an MCP server. "
-        "Use this to access additional capabilities from MCP servers."
+        "Use this ONLY when you need capabilities from a configured MCP server. "
+        "For common tasks like web search, use built-in tools (web_search, web_extract) instead."
     ),
     "parameters": {
         "type": "object",
@@ -362,18 +363,10 @@ registry.register(
 )
 
 
-registry.register(
-    name="mcp_call_tool",
-    toolset="mcp",
-    schema=MCP_CALL_TOOL_SCHEMA,
-    handler=lambda args, **kw: mcp_call_tool(
-        server_name=args.get("server_name", ""),
-        tool_name=args.get("tool_name", ""),
-        arguments=args.get("arguments"),
-    ),
-    check_fn=check_mcp_requirements,
-    emoji="🔧",
-)
+# 注：mcp_call_tool 已移除
+# 参考 Hermes 设计：每个 MCP server 的工具应该动态注册为单独的工具（如 mcp_{server}_{tool}）
+# 而不是提供一个通用的 "call tool" 工具
+# 当前实现是模拟版本，真正的 MCP 工具注册需要连接 MCP server 获取工具列表
 
 
 registry.register(

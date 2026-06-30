@@ -181,7 +181,7 @@ class TrajectoryManager:
     
     def _get_file_path(self, trajectory_id: str) -> str:
         """Get the file path for a trajectory."""
-        return os.path.join(self.base_path, f"{trajectory_id}.json")
+        return os.path.join(self.base_path, f"{trajectory_id}.jsonl")
     
     def save_trajectory(self, trajectory: Trajectory):
         """Save a trajectory to file.

@@ -49,6 +49,7 @@ class Message:
     metadata: Dict[str, Any] = field(default_factory=dict)
     tool_call_id: Optional[str] = None
     tool_result: Optional[Dict[str, Any]] = None
+    tool_calls: Optional[List[Dict[str, Any]]] = None
 
 
 @dataclass
@@ -275,7 +276,8 @@ class Session:
                         'timestamp': msg.timestamp,
                         'metadata': msg.metadata,
                         'tool_call_id': msg.tool_call_id,
-                        'tool_result': msg.tool_result
+                        'tool_result': msg.tool_result,
+                        'tool_calls': msg.tool_calls,
                     }
                     for msg in self.messages
                 ],
@@ -309,14 +311,15 @@ class Session:
         Args:
             role: Message role ('user', 'assistant', 'system', 'tool')
             content: Message content
-            **kwargs: Additional metadata, tool_call_id, or tool_result
+            **kwargs: Additional metadata, tool_call_id, tool_result, or tool_calls
         """
         message = Message(
             role=role,
             content=content,
             metadata=kwargs.get('metadata', {}),
             tool_call_id=kwargs.get('tool_call_id'),
-            tool_result=kwargs.get('tool_result')
+            tool_result=kwargs.get('tool_result'),
+            tool_calls=kwargs.get('tool_calls'),
         )
         
         self.messages.append(message)

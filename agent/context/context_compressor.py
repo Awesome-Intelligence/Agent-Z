@@ -1549,6 +1549,15 @@ The user has requested that this compaction PRIORITISE preserving all informatio
                     n_messages, _min_for_compress,
                 )
             return messages
+        
+        # 检查 token 阈值：未超过阈值则不压缩
+        if original_tokens < self.threshold_tokens:
+            if not self.quiet_mode:
+                self.logger.debug(
+                    "Skipping compression: %d tokens < %d threshold",
+                    original_tokens, self.threshold_tokens,
+                )
+            return messages
 
         display_tokens = original_tokens
 

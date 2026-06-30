@@ -154,6 +154,10 @@ class StatusBar:
         """Increment the LLM call counter."""
         self.llm_call_count += 1
 
+    def reset_llm_call_count(self):
+        """Reset the LLM call counter for a new dialogue round."""
+        self.llm_call_count = 0
+
     def get_duration(self) -> str:
         """Get formatted session duration."""
         elapsed = int(time.time() - self.session_start)

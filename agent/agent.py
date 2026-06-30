@@ -152,7 +152,7 @@ class Agent:
         self._stream_emitter = None
 
         # 统一状态管理器（替代 InterruptController, BudgetController, LoopExitChecker）
-        self._state = AgentState(max_iterations=20, max_turns=20)
+        self._state = AgentState(max_iterations=30, max_turns=20)
 
         from tools.todo_tool import get_session_todo_store
 
@@ -164,6 +164,7 @@ class Agent:
             session_id=session_id,
             judge_llm_provider=llm_provider,
             default_max_turns=20,
+            on_state_change=self._state.sync_from_goal_state,
         )
         self._decision_logger.debug(f"GoalManager initialized for session: {session_id}")
         
@@ -356,8 +357,11 @@ class Agent:
         if enable_stream and not stream_callback:
             self._setup_default_stream()
 
-        if self._session:
-            self._session.add_message("user", user_input)
+        if conversation_history is None:
+            conversation_history = self._get_session_messages()
+
+        # 记录原始历史消息数，用于只添加新生成的消息
+        history_count = len(conversation_history)
 
         result = await self._run_loop(user_input, conversation_history)
 
@@ -369,7 +373,24 @@ class Agent:
             final_result = json.dumps(final_result, ensure_ascii=False)
 
         if self._session:
-            self._session.add_message("assistant", str(final_result))
+            full_messages = result.get("full_messages", [])
+            if full_messages:
+                # 只添加新生成的消息（超出原始历史的那些）
+                # 避免重复添加已存在于 session 中的历史消息
+                for msg in full_messages[history_count:]:
+                    role = msg.get("role")
+                    content = msg.get("content", "")
+                    tool_calls = msg.get("tool_calls")
+                    tool_call_id = msg.get("tool_call_id")
+                    if role and (content or tool_calls):
+                        self._session.add_message(
+                            role=role,
+                            content=content,
+                            tool_calls=tool_calls,
+                            tool_call_id=tool_call_id,
+                        )
+            else:
+                self._session.add_message("assistant", str(final_result))
 
         execution_time = time.time() - start_time
 
@@ -425,9 +446,30 @@ class Agent:
         effective_input = user_input
 
         if user_input.startswith("/goal"):
-            # 解析 /goal 命令
-            if user_input.startswith("/goal "):
-                # /goal <text> - 创建新目标
+            # 解析 /goal 命令（注意：子命令判断必须从长到短，避免前缀匹配错误）
+            if user_input.startswith("/goal clear"):
+                self._goal_manager.clear()
+                self._emit_stream("🗑️ Goal 已清除\n\n")
+                return {"success": True, "state": "goal_cleared", "final_result": "Goal cleared"}
+            elif user_input.startswith("/goal pause"):
+                reason = user_input[11:].strip() or None
+                self._goal_manager.pause(reason)
+                self._emit_stream("⏸️ Goal 已暂停\n\n")
+                return {"success": True, "state": "goal_paused", "final_result": "Goal paused"}
+            elif user_input.startswith("/goal resume"):
+                self._goal_manager.resume()
+                # 同步预算信息到 AgentState
+                if self._goal_manager.state:
+                    self._state.sync_from_goal_state(self._goal_manager.state)
+                self._emit_stream("▶️ Goal 已恢复\n\n")
+                effective_input = "继续执行目标任务"
+            elif user_input == "/goal":
+                # /goal 无参数，显示状态
+                status = self._goal_manager.status_line()
+                self._emit_stream(f"{status}\n")
+                return {"success": True, "state": "goal_status", "final_result": status}
+            elif user_input.startswith("/goal "):
+                # /goal <text> - 创建新目标（放在最后，避免与子命令冲突）
                 goal_text = user_input[6:].strip()
                 if goal_text:
                     # 由 GoalManager 统一管理 Goal 状态
@@ -443,27 +485,6 @@ class Agent:
                     status = self._goal_manager.status_line()
                     self._emit_stream(f"{status}\n")
                     return {"success": True, "state": "goal_status", "final_result": status}
-            elif user_input == "/goal":
-                # /goal 无参数，显示状态
-                status = self._goal_manager.status_line()
-                self._emit_stream(f"{status}\n")
-                return {"success": True, "state": "goal_status", "final_result": status}
-            elif user_input.startswith("/goal resume"):
-                self._goal_manager.resume()
-                # 同步预算信息到 AgentState
-                if self._goal_manager.state:
-                    self._state.sync_from_goal_state(self._goal_manager.state)
-                self._emit_stream("▶️ Goal 已恢复\n\n")
-                effective_input = "继续执行目标任务"
-            elif user_input.startswith("/goal clear"):
-                self._goal_manager.clear()
-                self._emit_stream("🗑️ Goal 已清除\n\n")
-                return {"success": True, "state": "goal_cleared", "final_result": "Goal cleared"}
-            elif user_input.startswith("/goal pause"):
-                reason = user_input[11:].strip() or None
-                self._goal_manager.pause(reason)
-                self._emit_stream("⏸️ Goal 已暂停\n\n")
-                return {"success": True, "state": "goal_paused", "final_result": "Goal paused"}
 
         # ─────────────────────────────────────────────────────────────────
         # 2. 尝试加载已保存的 Goal（参考 Hermes）
@@ -532,6 +553,9 @@ class Agent:
             result["goal_status"] = self._goal_manager.state.status
             result["goal_turns"] = self._goal_manager.state.current_turn
 
+        # 返回完整的消息历史（用于保存到 Session）
+        result["full_messages"] = context.to_messages_dict()
+
         return result
 
     def _setup_default_stream(self):
@@ -552,9 +576,17 @@ class Agent:
         if not self._session:
             return []
 
-        return [
-            {"role": msg.role, "content": msg.content} for msg in self._session.messages
-        ]
+        messages = []
+        for msg in self._session.messages:
+            msg_dict = {"role": msg.role}
+            if msg.content:
+                msg_dict["content"] = msg.content
+            if msg.tool_calls:
+                msg_dict["tool_calls"] = msg.tool_calls
+            if msg.tool_call_id:
+                msg_dict["tool_call_id"] = msg.tool_call_id
+            messages.append(msg_dict)
+        return messages
 
     def get_tool_list(self) -> List[Dict[str, Any]]:
         return [

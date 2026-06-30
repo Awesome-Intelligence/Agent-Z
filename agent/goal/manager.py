@@ -138,6 +138,7 @@ class GoalManager:
         default_max_turns: int = DEFAULT_MAX_TURNS,
         judge_timeout: float = DEFAULT_JUDGE_TIMEOUT,
         judge_max_tokens: int = DEFAULT_JUDGE_MAX_TOKENS,
+        on_state_change=None,
     ):
         self._session_id = session_id
         self._default_max_turns = int(default_max_turns or DEFAULT_MAX_TURNS)
@@ -146,6 +147,7 @@ class GoalManager:
         self._current_goal: Optional[GoalState] = None
         self._memory_store: Dict[str, Any] = {}  # 简单的内存存储后备
         self._judge_llm = judge_llm_provider  # Judge LLM provider
+        self._on_state_change = on_state_change
 
         # 尝试从 DB 加载已有 goal
         if session_id:
@@ -235,6 +237,8 @@ class GoalManager:
             logger.info("Goal cleared: %s...", self._current_goal.goal[:50])
             self._save_goal()
         self._current_goal = None
+        if self._on_state_change:
+            self._on_state_change(None)
 
     def mark_done(self, reason: str) -> None:
         """标记 Goal 完成"""

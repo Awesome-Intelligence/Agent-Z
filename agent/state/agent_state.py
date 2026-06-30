@@ -116,6 +116,10 @@ class AgentState:
 
     # 非Goal模式下立即结束的 action 类型
     TERMINAL_ACTIONS = {"direct_response", "ask_clarification", "error"}
+    
+    # 工具调用次数限制（参考 Hermes 的 IterationBudget）
+    _MAX_SAME_TOOL_CALLS = 3  # 同一工具最多调用次数
+    _MAX_TOOL_CALLS_TOTAL = 5  # 工具调用总数上限
 
     def __init__(
         self,
@@ -279,6 +283,7 @@ class AgentState:
         不再同步 GoalState 本身，因为 GoalState 由 GoalManager 统一管理
         """
         if goal_state is None:
+            self._enable_iteration_mode()
             return
         self._enable_goal_mode(goal_state.max_turns)
         with self._lock:
@@ -374,6 +379,7 @@ class AgentState:
         self._interrupt_reason = None
         self._last_step_result = None
         self._last_response = ""
+        self._tool_call_history = []  # 重置工具调用历史
         self._notify_listeners(old_status, AgentStatus.IDLE, "reset")
 
     def _transition_to(self, new_status: AgentStatus, reason: str) -> None:
@@ -562,7 +568,42 @@ class AgentState:
                     metadata={"action": action},
                 )
 
-        # 工具调用，继续循环
+        if action in ("use_tool", "tool_call"):
+            return self._check_tool_call_exit(step_result)
+
+        return ExitDecision(
+            should_exit=False,
+            reason=ExitReason.UNKNOWN,
+            message="继续执行",
+        )
+
+    def _check_tool_call_exit(self, step_result: "LoopStepResult") -> ExitDecision:
+        """检查工具调用是否应该退出循环"""
+        if not hasattr(self, '_tool_call_history'):
+            self._tool_call_history = []
+
+        tool_name = step_result.tool_name
+        self._tool_call_history.append(tool_name)
+
+        same_tool_count = self._tool_call_history.count(tool_name)
+        total_tool_calls = len(self._tool_call_history)
+
+        if same_tool_count >= self._MAX_SAME_TOOL_CALLS:
+            return ExitDecision(
+                should_exit=True,
+                reason=ExitReason.DIRECT_RESPONSE,
+                message=f"同一工具 {tool_name} 连续调用超过 {self._MAX_SAME_TOOL_CALLS} 次，强制总结",
+                metadata={"action": "use_tool", "tool_name": tool_name, "count": same_tool_count},
+            )
+
+        if total_tool_calls >= self._MAX_TOOL_CALLS_TOTAL:
+            return ExitDecision(
+                should_exit=True,
+                reason=ExitReason.DIRECT_RESPONSE,
+                message=f"工具调用总数超过 {self._MAX_TOOL_CALLS_TOTAL} 次，强制总结",
+                metadata={"action": "use_tool", "total_count": total_tool_calls},
+            )
+
         return ExitDecision(
             should_exit=False,
             reason=ExitReason.UNKNOWN,

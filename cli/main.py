@@ -197,6 +197,9 @@ async def interactive_mode(agent: Agent, model_name: str = "Agent"):
             ui.print_user_input()
             user_input = input().strip()
 
+            # Reset LLM call counter for new dialogue round
+            ui.status_bar.reset_llm_call_count()
+
             if user_input.lower() in ['quit', 'exit', 'q']:
                 logger.info("Interactive mode ended")
                 ui.print_success("再见!")
@@ -305,6 +308,9 @@ async def single_query_mode(agent: Agent, query: str, model_name: str = "Agent")
     ui.print_header("查询结果", f"Query: {query[:50]}{'...' if len(query) > 50 else ''}")
 
     try:
+        # Reset LLM call counter for this query
+        ui.status_bar.reset_llm_call_count()
+
         # Show processing indicator
         spinner = ui.Spinner("思考中...")
         spinner.start()
