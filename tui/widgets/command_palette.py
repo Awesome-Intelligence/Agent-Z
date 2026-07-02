@@ -393,16 +393,19 @@ class CommandPaletteScreen(ModalScreen):
         list_view.clear()
         
         for command in self._filtered_commands:
-            # 创建命令项
+            # 创建命令项（使用时间戳确保 ID 唯一）
             shortcut_display = f" [{PURPLE_BRIGHT}]{command.shortcut}[/{PURPLE_BRIGHT}]" if command.shortcut else ""
             item_content = (
                 f"[{PURPLE_BRIGHT}]{command.name}[/{PURPLE_BRIGHT}]"
                 f"[{GRAY_DIM}] - {command.description}[/{GRAY_DIM}]"
                 f"[{GOLD}]{shortcut_display}[/{GOLD}]"
             )
+            # 使用唯一 ID 避免重复打开时冲突
+            import time
+            unique_id = f"cmd-{command.id}-{int(time.time() * 1000) % 1000000}"
             item = ListItem(
                 Static(item_content),
-                id=f"cmd-{command.id}"
+                id=unique_id
             )
             list_view.append(item)
         

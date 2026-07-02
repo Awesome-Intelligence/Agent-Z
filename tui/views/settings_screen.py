@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 """Settings Screen - TUI 设置界面模态窗口
 
-提供完整的设置界面功能:
-- 左侧分类列表
-- 右侧设置内容区
-- 键盘导航
-- 设置保存
-
 🚪 Access - 💬 CLI - TUI Views - SettingsScreen
+
+使用 Textual 原生组件构建美观的设置界面:
+- Tree: 侧边栏分类导航
+- Switch: 开关设置
+- Select: 下拉选择
+- Input: 文本输入
 """
 
 from __future__ import annotations
@@ -20,21 +20,28 @@ TEXTUAL_AVAILABLE = True
 try:
     from textual.app import ComposeResult
     from textual.screen import ModalScreen
-    from textual.widgets import Static, Button
-    from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+    from textual.widgets import Static, Button, Tree, Switch, Select, Input
+    from textual.containers import Container, Horizontal, Vertical, VerticalScroll, Grid
     from textual.binding import Binding
     from textual.message import Message
+    from textual.events import Click
 except ImportError:
     TEXTUAL_AVAILABLE = False
     ModalScreen = object
     Static = object
     Button = object
+    Tree = object
+    Switch = object
+    Select = object
+    Input = object
     Container = object
     Horizontal = object
     Vertical = object
     VerticalScroll = object
-    Binding = object
+    Grid = object
+    Binding = lambda *a, **k: None  # 降级：空的 Binding
     Message = object
+    Click = object
 
 # i18n 支持
 try:
@@ -59,10 +66,6 @@ except ImportError:
 try:
     from tui.views.settings.manager import SettingsManager, get_settings_manager
     from tui.views.settings.models import SettingsDocument, CategoryMeta
-    from tui.views.settings.models import (
-        Language, ExplanationDepth, IntentMode, SessionResetMode, TerminalBackend,
-        ResponseFormat
-    )
 except ImportError:
     SettingsManager = None
     SettingsDocument = None
@@ -70,21 +73,7 @@ except ImportError:
 
 
 # ============================================================================
-# 主题颜色常量
-# ============================================================================
-
-AVOCADO_PRIMARY = "#B180D7"
-AVOCADO_BRIGHT = "#C9A0E0"
-AVOCADO_DIM = "#8B5CAC"
-AVOCADO_DARK = "#6B4EA8"
-WHITE = "white"
-GRAY_DIM = "#888888"
-GOLD = "#FFD700"
-SUCCESS = "#50C878"
-
-
-# ============================================================================
-# CSS 样式
+# CSS 样式 - 使用 Textual 主题变量和 grid 布局
 # ============================================================================
 
 SETTINGS_SCREEN_CSS = """
@@ -93,8 +82,8 @@ SettingsScreen {
 }
 
 #settings-container {
-    width: 90%;
-    height: 85%;
+    width: 95%;
+    height: 90%;
     border: solid $primary;
     background: $surface;
 }
@@ -103,6 +92,7 @@ SettingsScreen {
     height: 3;
     background: $primary;
     content-align: center middle;
+    border-bottom: solid $border;
 }
 
 #settings-header Static {
@@ -115,93 +105,82 @@ SettingsScreen {
 }
 
 #sidebar {
-    width: 25%;
-    height: 100%;
-    background: $panel;
+    width: 28%;
     border-right: solid $border;
+    background: $panel;
 }
 
-#sidebar VerticalScroll {
-    height: 100%;
-}
-
-.category-item {
-    height: 3;
-    padding: 0 2;
-    content-align: left middle;
-}
-
-.category-item:hover {
-    background: $accent 15%;
-}
-
-.category-item.active {
-    background: $accent 25%;
-    color: $accent;
-    text-style: bold;
-}
-
-#content {
-    width: 75%;
-    height: 100%;
+#content-area {
+    width: 72%;
+    background: $surface;
 }
 
 #content-scroll {
-    height: 100%;
     padding: 1 2;
-}
-
-.setting-item {
-    height: 3;
-    padding: 0 1;
-    content-align: left middle;
-    border-bottom: solid $border;
-}
-
-.setting-item:hover {
-    background: $accent 10%;
-}
-
-.setting-item.focused {
-    background: $accent 20%;
-}
-
-.setting-label {
-    width: 40%;
-    color: $text-muted;
-}
-
-.setting-value {
-    width: 60%;
-    color: $accent;
-}
-
-.setting-toggle {
-    width: 5%;
-    color: $success;
-}
-
-.setting-toggle.off {
-    color: $text-muted;
-}
-
-.setting-separator {
-    height: 1;
-    background: $border;
+    height: 100%;
 }
 
 #settings-footer {
-    height: 3;
+    height: 2;
     background: $panel;
     content-align: center middle;
+    border-top: solid $border;
 }
 
 #settings-footer Static {
     color: $text-muted;
 }
 
+/* 分类项样式 */
+.category-header {
+    color: $accent;
+    text-style: bold;
+    padding: 1 2;
+    background: $accent 10%;
+}
+
+/* 设置项样式 */
+.setting-row {
+    height: auto;
+    padding: 1 2;
+    border-bottom: solid $border 30%;
+}
+
+.setting-label {
+    width: 40%;
+    color: $text;
+}
+
+.setting-control {
+    width: 60%;
+}
+
+.setting-description {
+    color: $text-muted;
+    padding: 0 2;
+    display: none;
+}
+
+/* Switch 样式 */
+Switch {
+    margin: 0 1;
+}
+
+/* Select 样式 */
+Select {
+    width: 100%;
+    max-width: 200;
+}
+
+/* Input 样式 */
+Input {
+    width: 100%;
+    max-width: 300;
+}
+
+/* 关于区域 */
 .about-section {
-    padding: 2 1;
+    padding: 2;
     height: auto;
 }
 
@@ -212,9 +191,19 @@ SettingsScreen {
 }
 
 .about-content {
-    color: $text;
+    color: $text-muted;
+}
+
+/* 分组标题 */
+.setting-group-title {
+    color: $accent;
+    text-style: bold;
+    padding: 1 2;
+    background: $accent 5%;
+    border-bottom: solid $border;
 }
 """
+
 
 # ============================================================================
 # 消息类型
@@ -236,10 +225,10 @@ class SettingsSaved(Message):
 # ============================================================================
 
 class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
-    """TUI 设置界面模态窗口"""
-    
+    """TUI 设置界面模态窗口 - 使用 Textual 原生组件"""
+
     CSS = SETTINGS_SCREEN_CSS
-    
+
     BINDINGS = [
         Binding("escape", "close", "关闭", show=False),
         Binding("q", "close", "关闭", show=False),
@@ -247,327 +236,633 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
         Binding("shift+tab", "prev_category", "上一分类", show=False),
         Binding("s", "save", "保存", show=False),
         Binding("r", "reset_category", "重置", show=False),
-        Binding("up", "move_up", "上移", show=False),
-        Binding("down", "move_down", "下移", show=False),
-        Binding("left", "focus_sidebar", "侧边栏", show=False),
-        Binding("right", "focus_content", "内容区", show=False),
-        Binding("j", "move_down", "下移", show=False),
-        Binding("k", "move_up", "上移", show=False),
-        Binding("h", "focus_sidebar", "侧边栏", show=False),
-        Binding("l", "focus_content", "内容区", show=False),
-        Binding("space", "toggle_current", "切换", show=False),
     ]
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._settings_manager = get_settings_manager() if SettingsManager else None
         self._current_category: str = "language"
-        self._current_item_index: int = 0
-        self._focus_area: str = "content"  # sidebar | content
+        self._setting_controls: dict[str, tuple] = {}  # 保存设置控件引用
         self._logger = get_access_logger("SettingsScreen", sublayer="tui")
-        self._pending_changes: dict = {}
-    
+
     def compose(self) -> ComposeResult:
         """组合组件"""
         # 头部
         with Container(id="settings-header"):
             yield Static("⚙ 设置", id="settings-title")
-        
-        # 主体
+
+        # 主体：左侧分类树 + 右侧内容
         with Horizontal(id="settings-body"):
-            # 侧边栏
-            with Vertical(id="sidebar"):
-                yield from self._compose_sidebar()
-            
+            # 侧边栏分类导航
+            with Container(id="sidebar"):
+                yield from self._compose_sidebar_tree()
+
             # 内容区
-            with VerticalScroll(id="content"):
+            with VerticalScroll(id="content-area"):
                 yield from self._compose_content()
-        
-        # 底部
+
+        # 底部提示
         with Container(id="settings-footer"):
             yield Static(
-                "↑↓ 移动  Tab 切换分类  Space 切换  s 保存  Esc 关闭",
+                "Tab 切换分类  ↑↓ 移动  Enter/Space 确认  s 保存  Esc 关闭",
                 id="settings-hint"
             )
-    
-    def _compose_sidebar(self) -> ComposeResult:
-        """生成侧边栏分类列表"""
-        for cat_id, icon, name, _ in CategoryMeta.CATEGORIES:
-            is_active = cat_id == self._current_category
-            yield Static(
-                f"{icon}  {name}",
-                id=f"cat-{cat_id}",
-                classes=f"category-item {'active' if is_active else ''}"
-            )
-    
+
+    def _compose_sidebar_tree(self) -> ComposeResult:
+        """生成侧边栏分类树"""
+        tree = Tree("Categories", id="category-tree")
+        tree.show_root = False  # Textual 8.x 用属性设置
+        tree.show_guides = False
+        # 添加分类节点
+        if CategoryMeta:
+            for cat_id, icon, name, _ in CategoryMeta.CATEGORIES:
+                label = f"{icon}  {name}"
+                node = tree.root.add(label, data=cat_id)
+                if cat_id == self._current_category:
+                    tree.select_node(node)
+        yield tree
+
     def _compose_content(self) -> ComposeResult:
         """生成设置内容区"""
-        yield Static("", id="content-header", classes="setting-item")
-        yield from self._get_category_items(self._current_category)
-    
-    def _get_category_items(self, category: str) -> list:
-        """获取指定分类的设置项"""
-        items = []
+        yield from self._build_category_content(self._current_category)
+
+    def _build_category_content(self, category: str) -> ComposeResult:
+        """根据分类构建内容"""
         settings = self._settings_manager.get_settings() if self._settings_manager else SettingsDocument()
-        
+
+        # 根据分类生成不同的设置项
         if category == "language":
-            items = self._build_language_items(settings)
+            yield from self._build_language_content(settings)
         elif category == "llm":
-            items = self._build_llm_items(settings)
+            yield from self._build_llm_content(settings)
         elif category == "model":
-            items = self._build_model_items(settings)
+            yield from self._build_model_content(settings)
         elif category == "terminal":
-            items = self._build_terminal_items(settings)
+            yield from self._build_terminal_content(settings)
         elif category == "agent":
-            items = self._build_agent_items(settings)
+            yield from self._build_agent_content(settings)
         elif category == "session":
-            items = self._build_session_items(settings)
-        elif category == "intent":
-            items = self._build_intent_items(settings)
+            yield from self._build_session_content(settings)
         elif category == "preferences":
-            items = self._build_preferences_items(settings)
+            yield from self._build_preferences_content(settings)
         elif category == "tools":
-            items = self._build_tools_items(settings)
+            yield from self._build_tools_content(settings)
         elif category == "logging":
-            items = self._build_logging_items(settings)
+            yield from self._build_logging_content(settings)
         elif category == "about":
-            items = self._build_about_items(settings)
-        
-        return items
-    
-    def _build_language_items(self, settings: SettingsDocument) -> list:
-        """构建语言设置项"""
-        current = settings.display.language.value
-        options = [
-            ("zh", "中文"),
-            ("en", "English"),
+            yield from self._build_about_content(settings)
+        else:
+            yield Static("暂无设置项", id="no-settings")
+
+    def _build_language_content(self, settings: SettingsDocument) -> ComposeResult:
+        """构建语言设置内容"""
+        yield Static("🌐 显示语言", classes="setting-group-title")
+        language_options = [
+            ("中文", "中文"),
+            ("English", "English"),
         ]
-        options_text = "  ".join([f"{'●' if v == current else '○'} {l}" for v, l in options])
-        return [
-            Static(f"🌐 显示语言", classes="setting-item"),
-            Static(options_text, classes="setting-item"),
-        ]
-    
-    def _build_llm_items(self, settings: SettingsDocument) -> list:
-        """构建 LLM 设置项"""
-        return [
-            Static("🤖 大模型", classes="setting-item setting-label"),
-            Static(f"  Provider: {settings.llm.provider or '未配置'}", classes="setting-item"),
-            Static(f"  模型: {settings.llm.model or '未配置'}", classes="setting-item"),
-            Static(f"  Base URL: {settings.llm.base_url or '-'}", classes="setting-item"),
-            Static("  ⚠ API Key 已配置" if settings.llm.provider else "  ⚠ 请先配置 Provider", classes="setting-item"),
-        ]
-    
-    def _build_model_items(self, settings: SettingsDocument) -> list:
-        """构建模型参数设置项"""
+        current = settings.display.language.value if hasattr(settings.display, 'language') else "zh"
+        current_label = "中文" if current == "zh" else "English"
+        yield Select(
+            options=language_options,
+            value=current_label,
+            id="language-select",
+            allow_blank=False,
+            classes="setting-row"
+        )
+
+    def _build_llm_content(self, settings: SettingsDocument) -> ComposeResult:
+        """构建 LLM 设置内容"""
+        yield Static("🤖 大模型配置", classes="setting-group-title")
+
+        # Provider 选择
+        yield Static("Provider", classes="setting-row")
+        try:
+            from cli.cli_commands.providers import PROVIDERS
+            provider_options = [(p["name"], p["name"]) for p in PROVIDERS.values()]
+            # 通过 provider id 查找显示名称
+            provider_id = settings.llm.provider if hasattr(settings.llm, 'provider') else "openai"
+            current_provider = "OpenAI"
+            for p in PROVIDERS.values():
+                if p.get("name", "").lower() == provider_id.lower():
+                    current_provider = p["name"]
+                    break
+            else:
+                # 没找到对应 name，可能是 id 本身
+                current_provider = PROVIDERS.get(provider_id, {}).get("name", provider_id.title())
+        except ImportError:
+            provider_options = [("OpenAI", "OpenAI")]
+            current_provider = "OpenAI"
+        yield Select(
+            options=provider_options,
+            value=current_provider,
+            id="llm-provider-select",
+            allow_blank=False,
+            classes="setting-row"
+        )
+
+        # Model 输入
+        yield Static("模型名称", classes="setting-row")
+        current_model = settings.llm.model if hasattr(settings.llm, 'model') else ""
+        placeholder_model = current_model if current_model else "gpt-4o-mini"
+        yield Input(current_model, id="llm-model-input", placeholder=f"当前: {placeholder_model}", classes="setting-row")
+
+        # Base URL 输入
+        yield Static("Base URL (可选)", classes="setting-row")
+        current_url = settings.llm.base_url if hasattr(settings.llm, 'base_url') else ""
+        placeholder_url = current_url if current_url else "https://api.example.com/v1"
+        yield Input(current_url, id="llm-url-input", placeholder=f"当前: {placeholder_url}", classes="setting-row")
+
+        # API Key 输入（密码模式）
+        yield Static("API Key (可选)", classes="setting-row")
+        current_api_key = settings.llm.api_key if hasattr(settings.llm, 'api_key') else ""
+        display_api_key = "********" if current_api_key else ""
+        yield Input(
+            display_api_key,
+            id="llm-apikey-input",
+            placeholder="输入新 API Key（不填则保留原值）",
+            password=True,
+            classes="setting-row"
+        )
+
+    def _build_model_content(self, settings: SettingsDocument) -> ComposeResult:
+        """构建模型参数设置内容"""
+        yield Static("🔧 模型参数", classes="setting-group-title")
+
         model = settings.model
-        return [
-            Static("🔧 模型参数", classes="setting-item setting-label"),
-            Static(f"  模型名称: {model.name or '未设置'}", classes="setting-item"),
-            Static(f"  Temperature: {model.temperature}", classes="setting-item"),
-            Static(f"  Max Tokens: {model.max_tokens}", classes="setting-item"),
-            Static(f"  Context Window: {model.context_window}", classes="setting-item"),
+
+        yield Static("Temperature (0.0-1.0)", classes="setting-row")
+        yield Input(
+            str(model.temperature),
+            id="model-temperature-input",
+            placeholder=f"当前: {model.temperature} (范围: 0.0-1.0)",
+            classes="setting-row"
+        )
+
+        yield Static("Max Tokens", classes="setting-row")
+        yield Input(
+            str(model.max_tokens),
+            id="model-maxtokens-input",
+            placeholder=f"当前: {model.max_tokens}",
+            classes="setting-row"
+        )
+
+        yield Static("Context Window", classes="setting-row")
+        yield Input(
+            str(model.context_window),
+            id="model-contextwindow-input",
+            placeholder=f"当前: {model.context_window}",
+            classes="setting-row"
+        )
+
+    def _build_terminal_content(self, settings: SettingsDocument) -> ComposeResult:
+        """构建终端设置内容"""
+        yield Static("💻 终端设置", classes="setting-group-title")
+
+        backend_options = [
+            ("本地执行", "本地执行"),
+            ("Docker 容器", "Docker 容器"),
         ]
-    
-    def _build_terminal_items(self, settings: SettingsDocument) -> list:
-        """构建终端设置项"""
-        current = settings.terminal.backend.value
-        options = "  ".join([f"{'●' if v == current else '○'} {l}" for v, l in [("local", "本地执行"), ("docker", "Docker 容器")]])
-        return [
-            Static("💻 终端", classes="setting-item setting-label"),
-            Static(options, classes="setting-item"),
-        ]
-    
-    def _build_agent_items(self, settings: SettingsDocument) -> list:
-        """构建 Agent 设置项"""
+        current_backend = "本地执行" if hasattr(settings.terminal, 'backend') and settings.terminal.backend == 'local' else "Docker 容器"
+        yield Select(
+            options=backend_options,
+            value=current_backend,
+            id="terminal-backend-select",
+            allow_blank=False,
+            classes="setting-row"
+        )
+
+    def _build_agent_content(self, settings: SettingsDocument) -> ComposeResult:
+        """构建 Agent 设置内容"""
+        yield Static("⚙️ Agent 设置", classes="setting-group-title")
+
         agent = settings.agent
-        return [
-            Static("⚙️ Agent 设置", classes="setting-item setting-label"),
-            Static(f"  最大迭代次数: {agent.max_iterations}", classes="setting-item"),
-            Static(f"  超时时间: {agent.timeout_seconds}s", classes="setting-item"),
-        ]
-    
-    def _build_session_items(self, settings: SettingsDocument) -> list:
-        """构建会话设置项"""
+
+        yield Static("最大迭代次数", classes="setting-row")
+        yield Input(
+            str(agent.max_iterations),
+            id="agent-maxiterations-input",
+            placeholder=f"当前: {agent.max_iterations}",
+            classes="setting-row"
+        )
+
+        yield Static("超时时间 (秒)", classes="setting-row")
+        yield Input(
+            str(agent.timeout_seconds),
+            id="agent-timeout-input",
+            placeholder=f"当前: {agent.timeout_seconds}s",
+            classes="setting-row"
+        )
+
+    def _build_session_content(self, settings: SettingsDocument) -> ComposeResult:
+        """构建会话设置内容"""
+        yield Static("🔄 会话与记忆", classes="setting-group-title")
+
         session = settings.session
         memory = settings.memory
-        session_reset = settings.session_reset
         compression = settings.compression
-        return [
-            Static("🔄 会话", classes="setting-item setting-label"),
-            Static(f"  启用: {'是' if session.enabled else '否'}", classes="setting-item"),
-            Static(f"  存储方式: {session.storage}", classes="setting-item"),
-            Static(f"  重置策略: {session_reset.mode.value}", classes="setting-item"),
-            Static(f"  {'[×] 记忆系统' if memory.enabled else '[ ] 记忆系统'}", classes="setting-item"),
-            # 语义检索配置
-            Static(f"  {'[×] 语义检索' if memory.semantic_retrieval_enabled else '[ ] 语义检索'}", classes="setting-item"),
-            Static(f"    最大结果: {memory.semantic_max_results}", classes="setting-item"),
-            Static(f"    最低相似度: {memory.semantic_min_score:.1f}", classes="setting-item"),
-            Static(f"  {'[×] Context 压缩' if compression.enabled else '[ ] Context 压缩'}", classes="setting-item"),
-        ]
-    
-    def _build_intent_items(self, settings: SettingsDocument) -> list:
-        """构建意图识别设置项"""
-        current = settings.intent_mode.value
-        options = [
-            ("llm", "大模型模式"),
-            ("hybrid", "混合模式"),
-            ("keyword", "关键词模式"),
-        ]
-        options_text = "  ".join([f"{'●' if v == current else '○'} {l}" for v, l in options])
-        return [
-            Static("🧠 意图识别", classes="setting-item setting-label"),
-            Static(options_text, classes="setting-item"),
-        ]
-    
-    def _build_preferences_items(self, settings: SettingsDocument) -> list:
-        """构建响应偏好设置项"""
+
+        # 会话开关
+        yield Static("启用会话", classes="setting-row")
+        yield Switch(session.enabled, id="session-enabled-switch", classes="setting-row")
+
+        # 记忆系统开关
+        yield Static("启用记忆系统", classes="setting-row")
+        yield Switch(memory.enabled, id="memory-enabled-switch", classes="setting-row")
+
+        # 语义检索开关
+        yield Static("启用语义检索", classes="setting-row")
+        yield Switch(memory.semantic_retrieval_enabled, id="semantic-switch", classes="setting-row")
+
+        # Context 压缩开关
+        yield Static("启用 Context 压缩", classes="setting-row")
+        yield Switch(compression.enabled, id="compression-switch", classes="setting-row")
+
+    def _build_preferences_content(self, settings: SettingsDocument) -> ComposeResult:
+        """构建响应偏好设置内容"""
+        yield Static("📝 响应偏好", classes="setting-group-title")
+
         prefs = settings.preferences
-        return [
-            Static("📝 响应偏好", classes="setting-item setting-label"),
-            Static(f"  详细程度: {prefs.explanation_depth.value}", classes="setting-item"),
-            Static(f"  响应格式: {prefs.response_format.value}", classes="setting-item"),
-            Static(f"  日志级别: {prefs.log_level}", classes="setting-item"),
+
+        # 详细程度
+        depth_options = [
+            ("简洁", "简洁"),
+            ("普通", "普通"),
+            ("详细", "详细"),
         ]
-    
-    def _build_tools_items(self, settings: SettingsDocument) -> list:
-        """构建工具设置项"""
+        current_depth = prefs.explanation_depth.value if hasattr(prefs, 'explanation_depth') else "普通"
+        depth_label_map = {"brief": "简洁", "normal": "普通", "detailed": "详细"}
+        depth_label = depth_label_map.get(current_depth, "普通")
+        yield Static("详细程度", classes="setting-row")
+        yield Select(
+            options=depth_options,
+            value=depth_label,
+            id="depth-select",
+            allow_blank=False,
+            classes="setting-row"
+        )
+
+        # 响应格式
+        format_options = [
+            ("自动", "自动"),
+            ("Markdown", "Markdown"),
+            ("纯文本", "纯文本"),
+        ]
+        current_format = prefs.response_format.value if hasattr(prefs, 'response_format') else "markdown"
+        format_label_map = {"auto": "自动", "markdown": "Markdown", "plain": "纯文本"}
+        format_label = format_label_map.get(current_format, "Markdown")
+        yield Static("响应格式", classes="setting-row")
+        yield Select(
+            options=format_options,
+            value=format_label,
+            id="format-select",
+            allow_blank=False,
+            classes="setting-row"
+        )
+
+    def _build_tools_content(self, settings: SettingsDocument) -> ComposeResult:
+        """构建工具设置内容"""
+        yield Static("🛠️ 工具设置", classes="setting-group-title")
+
         tools = settings.tools
-        return [
-            Static("🛠️ 工具", classes="setting-item setting-label"),
-            Static(f"  {'[×]' if tools.stt_enabled else '[ ]'} STT (语音转文字)", classes="setting-item"),
-            Static(f"  {'[×]' if tools.tts_enabled else '[ ]'} TTS (文字转语音)", classes="setting-item"),
-            Static(f"  {'[×]' if tools.browser_enabled else '[ ]'} Browser", classes="setting-item"),
-            Static(f"  {'[×]' if tools.web_debug else '[ ]'} Web Debug", classes="setting-item"),
-            Static(f"  {'[×]' if tools.vision_debug else '[ ]'} Vision Debug", classes="setting-item"),
-        ]
-    
-    def _build_logging_items(self, settings: SettingsDocument) -> list:
-        """构建日志设置项"""
-        return [
-            Static("📄 日志", classes="setting-item setting-label"),
-            Static(f"  {'[×] 文件日志' if settings.logging.file_enabled else '[ ] 文件日志'}", classes="setting-item"),
-        ]
-    
-    def _build_about_items(self, settings: SettingsDocument) -> list:
-        """构建关于设置项"""
+
+        yield Static("STT (语音转文字)", classes="setting-row")
+        yield Switch(tools.stt_enabled, id="stt-switch", classes="setting-row")
+
+        yield Static("TTS (文字转语音)", classes="setting-row")
+        yield Switch(tools.tts_enabled, id="tts-switch", classes="setting-row")
+
+        yield Static("Browser 工具", classes="setting-row")
+        yield Switch(tools.browser_enabled, id="browser-switch", classes="setting-row")
+
+    def _build_logging_content(self, settings: SettingsDocument) -> ComposeResult:
+        """构建日志设置内容"""
+        yield Static("📄 日志设置", classes="setting-group-title")
+
+        yield Static("启用文件日志", classes="setting-row")
+        yield Switch(settings.logging.file_enabled, id="file-log-switch", classes="setting-row")
+
+    def _build_about_content(self, settings: SettingsDocument) -> ComposeResult:
+        """构建关于内容"""
         about = settings.about
-        return [
-            Static("ℹ️ 关于", classes="about-title"),
-            Static(f"  版本: {about.version}", classes="about-content"),
-            Static(f"  许可证: {about.license}", classes="about-content"),
-        ]
-    
+        yield Static("ℹ️ 关于 Handsome Agent", classes="about-title")
+        yield Static(f"版本: {about.version}", classes="about-content")
+        yield Static(f"许可证: {about.license}", classes="about-content")
+        yield Static("一个基于 LLM 的智能助手", classes="about-content")
+
     # ========================================================================
-    # 操作方法
+    # 事件处理
     # ========================================================================
-    
+
+    def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
+        """处理分类树节点选择"""
+        if event.node.data and isinstance(event.node.data, str):
+            cat_id = event.node.data
+            if cat_id != self._current_category:
+                self._switch_category(cat_id)
+
+    def _switch_category(self, category: str) -> None:
+        """切换到指定分类"""
+        self._current_category = category
+
+        # 更新树的选择
+        tree = self.query_one("#category-tree", Tree)
+        for node in tree.root.children:
+            if node.data == category:
+                tree.select_node(node)
+                break
+
+        # 刷新内容区
+        content_area = self.query_one("#content-area", VerticalScroll)
+        # 清除旧内容
+        for widget in content_area.query("*"):
+            widget.remove()
+        # 重新构建内容
+        for widget in self._build_category_content(category):
+            content_area.mount(widget)
+
+        self._logger.debug(f"Switched to category: {category}")
+
     def action_close(self) -> None:
         """关闭设置界面"""
         self._logger.debug("Settings screen closed")
         self.post_message(SettingsClosed())
         self.dismiss()
-    
+
     def action_save(self) -> None:
         """保存设置"""
+        # 从控件收集设置值（验证数值范围）
+        validation_errors, changed_settings = self._collect_settings()
+
+        # 如果有验证错误，不保存并提示
+        if validation_errors:
+            error_msg = "✗ " + "\n✗ ".join(validation_errors[:3])
+            if len(validation_errors) > 3:
+                error_msg += f"\n... 还有 {len(validation_errors) - 3} 个错误"
+            self.notify(error_msg, timeout=4.0)
+            return
+
         if self._settings_manager:
             if self._settings_manager.save():
                 self._logger.info("Settings saved")
-                self.notify("✓ 设置已保存", timeout=2.0)
+                # 显示变更列表
+                if changed_settings:
+                    changes_msg = "✓ 已保存: " + ", ".join(changed_settings[:5])
+                    if len(changed_settings) > 5:
+                        changes_msg += f"\n... 还有 {len(changed_settings) - 5} 项"
+                    self.notify(changes_msg, timeout=3.0)
+                else:
+                    self.notify("✓ 设置已保存（无变更）", timeout=2.0)
             else:
                 self._logger.error("Failed to save settings")
                 self.notify("✗ 保存失败", timeout=2.0)
         self.post_message(SettingsSaved(self))
         self.dismiss()
-    
+
+    def _collect_settings(self) -> tuple[list, list]:
+        """从控件收集设置值并保存到 manager，返回 (验证错误列表, 变更列表)"""
+        validation_errors = []
+        changed_settings = []
+
+        if not self._settings_manager:
+            return validation_errors, changed_settings
+
+        settings = self._settings_manager.get_settings()
+
+        # 语言设置（Select）：label → value
+        try:
+            lang_select = self.query_one("#language-select", Select)
+            lang_map = {"中文": "zh", "English": "en"}
+            old_lang = settings.display.language.value
+            new_lang = lang_map.get(lang_select.value, "zh")
+            if old_lang != new_lang:
+                settings.display.language.value = new_lang
+                changed_settings.append(f"语言: {old_lang} → {new_lang}")
+        except Exception:
+            pass
+
+        # LLM Provider：label → provider id
+        try:
+            from cli.cli_commands.providers import PROVIDERS
+            provider_select = self.query_one("#llm-provider-select", Select)
+            provider_id = next(
+                (k for k, p in PROVIDERS.items() if p["name"] == provider_select.value),
+                provider_select.value.lower()
+            )
+            if settings.llm.provider != provider_id:
+                settings.llm.provider = provider_id
+                changed_settings.append(f"Provider: {provider_id}")
+        except Exception:
+            pass
+
+        # API Key（如果用户修改了才保存）
+        try:
+            apikey_input = self.query_one("#llm-apikey-input", Input)
+            new_api_key = apikey_input.value.strip()
+            if new_api_key and new_api_key != "********":
+                settings.llm.api_key = new_api_key
+                changed_settings.append("API Key: 已修改")
+            elif new_api_key == "":
+                settings.llm.api_key = ""
+        except Exception:
+            pass
+
+        # 模型参数（带范围验证）
+        try:
+            temp_input = self.query_one("#model-temperature-input", Input)
+            temp_val = float(temp_input.value) if temp_input.value else 0.7
+            if 0.0 <= temp_val <= 1.0:
+                if settings.model.temperature != temp_val:
+                    settings.model.temperature = temp_val
+                    changed_settings.append(f"Temperature: {temp_val}")
+            else:
+                validation_errors.append(f"Temperature 必须在 0.0-1.0 范围内（当前: {temp_val}）")
+        except ValueError:
+            validation_errors.append("Temperature 必须是数字")
+        except Exception:
+            pass
+        try:
+            maxtokens_input = self.query_one("#model-maxtokens-input", Input)
+            maxtokens_val = int(maxtokens_input.value) if maxtokens_input.value else 4096
+            if maxtokens_val > 0:
+                if settings.model.max_tokens != maxtokens_val:
+                    settings.model.max_tokens = maxtokens_val
+                    changed_settings.append(f"Max Tokens: {maxtokens_val}")
+            else:
+                validation_errors.append(f"Max Tokens 必须是正整数（当前: {maxtokens_val}）")
+        except ValueError:
+            validation_errors.append("Max Tokens 必须是整数")
+        except Exception:
+            pass
+        try:
+            context_input = self.query_one("#model-contextwindow-input", Input)
+            context_val = int(context_input.value) if context_input.value else 128000
+            if context_val > 0:
+                if settings.model.context_window != context_val:
+                    settings.model.context_window = context_val
+                    changed_settings.append(f"Context Window: {context_val}")
+            else:
+                validation_errors.append(f"Context Window 必须是正整数（当前: {context_val}）")
+        except ValueError:
+            validation_errors.append("Context Window 必须是整数")
+        except Exception:
+            pass
+
+        # Agent 参数（带范围验证）
+        try:
+            maxiter_input = self.query_one("#agent-maxiterations-input", Input)
+            maxiter_val = int(maxiter_input.value) if maxiter_input.value else 10
+            if maxiter_val > 0:
+                if settings.agent.max_iterations != maxiter_val:
+                    settings.agent.max_iterations = maxiter_val
+                    changed_settings.append(f"最大迭代次数: {maxiter_val}")
+            else:
+                validation_errors.append(f"最大迭代次数 必须是正整数（当前: {maxiter_val}）")
+        except ValueError:
+            validation_errors.append("最大迭代次数 必须是整数")
+        except Exception:
+            pass
+        try:
+            timeout_input = self.query_one("#agent-timeout-input", Input)
+            timeout_val = float(timeout_input.value) if timeout_input.value else 60.0
+            if timeout_val > 0:
+                if settings.agent.timeout_seconds != timeout_val:
+                    settings.agent.timeout_seconds = timeout_val
+                    changed_settings.append(f"超时时间: {timeout_val}s")
+            else:
+                validation_errors.append(f"超时时间 必须是正数（当前: {timeout_val}）")
+        except ValueError:
+            validation_errors.append("超时时间必须是数字")
+        except Exception:
+            pass
+
+        # 终端后端：label → value
+        try:
+            backend_select = self.query_one("#terminal-backend-select", Select)
+            backend_map = {"本地执行": "local", "Docker 容器": "docker"}
+            new_backend = backend_map.get(backend_select.value, "local")
+            if settings.terminal.backend != new_backend:
+                settings.terminal.backend = new_backend
+                changed_settings.append(f"终端: {new_backend}")
+        except Exception:
+            pass
+
+        # 偏好设置
+        try:
+            depth_select = self.query_one("#depth-select", Select)
+            depth_map = {"简洁": "brief", "普通": "normal", "详细": "detailed"}
+            prefs = self._settings_manager.get_settings().preferences
+            if hasattr(prefs, 'explanation_depth'):
+                new_depth = depth_map.get(depth_select.value, "normal")
+                if prefs.explanation_depth.value != new_depth:
+                    prefs.explanation_depth.value = new_depth
+                    changed_settings.append(f"详细程度: {new_depth}")
+        except Exception:
+            pass
+        try:
+            format_select = self.query_one("#format-select", Select)
+            format_map = {"自动": "auto", "Markdown": "markdown", "纯文本": "plain"}
+            prefs = self._settings_manager.get_settings().preferences
+            if hasattr(prefs, 'response_format'):
+                new_format = format_map.get(format_select.value, "markdown")
+                if prefs.response_format.value != new_format:
+                    prefs.response_format.value = new_format
+                    changed_settings.append(f"响应格式: {new_format}")
+        except Exception:
+            pass
+
+        # 会话开关
+        try:
+            new_enabled = self.query_one("#session-enabled-switch", Switch).value
+            if settings.session.enabled != new_enabled:
+                settings.session.enabled = new_enabled
+                changed_settings.append(f"会话: {'启用' if new_enabled else '禁用'}")
+        except Exception:
+            pass
+
+        # 记忆开关
+        try:
+            new_mem = self.query_one("#memory-enabled-switch", Switch).value
+            if settings.memory.enabled != new_mem:
+                settings.memory.enabled = new_mem
+                changed_settings.append(f"记忆系统: {'启用' if new_mem else '禁用'}")
+        except Exception:
+            pass
+
+        # 语义检索开关
+        try:
+            new_sem = self.query_one("#semantic-switch", Switch).value
+            if settings.memory.semantic_retrieval_enabled != new_sem:
+                settings.memory.semantic_retrieval_enabled = new_sem
+                changed_settings.append(f"语义检索: {'启用' if new_sem else '禁用'}")
+        except Exception:
+            pass
+
+        # 压缩开关
+        try:
+            new_comp = self.query_one("#compression-switch", Switch).value
+            if settings.compression.enabled != new_comp:
+                settings.compression.enabled = new_comp
+                changed_settings.append(f"Context压缩: {'启用' if new_comp else '禁用'}")
+        except Exception:
+            pass
+
+        # STT/TTS 开关
+        try:
+            new_stt = self.query_one("#stt-switch", Switch).value
+            if settings.tools.stt_enabled != new_stt:
+                settings.tools.stt_enabled = new_stt
+                changed_settings.append(f"STT: {'启用' if new_stt else '禁用'}")
+        except Exception:
+            pass
+        try:
+            new_tts = self.query_one("#tts-switch", Switch).value
+            if settings.tools.tts_enabled != new_tts:
+                settings.tools.tts_enabled = new_tts
+                changed_settings.append(f"TTS: {'启用' if new_tts else '禁用'}")
+        except Exception:
+            pass
+        try:
+            new_browser = self.query_one("#browser-switch", Switch).value
+            if settings.tools.browser_enabled != new_browser:
+                settings.tools.browser_enabled = new_browser
+                changed_settings.append(f"Browser: {'启用' if new_browser else '禁用'}")
+        except Exception:
+            pass
+
+        # 文件日志开关
+        try:
+            new_log = self.query_one("#file-log-switch", Switch).value
+            if settings.logging.file_enabled != new_log:
+                settings.logging.file_enabled = new_log
+                changed_settings.append(f"文件日志: {'启用' if new_log else '禁用'}")
+        except Exception:
+            pass
+
+        return validation_errors, changed_settings
+
     def action_next_category(self) -> None:
         """切换到下一个分类"""
-        next_cat = CategoryMeta.get_next_category(self._current_category)
-        self._switch_category(next_cat)
-    
+        if CategoryMeta:
+            next_cat = CategoryMeta.get_next_category(self._current_category)
+            self._switch_category(next_cat)
+
     def action_prev_category(self) -> None:
         """切换到上一个分类"""
-        prev_cat = CategoryMeta.get_prev_category(self._current_category)
-        self._switch_category(prev_cat)
-    
+        if CategoryMeta:
+            prev_cat = CategoryMeta.get_prev_category(self._current_category)
+            self._switch_category(prev_cat)
+
     def action_reset_category(self) -> None:
         """重置当前分类"""
         if self._settings_manager:
             self._settings_manager.reset_to_defaults(self._current_category)
-            self._refresh_content()
+            self._switch_category(self._current_category)  # 刷新内容
             self.notify("✓ 已重置", timeout=2.0)
-    
-    def _switch_category(self, category: str) -> None:
-        """切换到指定分类"""
-        # 移除旧分类的高亮
-        old_widget = self.query_one(f"#cat-{self._current_category}", Static)
-        if old_widget:
-            old_widget.remove_class("active")
-        
-        # 高亮新分类
-        self._current_category = category
-        new_widget = self.query_one(f"#cat-{category}", Static)
-        if new_widget:
-            new_widget.add_class("active")
-        
-        # 刷新内容区
-        self._refresh_content()
-        self._logger.debug(f"Switched to category: {category}")
-    
-    def _refresh_content(self) -> None:
-        """刷新内容区"""
-        content = self.query_one("#content", VerticalScroll)
-        # 移除旧内容
-        for widget in content.query("Static"):
-            if widget.id not in ("content-header",):
-                widget.remove()
-        # 添加新内容
-        for item in self._get_category_items(self._current_category):
-            content.mount(item)
-    
-    def action_move_up(self) -> None:
-        """上移"""
-        pass
-    
-    def action_move_down(self) -> None:
-        """下移"""
-        pass
-    
-    def action_focus_sidebar(self) -> None:
-        """聚焦侧边栏"""
-        self._focus_area = "sidebar"
-    
-    def action_focus_content(self) -> None:
-        """聚焦内容区"""
-        self._focus_area = "content"
-    
-    def action_toggle_current(self) -> None:
-        """切换当前选项"""
-        pass
-    
+
     def on_mount(self) -> None:
-        """组件挂载"""
-        self._logger.debug("Settings screen mounted")
-    
-    def on_key(self, event) -> None:
-        """处理键盘事件"""
-        # 分类切换快捷键
-        if event.key == "tab":
-            if event.shift:
-                self.action_prev_category()
-            else:
-                self.action_next_category()
-            event.prevent_default()
-            event.stop()
-
-
-# ============================================================================
-# 模块导出
-# ============================================================================
-
-__all__ = [
-    "SettingsScreen",
-    "SettingsClosed",
-    "SettingsSaved",
-    "SETTINGS_SCREEN_CSS",
-]
+        """挂载时初始化"""
+        # 设置默认选中分类
+        tree = self.query_one("#category-tree", Tree)
+        if tree.root.children:
+            tree.select_node(tree.root.children[0])

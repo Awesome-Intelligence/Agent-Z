@@ -132,6 +132,11 @@ except ImportError:
     FilePreviewScreen = None
 
 try:
+    from tui.views.settings_screen import SettingsScreen
+except ImportError:
+    SettingsScreen = None
+
+try:
     from tui.core.keybindings import (
         KeyBinding, KeyBindingManager, KeyBindingCategory, create_default_keybindings,
     )
@@ -249,11 +254,12 @@ class HandsomeAgentApp(App):
         Binding("ctrl+k", "open_command_palette", "Command"),
         Binding("ctrl+b", "toggle_sidebar", "Sidebar"),
         Binding("f1", "open_help", "Help"),
-        Binding("ctrl+1", "switch_to_file_tree", "", show=False),
-        Binding("ctrl+2", "switch_to_tasks", "", show=False),
-        Binding("ctrl+3", "switch_to_agent", "", show=False),
-        Binding("ctrl+4", "switch_to_logs", "", show=False),
-        Binding("ctrl+g", "switch_to_goal", "", show=False),  # Goal 面板快捷键
+        Binding("f2", "open_settings", "Settings"),
+        Binding("alt+1", "switch_to_file_tree", "", show=False),
+        Binding("alt+2", "switch_to_tasks", "", show=False),
+        Binding("alt+3", "switch_to_agent", "", show=False),
+        Binding("alt+4", "switch_to_logs", "", show=False),
+        Binding("alt+g", "switch_to_goal", "", show=False),  # Goal 面板快捷键
         Binding("ctrl+shift+a", "change_theme", "", show=False),
         Binding("ctrl+shift+b", "toggle_transparency", "", show=False),
         Binding("ctrl+shift+m", "toggle_markdown", "", show=False),
@@ -435,25 +441,14 @@ class HandsomeAgentApp(App):
             yield Footer()
 
     def on_key(self, event: KeyEvent) -> None:
+        self._logger.debug(f"[on_key] key={repr(event.key)}, control={event.control}")
+
+        # Ctrl+B 单独处理（因为 BINDINGS 中的 ctrl+b 可能被覆盖）
         if event.key == "b" and event.control:
             self._toggle_sidebar()
             event.prevent_default()
             event.stop()
             return
-
-        if event.control and event.key in ['1', '2', '3', '4', 'g']:
-            if event.key == '1':
-                self.action_switch_to_file_tree()
-            elif event.key == '2':
-                self.action_switch_to_tasks()
-            elif event.key == '3':
-                self.action_switch_to_agent()
-            elif event.key == '4':
-                self.action_switch_to_logs()
-            elif event.key == 'g':
-                self.action_switch_to_goal()
-            event.prevent_default()
-            event.stop()
 
     def on_mount(self) -> None:
         self._logger.info("Textual UI mounted")
@@ -1715,14 +1710,20 @@ class HandsomeAgentApp(App):
             self._logger.debug(f"Sidebar toggle failed: {e}")
 
     def _get_sidebar_and_switch(self, panel_type: str) -> None:
+        """显示侧边栏并切换到指定面板."""
+        self._logger.info(f"[_get_sidebar_and_switch] panel_type={panel_type}")
         try:
-            sidebar = self.query_one("#sidebar-container")
-            if sidebar.styles.display == "none":
-                sidebar.styles.display = "block"
-        except:
-            pass
-
-        self._on_sidebar_panel_switch(panel_type)
+            # 先显示外层容器（如果隐藏的话）
+            outer = self.query_one("#sidebar-container", Container)
+            self._logger.debug(f"[_get_sidebar_and_switch] outer display={outer.styles.display}")
+            if outer.styles.display == "none":
+                outer.styles.display = "block"
+            # 再切换内部 SidebarContainer 的面板
+            inner = self.query_one("#sidebar-container-inner", SidebarContainer)
+            self._logger.debug(f"[_get_sidebar_and_switch] inner={type(inner).__name__}")
+            inner.switch_to_panel(panel_type)
+        except Exception as e:
+            self._logger.error(f"[_get_sidebar_and_switch] Failed: {e}", exc_info=True)
 
     def action_switch_to_file_tree(self) -> None:
         self._get_sidebar_and_switch("file_tree")
@@ -1766,6 +1767,14 @@ class HandsomeAgentApp(App):
             self._logger.debug("Session picker opened")
         else:
             self.notify(t("tui.session_selector.hint", "Session selector not available"))
+
+    def action_open_settings(self) -> None:
+        """打开设置界面."""
+        if SettingsScreen:
+            self.push_screen(SettingsScreen())
+            self._logger.debug("Settings screen opened")
+        else:
+            self.notify("Settings not available")
 
     def _on_send_button_pressed(self) -> None:
         self._submit_user_input()
