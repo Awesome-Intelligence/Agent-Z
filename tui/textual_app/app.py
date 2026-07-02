@@ -375,19 +375,8 @@ class HandsomeAgentApp(App):
         self._markdown_enabled = True
         # TUIConsumer（任务面板消费者）
         self._tui_consumer: Optional["TUIConsumer"] = None
-        # 内置模型列表 - 格式为 (value, label) 元组
-        self._builtin_models: list[tuple[str, str]] = [
-            ("Handsome Agent", "Handsome Agent"),
-            ("gpt-4o", "GPT-4o"),
-            ("gpt-4o-mini", "GPT-4o Mini"),
-            ("gpt-4-turbo", "GPT-4 Turbo"),
-            ("claude-3-5-sonnet", "Claude 3.5 Sonnet"),
-            ("claude-3-5-haiku", "Claude 3.5 Haiku"),
-            ("gemini-2.0-flash", "Gemini 2.0 Flash"),
-            ("deepseek-chat", "DeepSeek Chat"),
-            ("qwen-plus", "Qwen Plus"),
-            ("custom", "其他..."),
-        ]
+        # 模型列表（动态从配置读取）
+        self._builtin_models: list[tuple[str, str]] = self._get_configured_models()
 
         # Welcome Banner 缓存
         self._banner_cache: dict = {
@@ -431,6 +420,7 @@ class HandsomeAgentApp(App):
                         id="status-model",
                         classes="status-model",
                         options=self._builtin_models,
+                        allow_blank=False,
                         compact=True,
                     )
                     yield Static("0/128K", id="status-tokens", classes="status-tokens")
@@ -483,10 +473,10 @@ class HandsomeAgentApp(App):
         
         self._render_welcome_banner()
         self._update_status_bar()
-        # 初始化模型选择下拉菜单
-        self._init_model_select()
         self._register_event_listeners()
         self.call_later(self._load_stylesheets)
+        # 延迟初始化模型选择下拉菜单，确保 Select widget 已完全 mount
+        self.call_later(self._init_model_select)
 
         if self._tui_log_handler is not None:
             try:
@@ -669,24 +659,66 @@ class HandsomeAgentApp(App):
         except Exception as e:
             self._logger.debug(f"Failed to update status bar: {e}")
 
+    def _get_configured_models(self) -> list[tuple[str, str]]:
+        """从用户配置中获取已配置的模型列表."""
+        models: list[tuple[str, str]] = []
+
+        # 1. 从 cli.config 读取
+        try:
+            from cli.config.config import load_config
+            config = load_config()
+            llm = config.get("llm", {})
+            provider = llm.get("provider", "")
+            model = llm.get("model", "")
+            if provider and provider != "none" and model:
+                models.append((f"{provider}/{model}", f"{provider}/{model}"))
+        except (ImportError, Exception):
+            pass
+
+        # 2. 从 common.config.llm_providers 读取
+        if not models:
+            try:
+                from common.config import get_settings
+                providers = get_settings().llm_providers
+                for p_name, p_cfg in providers.items():
+                    if isinstance(p_cfg, dict) and p_cfg.get("enabled"):
+                        model = p_cfg.get("model")
+                        if model:
+                            models.append((f"{p_name}/{model}", f"{p_name}/{model}"))
+            except Exception:
+                pass
+
+        # 3. 如果还是没有配置，使用"未配置"提示
+        if not models:
+            models.append(("not_configured", "⚠️ 未配置，请先在设置中配置模型"))
+
+        models.append(("custom", "其他..."))
+        return models
+
     def _init_model_select(self) -> None:
         """初始化模型选择下拉菜单."""
         try:
             select_widget = self.query_one("#status-model", Select)
-            # 获取当前配置的模型
-            current_model = self.model_name or "Handsome Agent"
-            # 检查当前模型是否在选项列表中，不在则添加
-            model_values = [opt[0] for opt in self._builtin_models]
-            if current_model not in model_values:
-                # 动态添加当前配置的模型到列表开头
-                display_name = current_model
-                self._builtin_models = [(current_model, display_name)] + self._builtin_models
-                # 更新 Select 的选项
-                select_widget.set_options(self._builtin_models)
-            # 设置当前模型为选中项
-            select_widget.value = current_model
+
+            if not self._builtin_models:
+                self._logger.warning("No models configured, cannot init select")
+                return
+
+            # 找到第一个非 not_configured 的模型（使用 label，因为 allow_blank=False 时 label 就是 value）
+            current_label = None
+            for value, label in self._builtin_models:
+                if value != "not_configured":
+                    current_label = label  # 使用 label，因为 allow_blank=False 时 label 即 value
+                    break
+
+            # 如果没有配置任何有效模型，使用 not_configured
+            if not current_label:
+                current_label = self._builtin_models[0][1]  # 第一个的 label
+
+            select_widget.value = current_label
+            self._logger.debug(f"Model select initialized with: {current_label}")
         except Exception as e:
-            self._logger.debug(f"Failed to init model select: {e}")
+            self._logger.error(f"Failed to init model select: {e}", exc_info=True)
 
     @on(Select.Changed)
     def _on_model_selected(self, event: Select.Changed) -> None:
@@ -694,10 +726,10 @@ class HandsomeAgentApp(App):
         if event.control.id == "status-model":
             selected = event.value
             if selected == "custom":
-                # 弹出输入对话框让用户输入自定义模型
                 self._show_custom_model_input()
+            elif selected == "not_configured":
+                self.notify("⚠️ 请先在设置中配置 LLM 模型")
             elif selected:
-                # 仅显示提示，不真实切换模型
                 self._logger.info(f"Model preview: {selected}")
                 self.notify(f"预览模型: {selected}")
 
