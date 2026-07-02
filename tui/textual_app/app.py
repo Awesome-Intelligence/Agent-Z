@@ -323,16 +323,15 @@ class HandsomeAgentApp(App):
         # 使用 Textual 原生 LoadingIndicator（覆盖模式）
         self._use_native_loading: bool = False
         self._loading_indicator: Optional[LoadingIndicator] = None
-        # 保留原有的状态栏加载动画实现（可定制）
-        self._LOADING_FRAMES = {
-            "dots": ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-            "circle": ["◐", "◓", "◑", "◒"],
-            "braille": ["⠓", "⠒", "⠐", "⠔", "⠠", "⠡", "⠢", "⠣"],
-            "pulse": ["●", "○", "◌"],
+        # 状态图标配置
+        self._STATUS_ICONS = {
+            "online": "😄",   # 在线
+            "busy": ["🤔", "🤨", "😲", "🤯"],  # 思考中/忙碌（循环动画）
+            "warning": "😕",  # 警告
+            "error": "😐",    # 错误/离线
         }
-        self._loading_frames: list = self._LOADING_FRAMES["dots"]
-        self._loading_frame_index: int = 0
-        self._loading_style: str = "dots"
+        self._current_status: str = "online"
+        self._busy_frame_index: int = 0  # busy 状态动画帧索引
 
         self._is_streaming: bool = False
         self._streaming_text: str = ""
@@ -646,7 +645,7 @@ class HandsomeAgentApp(App):
             # 使用缓存的 widgets（避免频繁 query_one）
             icon_widget = self._widget_cache.get("status_icon")
             if icon_widget:
-                icon_widget.update("●")
+                icon_widget.update(self._STATUS_ICONS.get(self._current_status, "😐"))
             
             tokens_widget = self._widget_cache.get("status_tokens")
             if tokens_widget:
@@ -766,6 +765,10 @@ class HandsomeAgentApp(App):
             return
         self._is_loading = True
         
+        # 更新状态为忙碌
+        self._current_status = "busy"
+        self._busy_frame_index = 0
+        
         if self._use_native_loading and LoadingIndicator is not None:
             # 使用 Textual 原生 LoadingIndicator
             try:
@@ -777,12 +780,24 @@ class HandsomeAgentApp(App):
             except Exception:
                 pass
         else:
-            # 使用原有的状态栏加载动画
-            self._loading_frame_index = 0
-            self._update_loading_frame()
+            # 使用状态图标动画
+            self._update_status_icon()
+            self._update_busy_animation()
+    
+    def _update_busy_animation(self) -> None:
+        """更新 busy 状态的动画图标"""
+        if not self._is_loading or self._current_status != "busy":
+            return
+        self._busy_frame_index = (self._busy_frame_index + 1) % 4
+        self._update_status_icon()
+        self.set_timer(0.5, self._update_busy_animation)
 
     def _stop_loading_animation(self) -> None:
         self._is_loading = False
+        
+        # 更新状态为在线
+        self._current_status = "online"
+        self._busy_frame_index = 0
         
         if self._use_native_loading and self._loading_indicator is not None:
             # 移除 Textual 原生 LoadingIndicator
@@ -792,11 +807,8 @@ class HandsomeAgentApp(App):
             except Exception:
                 pass
         else:
-            # 使用原有的状态栏加载动画
-            # 使用缓存的 widget（避免频繁 query_one）
-            status_icon = self._widget_cache.get("status_icon")
-            if status_icon:
-                status_icon.update("●")
+            # 更新状态图标
+            self._update_status_icon()
 
     def _toggle_sidebar(self) -> None:
         sidebar = self.query_one("#sidebar-container", Container)
@@ -808,32 +820,23 @@ class HandsomeAgentApp(App):
             sidebar.styles.display = "none"
             self.notify("侧边栏已隐藏")
 
-    def _update_loading_frame(self) -> None:
-        if not self._is_loading:
-            return
-        # 使用缓存的 widget（避免频繁 query_one）
-        status_icon = self._widget_cache.get("status_icon")
-        if status_icon:
-            status_icon.update(self._loading_frames[self._loading_frame_index])
-        self._loading_frame_index = (self._loading_frame_index + 1) % len(self._loading_frames)
-        self.set_timer(0.2, self._update_loading_frame)
+    def _update_status_icon(self) -> None:
+        """更新状态图标"""
+        icon_widget = self._widget_cache.get("status_icon")
+        if icon_widget:
+            status_icon = self._STATUS_ICONS.get(self._current_status, "😐")
+            # busy 状态使用动画帧
+            if self._current_status == "busy" and isinstance(status_icon, list):
+                icon = status_icon[self._busy_frame_index % len(status_icon)]
+            else:
+                icon = status_icon
+            icon_widget.update(icon)
 
-    def set_loading_style(self, style: str) -> bool:
-        if style in self._LOADING_FRAMES:
-            self._loading_style = style
-            self._loading_frames = self._LOADING_FRAMES[style]
-            self._loading_frame_index = 0
-            self._logger.debug(f"Loading style changed to: {style}")
-            return True
-        return False
-
-    def cycle_loading_style(self) -> str:
-        styles = list(self._LOADING_FRAMES.keys())
-        current_index = styles.index(self._loading_style) if self._loading_style in styles else 0
-        next_index = (current_index + 1) % len(styles)
-        next_style = styles[next_index]
-        self.set_loading_style(next_style)
-        return next_style
+    def set_agent_status(self, status: str) -> None:
+        """设置 Agent 状态"""
+        if status in self._STATUS_ICONS:
+            self._current_status = status
+        self._logger.debug(f"Agent status changed to: {status}")
 
     def start_streaming_message(self, widget_id: str) -> None:
         self._is_streaming = True
@@ -1703,10 +1706,6 @@ class HandsomeAgentApp(App):
 
     def action_switch_to_goal(self) -> None:
         self._get_sidebar_and_switch("goal")
-
-    def set_agent_status(self, status: str) -> None:
-        self._agent_status = status
-        self._logger.debug(f"Agent status changed to: {status}")
 
     def action_toggle_help(self) -> None:
         self.action_open_help()

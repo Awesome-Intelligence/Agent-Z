@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"E:\\\\Awesome Intelligence\\\\Handsome-Agent\\\\.trae\")"
+    ]
+  },
+  "rules": [
+    {
+      "description": "Python code style - applies to all Python files",
+      "match": "**/*.py",
+      "rule": "Follow Python code style: 4-space indent, 80 char line length, snake_case for functions/variables, CapWords for classes, type annotations required for public APIs. See .claude/rules/python.md"
+    },
+    {
+      "description": "Logging - applies when adding logging",
+      "match": "**/*.py",
+      "rule": "Must use common.logging_manager. See .claude/rules/logging.md"
+    },
+    {
+      "description": "Security - applies to files with auth, secrets, input handling",
+      "match": [
+        "**/auth*.py",
+        "**/security*.py",
+        "**/api*.py",
+        "**/gateway/**/*.py"
+      ],
+      "rule": "Security zero-trust: no hardcoded secrets, whitelist validation, pathlib for paths. See .claude/rules/security.md"
+    },
+    {
+      "description": "Testing - applies to test files",
+      "match": "tests/**/*.py",
+      "rule": "Follow test conventions: test_<module>_<scenario>_<expected>. See .claude/rules/testing.md"
+    }
+  ]
+}

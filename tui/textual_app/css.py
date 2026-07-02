@@ -156,7 +156,6 @@ Screen {
 .status-icon {
     width: auto;
     margin-right: 2;
-    color: $success;
 }
 
 .status-model {
