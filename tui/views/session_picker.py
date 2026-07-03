@@ -412,14 +412,14 @@ class SessionPickerScreen(ModalScreen):
                 current_marker = "⚠"
                 title = f"[red]{session.title}[/red]"
                 time_text = "[red]确认删除?[/red]"
-                msg_count = ""
-                model_text = ""
+                msg_count = " "
+                model_text = " "
             else:
-                current_marker = "▶" if session.id == self._current_session_id else ""
+                current_marker = "▶" if session.id == self._current_session_id else " "
                 title = session.title
-                time_text = session.created_at or ""
-                msg_count = str(session.message_count)
-                model_text = session.model or ""
+                time_text = session.created_at or " "
+                msg_count = str(session.message_count) if session.message_count else "0"
+                model_text = session.model or " "
             
             table.add_row(
                 current_marker,
@@ -595,10 +595,6 @@ class SessionPickerScreen(ModalScreen):
                 self._close()
             event.prevent_default()
         
-        # Ctrl+D - 删除
-        elif key == "ctrl+d":
-            self._confirm_delete()
-            event.prevent_default()
 
 
 # ============================================================================

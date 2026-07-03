@@ -197,13 +197,14 @@ def get_file_size_display(size: int) -> str:
 FILE_PREVIEW_CSS = """
 FilePreviewScreen {
     align: center middle;
+    background: $boost 40%;
 }
 
 #preview-container {
     width: 90%;
     height: 85%;
     border: solid $primary;
-    background: $surface;
+    background: $surface 85%;
     padding: 0;
 }
 

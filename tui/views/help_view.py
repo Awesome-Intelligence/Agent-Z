@@ -56,13 +56,6 @@ except ImportError:
     def get_access_logger(*args, **kwargs):
         return logging.getLogger("HandsomeAgent")
 
-# 快捷键模块
-try:
-    from ..keybindings import KeyBinding, KeyBindingManager
-except ImportError:
-    KeyBinding = None
-    KeyBindingManager = None
-
 
 # ============================================================================
 # 主题颜色常量（高雅紫）
@@ -159,14 +152,6 @@ CATEGORY_NAMES = {
     "session": "会话",
 }
 
-CATEGORY_NAMES_EN = {
-    "navigation": "Navigation",
-    "tab": "Tabs",
-    "command": "Commands",
-    "help": "Help",
-    "session": "Session",
-}
-
 
 # ============================================================================
 # HelpScreen - 帮助面板模态窗口
@@ -190,19 +175,16 @@ class HelpScreen(ModalScreen):
     
     def __init__(
         self,
-        key_binding_manager: KeyBindingManager | None = None,
         custom_content: str | None = None,
         **kwargs
     ) -> None:
         """初始化帮助面板
-        
+
         Args:
-            key_binding_manager: 快捷键管理器（如果为 None，使用默认内容）
-            custom_content: 自定义帮助内容（如果提供，忽略 key_binding_manager）
+            custom_content: 自定义帮助内容
             **kwargs: 传递给父类的参数
         """
         super().__init__(**kwargs)
-        self._key_binding_manager = key_binding_manager
         self._custom_content = custom_content
         self._logger = get_access_logger("HelpView", sublayer="cli")
     
@@ -254,63 +236,37 @@ class HelpScreen(ModalScreen):
             ("session", i18n.t("tui.help.category.session")),
         ]
         
-        default_bindings = self._get_default_bindings()
-        
+        bindings = self._get_bindings()
+
         for category_key, category_name in categories:
-            bindings = [
-                b for b in default_bindings
-                if b.category == category_key
+            category_bindings = [
+                b for b in bindings
+                if getattr(b, "category", None) == category_key
             ]
-            
-            if not bindings:
+
+            if not category_bindings:
                 continue
-            
+
             content_lines.append(f"[bold {AVOCADO_PRIMARY}]{category_name}[/]")
-            
-            for binding in bindings:
+
+            for binding in category_bindings:
                 key_display = self._format_key(binding.key)
-                desc = i18n.t(f"tui.keybinding.{binding.key}")
-                # Fallback to binding description if key not found
-                if desc == f"tui.keybinding.{binding.key}":
-                    desc = binding.description
+                desc = getattr(binding, "description", "") or ""
+                if desc:
+                    desc = i18n.t(f"tui.keybinding.{binding.key}", default=desc)
+                else:
+                    desc = getattr(binding, "action", "") or ""
                 content_lines.append(
                     f"  [{GOLD}]{key_display:<15}[/{GOLD}]  {desc}"
                 )
-            
+
             content_lines.append("")
-        
+
         return "\n".join(content_lines)
     
-    def _get_default_bindings(self) -> list[KeyBinding]:
-        """获取默认快捷键列表
-        
-        Returns:
-            快捷键列表
-        """
-        if self._key_binding_manager:
-            return self._key_binding_manager.bindings
-        
-        # 返回硬编码的默认快捷键（action 已废弃，始终为 None）
-        return [
-            KeyBinding("up", "上移", category="navigation"),
-            KeyBinding("down", "下移", category="navigation"),
-            KeyBinding("j", "下移 (vim)", category="navigation"),
-            KeyBinding("k", "上移 (vim)", category="navigation"),
-            KeyBinding("ctrl+t", "新建标签", category="tab"),
-            KeyBinding("ctrl+w", "关闭标签", category="tab"),
-            KeyBinding("ctrl+tab", "切换到下一个标签", category="tab"),
-            KeyBinding("ctrl+shift+tab", "切换到上一个标签", category="tab"),
-            KeyBinding("ctrl+k", "打开命令面板", category="command"),
-            KeyBinding("ctrl+l", "清屏", category="command"),
-            KeyBinding("ctrl+c", "复制", category="command"),
-            KeyBinding("ctrl+v", "粘贴", category="command"),
-            KeyBinding("escape", "关闭/取消", category="command"),
-            KeyBinding("ctrl+q", "退出应用", category="command"),
-            KeyBinding("q", "退出应用", category="command"),
-            KeyBinding("f1", "打开帮助", category="help"),
-            KeyBinding("ctrl+/", "打开帮助", category="help"),
-            KeyBinding("ctrl+r", "打开会话选择器", category="session"),
-        ]
+    def _get_bindings(self) -> list:
+        """获取应用的实际快捷键绑定"""
+        return getattr(self.app, "BINDINGS", [])
     
     def _format_key(self, key: str) -> str:
         """格式化键名用于显示

@@ -28,13 +28,14 @@ from common.logging_manager import get_access_logger
 SKILL_DETAIL_CSS = """
 SkillDetailScreen {
     align: center middle;
+    background: $boost 40%;
 }
 
 #detail-container {
     width: 90%;
     height: auto;
     max-height: 85%;
-    background: $surface;
+    background: $surface 85%;
     border: solid $primary;
     padding: 0;
 }

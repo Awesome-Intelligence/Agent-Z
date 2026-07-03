@@ -390,6 +390,9 @@ class Agent:
             final_result = json.dumps(final_result, ensure_ascii=False)
 
         if self._session:
+            # 先添加用户输入消息
+            self._session.add_message("user", user_input)
+            
             full_messages = result.get("full_messages", [])
             if full_messages:
                 # 只添加新生成的消息（超出原始历史的那些）
@@ -408,6 +411,9 @@ class Agent:
                         )
             else:
                 self._session.add_message("assistant", str(final_result))
+            
+            # 调用 session.end() 确保会话保存，同时触发 MemoryCurator 自动摘要
+            self._session.end(trigger_curator=True)
 
         execution_time = time.time() - start_time
 

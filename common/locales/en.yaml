@@ -367,16 +367,15 @@ banner:
   run_commands: "Run commands:"
   # Random greeting messages separated by | (pipe character)
   random_greeting: >
-    "Code is poetry, written by caffeinated artists. |
-    Talk is cheap, show me the code. |
-    Simplicity is the ultimate sophistication. |
-    First, make it work. Then, make it right. |
-    The best error message is no error at all. |
-    Readable code is maintainable code. |
-    Don't repeat yourself, but when you do, keep it consistent. |
-    A clever person solves problems, a wise person avoids them. |
-    Debugging is twice as hard as writing code, so write clever code. |
-    Programs must be written for people to read, and only incidentally for machines."
+    "Existence precedes essence. |
+    I think, therefore I am. |
+    The unexamined life is not worth living. |
+    He who has a why to live can bear almost any how. |
+    Man is condemned to be free. |
+    The only thing we have to fear is fear itself. |
+    In the middle of difficulty lies opportunity. |
+    The mind is everything. What you think you become. |
+    No man is an island."
 
 # =============================================================================
 # Provider Display Names
@@ -614,7 +613,7 @@ onboarding:
 
 tui:
   status_bar:
-    mode_iter: "⚡ Iter"
+    mode_iter: "⚡ Single"
     mode_goal: "🎯 Goal"
   command_palette:
     title: "Command Palette"

@@ -118,6 +118,32 @@ class ChatView(Container, can_focus=False):
         self._logger.info(f"ChatView mounted: {self.tab_id}")
         if MessageList:
             self._message_list = self.query_one("#chat-list", MessageList)
+        self._show_greeting()
+
+    def show_greeting(self) -> None:
+        """显示问候语（供外部调用）."""
+        self._show_greeting()
+
+    def _show_greeting(self) -> None:
+        """显示 Agent 问候语."""
+        greeting = None
+        # 优先取 agent.md 正文内容
+        try:
+            from agent.workspace import load_workspace_file
+            agent_md = load_workspace_file("agent.md")
+            if agent_md:
+                import re
+                content = re.sub(r"<!--.*?-->", "", agent_md, flags=re.DOTALL).strip()
+                lines = [ln.strip() for ln in content.splitlines() if ln.strip()]
+                greeting_lines = lines[1:4] if len(lines) > 1 else lines
+                greeting = "\n".join(greeting_lines[:3])
+        except Exception:
+            pass
+
+        if not greeting:
+            greeting = "你好！有什么我可以帮你的吗？"
+
+        self.add_assistant_message(greeting)
 
     # ========================================================================
     # 消息操作方法（保持 API 兼容性）

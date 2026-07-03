@@ -38,13 +38,14 @@ class LogScreen(ModalScreen):
     CSS = """
     LogScreen {
         align: center middle;
+        background: $boost 40%;
     }
 
     #log-window {
         width: 90%;
         height: 80%;
         border: solid $accent;
-        background: $surface;
+        background: $surface 85%;
     }
 
     #log-header {

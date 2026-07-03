@@ -57,8 +57,6 @@ from tui.views import (
 
 # 组件
 from tui.widgets import (
-    CommandPaletteScreen,
-    Command,
     MessageList,
     StreamingText,
     ApprovalDialog,
@@ -107,8 +105,6 @@ __all__ = [
     "WelcomeScreen",
     "OnboardingScreen",
     # 组件
-    "CommandPaletteScreen",
-    "Command",
     "MessageList",
     "StreamingText",
     "ApprovalDialog",

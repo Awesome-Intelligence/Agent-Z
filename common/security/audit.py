@@ -8,18 +8,17 @@
 记录所有技能相关操作的安全审计信息
 """
 
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 from common.logging_manager import get_logger
+from common.config import HANDSOME_HOME
 
 logger = get_logger(__name__)
 
-# 审计日志路径 - 放在项目根目录的 .handsome-agent 目录
-_HANDSOME_AGENT_DIR = Path.home() / ".handsome-agent"
-_AUDIT_LOG_DIR = _HANDSOME_AGENT_DIR / "security"
+# 审计日志路径
+_AUDIT_LOG_DIR = HANDSOME_HOME / "security"
 AUDIT_LOG = _AUDIT_LOG_DIR / "audit.log"
 AUDIT_LOG.parent.mkdir(parents=True, exist_ok=True)
 

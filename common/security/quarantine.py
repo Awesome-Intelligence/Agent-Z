@@ -14,12 +14,12 @@ from pathlib import Path
 from typing import List, Tuple, Union
 
 from common.logging_manager import get_logger
+from common.config import HANDSOME_HOME
 
 logger = get_logger(__name__)
 
 # 隔离目录路径
-_HANDSOME_AGENT_DIR = Path.home() / ".handsome-agent"
-QUARANTINE_DIR = _HANDSOME_AGENT_DIR / "security" / "quarantine"
+QUARANTINE_DIR = HANDSOME_HOME / "security" / "quarantine"
 
 
 def ensure_quarantine_dir() -> None:

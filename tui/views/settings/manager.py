@@ -97,7 +97,7 @@ class SettingsManager:
     
     def save(self) -> bool:
         """保存设置到文件
-        
+
         Returns:
             True if save succeeded
         """

@@ -115,20 +115,15 @@ SettingsScreen {
     background: $surface;
 }
 
+#settings-footer {
+    height: 1;
+    content-align: center middle;
+    color: $text-muted;
+}
+
 #content-scroll {
     padding: 1 2;
     height: 100%;
-}
-
-#settings-footer {
-    height: 2;
-    background: $panel;
-    content-align: center middle;
-    border-top: solid $border;
-}
-
-#settings-footer Static {
-    color: $text-muted;
 }
 
 /* 分类项样式 */
@@ -233,8 +228,8 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
         Binding("escape", "close", "关闭", show=False),
         Binding("tab", "next_category", "下一分类", show=False),
         Binding("shift+tab", "prev_category", "上一分类", show=False),
-        Binding("s", "save", "保存", show=False),
-        Binding("r", "reset_category", "重置", show=False),
+        Binding("ctrl+s", "save", "保存", show=False),
+        Binding("ctrl+r", "reset_category", "重置", show=False),
     ]
 
     def __init__(self, **kwargs):
@@ -260,12 +255,7 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
             with VerticalScroll(id="content-area"):
                 yield from self._compose_content()
 
-        # 底部提示
-        with Container(id="settings-footer"):
-            yield Static(
-                "Tab 切换分类  ↑↓ 移动  Enter/Space 确认  s 保存  Esc 关闭",
-                id="settings-hint"
-            )
+        yield Static("Tab 切换分类  |  ↑↓ 移动  |  Enter/Space 确认  |  Ctrl+S 保存  |  Ctrl+R 重置  |  Esc 关闭", id="settings-footer")
 
     def _compose_sidebar_tree(self) -> ComposeResult:
         """生成侧边栏分类树"""
@@ -352,6 +342,9 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
         except ImportError:
             provider_options = [("OpenAI", "OpenAI")]
             current_provider = "OpenAI"
+        # 空值保护
+        if not current_provider:
+            current_provider = provider_options[0][1]
         yield Select(
             options=provider_options,
             value=current_provider,
@@ -603,7 +596,6 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
 
         if self._settings_manager:
             if self._settings_manager.save():
-                self._logger.info("Settings saved")
                 # 显示变更列表
                 if changed_settings:
                     changes_msg = "✓ 已保存: " + ", ".join(changed_settings[:5])
@@ -663,6 +655,26 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
                 changed_settings.append("API Key: 已修改")
             elif new_api_key == "":
                 settings.llm.api_key = ""
+        except Exception:
+            pass
+
+        # Model 名称
+        try:
+            model_input = self.query_one("#llm-model-input", Input)
+            new_model = model_input.value.strip()
+            if settings.llm.model != new_model:
+                settings.llm.model = new_model
+                changed_settings.append(f"Model: {new_model}")
+        except Exception:
+            pass
+
+        # Base URL
+        try:
+            url_input = self.query_one("#llm-url-input", Input)
+            new_url = url_input.value.strip()
+            if settings.llm.base_url != new_url:
+                settings.llm.base_url = new_url
+                changed_settings.append(f"Base URL: {new_url}")
         except Exception:
             pass
 

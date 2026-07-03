@@ -88,12 +88,6 @@ except ImportError:
     ChatView = None
 
 try:
-    from tui.widgets.command_palette import CommandPaletteScreen, Command
-except ImportError:
-    CommandPaletteScreen = None
-    Command = None
-
-try:
     from tui.views.session_picker import SessionPickerScreen
 except ImportError:
     SessionPickerScreen = None
@@ -253,12 +247,10 @@ class HandsomeAgentApp(App):
     BINDINGS = [
         # --- 核心快捷键 ---
         Binding("ctrl+q", "quit", "Quit"),
-        Binding("ctrl+k", "open_command_palette", "Command"),
         Binding("ctrl+b", "toggle_sidebar", "Sidebar"),
         Binding("f1", "open_help", "Help"),
         Binding("f2", "open_settings", "Settings"),
         Binding("f3", "open_log_screen", "Logs"),
-        Binding("escape", "close", "关闭"),
 
         # --- 标签管理快捷键 ---
         Binding("ctrl+t", "new_tab", "New Tab", show=False),
@@ -441,7 +433,7 @@ class HandsomeAgentApp(App):
                     yield Static("0:00", id="status-time", classes="status-time")
                     yield Static("🔧", id="status-tools", classes="status-tools")
                     with Horizontal(id="status-right"):
-                        yield Static(t("tui.status_bar.mode_iter", "⚡ Iter"), id="status-mode-toggle", classes="status-mode-toggle")
+                        yield Static(t("tui.status_bar.mode_iter"), id="status-mode-toggle", classes="status-mode-toggle")
             yield SubmitTextArea(
                 id="user-input",
                 classes="input-field",
@@ -467,6 +459,8 @@ class HandsomeAgentApp(App):
         
         self._render_welcome_banner()
         self._update_status_bar()
+        # 异步生成哲学语录（不阻塞 UI）
+        self.call_later(self._generate_wisdom_async)
         self._register_event_listeners()
         self.call_later(self._load_stylesheets)
         # 延迟初始化模型选择下拉菜单，确保 Select widget 已完全 mount
@@ -676,8 +670,8 @@ class HandsomeAgentApp(App):
 
                 if state.budget_mode == BudgetMode.TURN:
                     state._enable_iteration_mode()
-                    mode_icon = t("tui.status_bar.mode_iter", "⚡ Iter")
-                    mode_text = "Iter"
+                    mode_icon = t("tui.status_bar.mode_iter")
+                    mode_text = t("tui.status_bar.mode_iter").replace("⚡ ", "")
                 else:
                     state._enable_goal_mode()
                     mode_icon = t("tui.status_bar.mode_goal", "🎯 Goal")
@@ -1209,12 +1203,12 @@ class HandsomeAgentApp(App):
             welcome_text = RichText.from_markup("\n".join(welcome_lines))
             welcome_widget.update(welcome_text)
 
-        # 获取随机问候语
+        # 获取随机问候语（先显示 fallback，LLM 生成后再更新）
         try:
             from common.i18n import get_random_greeting
             greeting = get_random_greeting()
         except Exception:
-            greeting = "代码改变世界。"
+            greeting = "存在先于本质。"
 
         # 渲染右侧信息栏
         from rich.text import Text as RichText
@@ -1254,6 +1248,44 @@ class HandsomeAgentApp(App):
         greeting_widget = self._widget_cache.get("tools_info")
         if greeting_widget:
             greeting_widget.update("")
+
+    def _generate_wisdom_async(self) -> None:
+        """后台异步生成哲学语录并更新 Banner 显示。"""
+        try:
+            agent = self._get_agent()
+            if not agent or not agent.llm_provider:
+                return
+
+            from common.i18n import get_language
+            lang = get_language()
+            lang_prompt = {"zh": "中文", "en": "English"}.get(lang, "English")
+
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                # ponytail: 一次简单 LLM 调用，timeout 15s
+                response = loop.run_until_complete(
+                    agent.llm_provider.generate(
+                        prompt=f"Give me one short philosophical quote (max 25 characters) in {lang_prompt} about life, existence, or wisdom. Only return the quote, nothing else.",
+                        max_tokens=60,
+                        temperature=1.0,
+                    )
+                )
+                wisdom = response.content.strip() if response and response.content else None
+            finally:
+                loop.close()
+
+            if wisdom:
+                version_widget = self._widget_cache.get("version_info")
+                if version_widget and self._banner_cache.get("version"):
+                    from rich.text import Text as RichText
+                    version_text = RichText.from_markup(
+                        f"[dim]{self._banner_cache['version']}[/] [dim]·[/] [italic dim]{wisdom}[/]"
+                    )
+                    version_widget.update(version_text)
+        except Exception:
+            pass  #静默失败，用户看到的是 fallback
 
     def _get_tools_count(self) -> int:
         """获取已注册的工具数量"""
@@ -1865,21 +1897,10 @@ class HandsomeAgentApp(App):
 
     def action_open_help(self) -> None:
         if HelpScreen:
-            self.push_screen(HelpScreen(
-                key_binding_manager=None
-            ))
+            self.push_screen(HelpScreen())
             self._logger.debug("Help screen opened")
         else:
             self.notify("Help: q=quit, Ctrl+B=sidebar, Ctrl+T=new tab")
-
-    def action_open_command_palette(self) -> None:
-        if CommandPaletteScreen:
-            self.push_screen(CommandPaletteScreen(
-                key_binding_manager=None
-            ))
-            self._logger.debug("Command palette opened")
-        else:
-            self.notify("Command palette not available")
 
     def action_open_session_selector(self) -> None:
         if SessionPickerScreen:
@@ -2240,6 +2261,8 @@ class HandsomeAgentApp(App):
             history = self._restore_session(event.session_id)
             for msg in history:
                 chat_view.append_message(msg["role"], msg["content"])
+            if not history:
+                chat_view.show_greeting()
 
         self.notify(t("session.switched", "已切换到会话: {title}").format(title=event.session_title))
 
@@ -2253,6 +2276,9 @@ class HandsomeAgentApp(App):
                 )
                 self.session_id = new_id
                 self._render_welcome_banner()
+                if self._active_tab_id and self._active_tab_id in self._tab_states:
+                    self._tab_states[self._active_tab_id]["chat_view"].clear_messages()
+                    self._tab_states[self._active_tab_id]["chat_view"].show_greeting()
 
         self._logger.info(f"Session deleted: {event.session_id}")
 

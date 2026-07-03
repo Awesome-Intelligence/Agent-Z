@@ -33,7 +33,8 @@ class OptionalSkillSource(SkillSource):
         super().__init__("Optional Skills")
         if skills_dir is None:
             # 默认使用项目的 skills/system 目录
-            project_root = Path(__file__).parent.parent.parent.parent
+            # optional_skill.py 位于 agent/skill_sources/，需要上溯3级到项目根目录
+            project_root = Path(__file__).parent.parent.parent
             skills_dir = project_root / "skills" / "system"
         self._skills_dir = Path(skills_dir)
 
