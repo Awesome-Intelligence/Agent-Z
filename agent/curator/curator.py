@@ -625,7 +625,7 @@ class Curator:
             "duration_seconds": elapsed,
             "summary": final_summary,
             "dry_run": dry_run,
-            "lifecycle_report": lifecycle_report,
+            "lifecycle_report": curator_report,
             "telemetry_summary": telemetry_summary,
         }
 

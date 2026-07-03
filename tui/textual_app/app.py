@@ -29,7 +29,7 @@ try:
     from textual.screen import Screen as TextualScreen
     from textual.message import Message
     from textual import on
-    from textual.events import Key
+    from textual.events import Key, Click
     from textual import events as textual_events
     from textual.theme import Theme
     # NewLine 在 Textual 0.x 中已被移除，使用 Rich.Text 替代
@@ -452,6 +452,8 @@ class HandsomeAgentApp(App):
                     yield Static("0/128K", id="status-tokens", classes="status-tokens")
                     yield Static("0:00", id="status-time", classes="status-time")
                     yield Static("🔧", id="status-tools", classes="status-tools")
+                    with Horizontal(id="status-right"):
+                        yield Static(t("tui.status_bar.mode_iter", "⚡ Iter"), id="status-mode-toggle", classes="status-mode-toggle")
             yield SubmitTextArea(
                 id="user-input",
                 classes="input-field",
@@ -711,6 +713,37 @@ class HandsomeAgentApp(App):
                     tools_widget.update("🔧")
         except Exception as e:
             self._logger.debug(f"Failed to update tools display: {e}")
+
+    def _toggle_budget_mode(self) -> None:
+        """切换 Goal 模式和迭代模式."""
+        try:
+            if hasattr(self, '_agent') and self._agent and hasattr(self._agent, 'state'):
+                state = self._agent.state
+                from agent.state import BudgetMode
+
+                if state.budget_mode == BudgetMode.TURN:
+                    state._enable_iteration_mode()
+                    mode_icon = t("tui.status_bar.mode_iter", "⚡ Iter")
+                    mode_text = "Iter"
+                else:
+                    state._enable_goal_mode()
+                    mode_icon = t("tui.status_bar.mode_goal", "🎯 Goal")
+                    mode_text = "Goal"
+
+                # 更新按钮显示
+                toggle_widget = self._widget_cache.get("status_mode_toggle")
+                if toggle_widget:
+                    toggle_widget.update(mode_icon)
+
+                self._logger.info(f"Budget mode switched to: {mode_text}")
+        except Exception as e:
+            self._logger.debug(f"Failed to toggle budget mode: {e}")
+
+    @on(Click, "#status-mode-toggle")
+    def _on_click_mode_toggle(self, event: Click) -> None:
+        """处理模式切换按钮点击事件."""
+        self._logger.info("Mode toggle clicked!")
+        self._toggle_budget_mode()
 
     def _update_token_count(self) -> None:
         """更新 token 计数（方案B：消息完成后估算，不影响性能）."""
@@ -1118,6 +1151,7 @@ class HandsomeAgentApp(App):
             self._widget_cache["status_tokens"] = self.query_one("#status-tokens", Static)
             self._widget_cache["status_time"] = self.query_one("#status-time", Static)
             self._widget_cache["status_tools"] = self.query_one("#status-tools", Static)
+            self._widget_cache["status_mode_toggle"] = self.query_one("#status-mode-toggle", Static)
             self._widget_cache["status_bar"] = self.query_one("#status-bar")
             
             # 聊天区域

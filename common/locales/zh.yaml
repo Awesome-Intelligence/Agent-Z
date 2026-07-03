@@ -593,6 +593,9 @@ onboarding:
 # =============================================================================
 
 tui:
+  status_bar:
+    mode_iter: "⚡ 迭代"
+    mode_goal: "🎯 目标"
   command_palette:
     title: "命令面板"
     search_hint: "搜索命令..."

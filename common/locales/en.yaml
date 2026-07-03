@@ -613,6 +613,9 @@ onboarding:
 # =============================================================================
 
 tui:
+  status_bar:
+    mode_iter: "⚡ Iter"
+    mode_goal: "🎯 Goal"
   command_palette:
     title: "Command Palette"
     search_hint: "Search commands..."

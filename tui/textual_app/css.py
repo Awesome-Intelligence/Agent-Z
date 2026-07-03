@@ -35,6 +35,8 @@ APP_CSS = """
 
 Screen {
     background: $background;
+    margin: 0;
+    padding: 0;
 }
 
 /* 聊天区域 */
@@ -71,7 +73,7 @@ Screen {
     width: 100%;
     dock: top;
     background: rgba(177, 128, 215, 0.2);
-    border-bottom: solid $primary;
+    outline-bottom: solid $primary;
 }
 
 #header-content {
@@ -140,7 +142,8 @@ Screen {
     height: 1;
     width: 100%;
     background: $primary;
-    padding: 0 2;
+    padding: 0;
+    margin: 0;
 }
 
 #status-content {
@@ -148,7 +151,7 @@ Screen {
     layout: horizontal;
     padding: 0 0;
     align: left middle;
-    color: $background;
+    color: $foreground;
 }
 
 .status-icon {
@@ -196,7 +199,7 @@ Screen {
 .status-tokens {
     width: auto;
     margin-right: 2;
-    color: $secondary;
+    color: $foreground;
 }
 
 #status-progress {
@@ -207,12 +210,40 @@ Screen {
 .status-time {
     width: auto;
     margin-right: 2;
-    color: $secondary;
+    color: $foreground;
 }
 
 .status-tools {
     width: auto;
     color: $accent;
+    margin-right: 1;
+}
+
+.status-mode-toggle {
+    width: auto;
+    color: $foreground;
+    padding: 0 1;
+    min-width: 2;
+}
+
+.status-mode-toggle:hover {
+    color: $accent;
+}
+
+#status-right {
+    width: 1fr;
+    layout: horizontal;
+    align: right middle;
+}
+
+.status-mode-toggle:hover {
+    color: $accent;
+    background: $surface;
+    border: none;
+}
+
+.status-mode-toggle:focus {
+    border: none;
 }
 
 /* 消息样式 - 用户消息 */
@@ -285,6 +316,10 @@ Screen {
     width: 100%;
     dock: bottom;
     layout: vertical;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: rgba(177, 128, 215, 0.2);
 }
 
 #input-area #status-content {
@@ -297,6 +332,12 @@ Screen {
 
 #input-area #user-input {
     margin: 0;
+    margin-top: 0;
+}
+
+#status-bar {
+    margin: 0;
+    outline: thick solid $secondary;
 }
 
 #input-area Footer {
@@ -340,7 +381,7 @@ Screen {
     border: blank;
     background: $surface;
     color: $foreground;
-    padding: 1 2;
+    padding: 0;
     height: 100%;
     width: 1fr;
 }
@@ -355,17 +396,17 @@ Screen {
     color: $foreground;
     margin: 0;
     height: 7;
-    padding: 0 1;
+    padding: 0;
 }
 
 /* 默认边框样式 */
 #user-input {
-    border: thick $secondary;
+    border: blank;
 }
 
 #user-input:focus,
 #user-input:hover {
-    border: thick $primary;
+    border: blank;
 }
 
 /* 按钮通用样式 */

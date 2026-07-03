@@ -578,6 +578,9 @@ onboarding:
 # =============================================================================
 
 tui:
+  status_bar:
+    mode_iter: "⚡ イテレーション"
+    mode_goal: "🎯 目標"
   command_palette:
     title: "コマンドパレット"
     search_hint: "コマンドを検索..."

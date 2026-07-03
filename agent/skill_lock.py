@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 LOCK_VERSION = 1
 
 # Lock 文件路径
-LOCK_FILENAME = ".hub" / "lock.json"
+LOCK_FILENAME = ".hub/lock.json"
 
 
 @dataclass

@@ -15,6 +15,8 @@ import sys
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Optional
 
+from aiohttp import web
+
 from common.logging_manager import get_decision_logger
 
 logger = get_decision_logger(__name__)

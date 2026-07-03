@@ -13,10 +13,10 @@ from typing_extensions import Self
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical, Horizontal
+from textual.containers import Vertical, Horizontal, VerticalScroll
 from textual.events import Click
 from textual.message import Message
-from textual.widgets import Static, Log, TabbedContent, TabPane, DirectoryTree, Input, Button
+from textual.widgets import Static, Log, TabbedContent, TabPane, DirectoryTree, Input, Button, ListView, ListItem, Tree
 from textual.widgets import Tabs
 from textual import on
 
@@ -736,23 +736,14 @@ class FileTreePane(SidebarPane):
 
 
 class SkillsPane(SidebarPane):
-    """技能面板 - 显示已安装的技能和 Bundle 列表"""
+    """技能面板 - 使用 Tree 组件显示技能和 Bundle 列表"""
 
     # 状态图标
     SKILL_ICONS = {
-        "active": "🟢",
+        "active": "😎",
         "stale": "🟡",
         "archived": "⚪",
         "pinned": "📌",
-    }
-
-    # 类别图标
-    CATEGORY_ICONS = {
-        "general": "📦",
-        "developer": "🔧",
-        "data": "📊",
-        "ai": "🤖",
-        "tools": "🛠️",
     }
 
     DEFAULT_CSS = """
@@ -764,7 +755,7 @@ class SkillsPane(SidebarPane):
     SkillsPane #skills-container {
         width: 100%;
         height: 100%;
-        padding: 1;
+        padding: 0 1 1 1;
     }
 
     SkillsPane #skills-search {
@@ -772,71 +763,26 @@ class SkillsPane(SidebarPane):
         margin-bottom: 1;
     }
 
-    SkillsPane #skills-tabs {
-        width: 100%;
-        height: auto;
-        margin-bottom: 1;
-        layout: horizontal;
+    SkillsPane #skills-search Input {
+        height: 3;
     }
 
-    SkillsPane .skill-tab {
-        width: 1fr;
-        padding: 0 1;
-        color: $text-muted;
+    SkillsPane Tree {
+        height: 100%;
         background: transparent;
-        border: none;
     }
 
-    SkillsPane .skill-tab:hover {
-        background: $accent 15%;
+    SkillsPane Tree .tree--node {
+        padding: 0;
     }
 
-    SkillsPane .skill-tab.active {
-        color: $accent;
-        text-style: bold;
-        border-bottom: solid $accent;
+    SkillsPane Tree .tree--node-toggle {
+        display: none;
     }
 
-    SkillsPane #skills-tabs {
-        height: auto;
-        margin-bottom: 1;
-    }
-
-    SkillsPane #skills-list {
-        width: 100%;
-        height: 1fr;
-        padding: 1;
-    }
-
-    SkillsPane #bundles-list {
-        width: 100%;
-        height: 1fr;
-        padding: 1;
-    }
-
-    SkillsPane .skill-item {
-        padding: 0 1 0 2;
-    }
-
-    SkillsPane .skill-item:hover {
-        background: $accent 15%;
-    }
-
-    SkillsPane .skill-item.pinned {
-        color: $accent;
-    }
-
-    SkillsPane #skills-empty, #bundles-empty {
-        color: $text-muted;
-        text-style: italic;
-        padding: 1;
-    }
-
-    SkillsPane #skills-hint {
-        width: 100%;
-        padding: 1;
-        color: $text-muted;
-        text-style: italic;
+    SkillsPane Tree > .tree--cursor {
+        background: $accent 25%;
+        color: $text;
     }
     """
 
@@ -847,34 +793,25 @@ class SkillsPane(SidebarPane):
         self._refresh_timer = None
         self._skills = []
         self._bundles = []
-        self._filtered_skills = []
-        self._filtered_bundles = []
         self._search_query = ""
-        self._current_tab = "skills"  # "skills" or "bundles"
         # DOM 缓存
-        self._skills_list = None
-        self._bundles_list = None
+        self._tree = None
         self._search_input = None
-        self._tab_skills = None
-        self._tab_bundles = None
-        self._bundles_empty = None
+        # Tree 根节点引用
+        self._skills_root = None
+        self._bundle_root = None
+        # 展开状态保存
+        self._skills_expanded = True
+        self._bundle_expanded = True
         super().__init__(id="skills", title="技能")
 
     def compose(self) -> ComposeResult:
         """组合子组件"""
         with Vertical(id="skills-container"):
             # 搜索框
-            yield Input(placeholder="搜索技能...", id="skills-search")
-            # Tab 选择器（真正的 Tab 切换）
-            with Horizontal(id="skills-tabs"):
-                Button("[b]技能[/b]", id="tab-skills", classes="skill-tab active", variant="default")
-                Button("Bundle", id="tab-bundles", classes="skill-tab", variant="default")
-            # 技能列表
-            yield Static("[dim]暂无技能[/dim]", id="skills-list")
-            # Bundle 列表
-            yield Static("", id="bundles-list")
-            # 底部提示
-            yield Static("[dim]使用 /skill-name 激活技能[/dim]", id="skills-hint")
+            yield Input(placeholder="搜索技能/Bundle...", id="skills-search")
+            # 树形列表
+            yield Tree("技能树", id="skills-tree")
 
     def on_mount(self) -> None:
         """组件挂载时初始化"""
@@ -885,69 +822,54 @@ class SkillsPane(SidebarPane):
             self._logger = None
 
         # 缓存 DOM 组件引用
-        self._skills_list = self.query_one("#skills-list", Static)
-        self._bundles_list = self.query_one("#bundles-list", Static)
+        self._tree = self.query_one("#skills-tree", Tree)
         self._search_input = self.query_one("#skills-search", Input)
 
-        # 初始化 Tab 显示状态（技能 Tab 激活）
-        self._current_tab = "skills"
-        self._update_tab_appearance()
+        # 设置 Tree 样式
+        self._tree.show_root = False
+        self._tree.show_collapse = False
+        self._tree.enable_expand = True
 
-        # 加载数据
+        # 加载数据并构建树
         self._load_skills()
         self._load_bundles()
-        self._refresh_display()
+        self._build_tree()
 
         # 启动定时刷新
         self._start_refresh_timer()
 
-    @on(Input.Changed)
+    @on(Input.Changed, "#skills-search")
     def _on_search_changed(self, event: Input.Changed) -> None:
         """搜索输入变化"""
-        if hasattr(self, '_search_input') and event.input == self._search_input:
-            self._search_query = event.value.lower()
-            self._filter_data()
-            self._refresh_display()
+        self._search_query = event.value.lower()
+        self._build_tree()
 
-    @on(Button.Pressed, "#tab-skills")
-    def _show_skills_tab(self) -> None:
-        """切换到技能 Tab"""
-        if self._current_tab == "skills":
-            return
-        self._current_tab = "skills"
-        self._refresh_skills_list()
-        self._update_tab_appearance()
+    @on(Tree.NodeSelected, "#skills-tree")
+    def _on_node_selected(self, event: Tree.NodeSelected) -> None:
+        """节点选中时显示详情"""
+        node = event.node
+        if hasattr(node, '_skill_data') and node._skill_data:
+            item_data = node._skill_data
+            # 延迟打开弹窗，让选中状态先显示
+            self.set_timer(0.1, lambda: self._show_skill_detail(item_data))
 
-    @on(Button.Pressed, "#tab-bundles")
-    def _show_bundles_tab(self) -> None:
-        """切换到 Bundle Tab"""
-        if self._current_tab == "bundles":
-            return
-        self._current_tab = "bundles"
-        self._refresh_bundles_list()
-        self._update_tab_appearance()
+    @on(Tree.NodeExpanded, "#skills-tree")
+    def _on_node_expanded(self, event: Tree.NodeExpanded) -> None:
+        """节点展开时保存状态"""
+        node = event.node
+        if node == self._skills_root:
+            self._skills_expanded = True
+        elif node == self._bundle_root:
+            self._bundle_expanded = True
 
-    def _update_tab_appearance(self) -> None:
-        """更新 Tab 样式和列表显示"""
-        tabs_container = self.query_one("#skills-tabs", Horizontal)
-        buttons = tabs_container.query(Button)
-        tab_skills = buttons.nodes[0] if len(buttons.nodes) > 0 else None
-        tab_bundles = buttons.nodes[1] if len(buttons.nodes) > 1 else None
-
-        if self._current_tab == "skills":
-            if tab_skills:
-                tab_skills.label = "[b]技能[/b]"
-            if tab_bundles:
-                tab_bundles.label = "Bundle"
-            self._skills_list.display = True
-            self._bundles_list.display = False
-        else:
-            if tab_skills:
-                tab_skills.label = "技能"
-            if tab_bundles:
-                tab_bundles.label = "[b]Bundle[/b]"
-            self._skills_list.display = False
-            self._bundles_list.display = True
+    @on(Tree.NodeCollapsed, "#skills-tree")
+    def _on_node_collapsed(self, event: Tree.NodeCollapsed) -> None:
+        """节点折叠时保存状态"""
+        node = event.node
+        if node == self._skills_root:
+            self._skills_expanded = False
+        elif node == self._bundle_root:
+            self._bundle_expanded = False
 
     def _start_refresh_timer(self) -> None:
         """启动定时刷新"""
@@ -968,7 +890,7 @@ class SkillsPane(SidebarPane):
                     self._logger.debug("Skills dir does not exist")
                 return
 
-            # 尝试获取 telemetry，失败则使用默认值
+            # 尝试获取 telemetry
             telemetry = None
             try:
                 from agent.skill_usage_tracker import get_skill_telemetry
@@ -980,15 +902,11 @@ class SkillsPane(SidebarPane):
             self._skills = []
 
             # 遍历技能目录（递归查找 SKILL.md）
-            skill_count = 0
             for skill_path in skills_dir.rglob("SKILL.md"):
-                # 获取技能目录
                 skill_dir = skill_path.parent
-                # 跳过以 . 开头的目录
                 if any(p.startswith(".") for p in skill_dir.relative_to(skills_dir).parts):
                     continue
 
-                # 获取技能标识（使用相对路径）
                 rel_path = skill_dir.relative_to(skills_dir)
                 skill_id = str(rel_path).replace("\\", "/")
 
@@ -1008,40 +926,29 @@ class SkillsPane(SidebarPane):
 
                 # 读取技能描述
                 description = ""
-                category = "general"
                 name = skill_id
                 try:
                     content = skill_path.read_text(encoding="utf-8")
                     from agent.skill_utils import parse_frontmatter
                     fm, _ = parse_frontmatter(content)
                     description = fm.get("description", "")
-                    category = fm.get("category", "general")
                     name = fm.get("name", skill_id)
                 except Exception:
                     pass
 
                 self._skills.append({
+                    "type": "skill",
                     "name": name,
                     "path": skill_id,
                     "description": description,
-                    "category": category,
+                    "category": "general",
                     "state": state,
                     "pinned": pinned,
                     "use_count": use_count,
                 })
-                skill_count += 1
 
             if self._logger:
-                self._logger.debug(f"Loaded {skill_count} skills")
-
-        except ImportError as e:
-            if self._logger:
-                self._logger.warning(f"Failed to load skills (ImportError): {e}")
-            self._skills = []
-        except Exception as e:
-            if self._logger:
-                self._logger.warning(f"Failed to load skills: {e}")
-            self._skills = []
+                self._logger.debug(f"Loaded {len(self._skills)} skills")
 
         except ImportError as e:
             if self._logger:
@@ -1060,11 +967,13 @@ class SkillsPane(SidebarPane):
             bundles = list_bundles()
             self._bundles = [
                 {
+                    "type": "bundle",
                     "name": b.name,
                     "slug": b.slug,
                     "description": b.description,
                     "skills": b.skills,
                     "author": b.author,
+                    "skills_count": len(b.skills),
                 }
                 for b in bundles
             ]
@@ -1073,106 +982,79 @@ class SkillsPane(SidebarPane):
                 self._logger.warning(f"Failed to load bundles: {e}")
             self._bundles = []
 
-    def _filter_data(self) -> None:
-        """根据搜索过滤数据"""
-        if not self._search_query:
-            self._filtered_skills = self._skills.copy()
-            self._filtered_bundles = self._bundles.copy()
+    def _filter_items(self) -> tuple:
+        """根据搜索过滤技能和 Bundle"""
+        skills = self._skills[:]
+        bundles = self._bundles[:]
+
+        if self._search_query:
+            skills = [
+                s for s in skills
+                if (self._search_query in s["name"].lower() or
+                    self._search_query in s.get("description", "").lower())
+            ]
+            bundles = [
+                b for b in bundles
+                if (self._search_query in b["name"].lower() or
+                    self._search_query in b.get("description", "").lower())
+            ]
+
+        return skills, bundles
+
+    def _build_tree(self) -> None:
+        """构建技能和 Bundle 树"""
+        if not self._tree:
             return
 
-        # 过滤技能
-        self._filtered_skills = [
-            s for s in self._skills
-            if (self._search_query in s["name"].lower() or
-                self._search_query in s.get("description", "").lower())
-        ]
+        # 清空现有树
+        self._tree.clear()
 
-        # 过滤 Bundle
-        self._filtered_bundles = [
-            b for b in self._bundles
-            if (self._search_query in b["name"].lower() or
-                self._search_query in b.get("description", "").lower())
-        ]
+        # 获取过滤后的数据
+        skills, bundles = self._filter_items()
+
+        # 创建根节点
+        root = self._tree.root
+
+        # 添加技能目录
+        if skills or bundles:
+            self._skills_root = root.add("📦 技能", expand=self._skills_expanded)
+            for skill in skills:
+                label = self._get_skill_label(skill)
+                node = self._skills_root.add_leaf(label)
+                node._skill_data = skill
+
+            # 添加 Bundle 目录
+            self._bundle_root = root.add("📦 Bundle", expand=self._bundle_expanded)
+            for bundle in bundles:
+                label = self._get_bundle_label(bundle)
+                node = self._bundle_root.add_leaf(label)
+                node._skill_data = bundle
+        else:
+            # 无数据时显示提示
+            root.add("[dim]暂无技能[/dim]")
+
+    def _get_skill_label(self, skill: dict) -> str:
+        """获取技能节点标签"""
+        pinned_mark = "📌 " if skill.get("pinned") else ""
+        state_icon = self.SKILL_ICONS.get(skill.get("state", "active"), "🟢")
+        return f"{pinned_mark}{state_icon} {skill['name']}"
+
+    def _get_bundle_label(self, bundle: dict) -> str:
+        """获取 Bundle 节点标签"""
+        count = bundle.get("skills_count", 0)
+        count_str = f" ({count})" if count else ""
+        return f"📦 {bundle['name']}{count_str}"
 
     def _refresh_data(self) -> None:
         """定时刷新数据"""
         self._load_skills()
         self._load_bundles()
-        self._filter_data()
-        self._refresh_display()
+        self._build_tree()
 
-    def _refresh_display(self) -> None:
-        """刷新显示"""
-        if not self._skills_list or not self._bundles_list:
-            return
-
-        self._filter_data()
-
-        # 刷新技能列表
-        self._refresh_skills_list()
-        # 刷新 Bundle 列表
-        self._refresh_bundles_list()
-
-    def _refresh_skills_list(self) -> None:
-        """刷新技能列表显示"""
-        if not self._filtered_skills:
-            msg = "[dim]暂无技能[/dim]"
-            if self._search_query:
-                msg = f"[dim]搜索 '{self._search_query}' 无结果[/dim]"
-            self._skills_list.update(msg)
-            return
-
-        lines = []
-        categories = {}
-        for skill in self._filtered_skills:
-            cat = skill.get("category", "general")
-            if cat not in categories:
-                categories[cat] = []
-            categories[cat].append(skill)
-
-        for cat, skills in sorted(categories.items()):
-            cat_icon = self.CATEGORY_ICONS.get(cat, "📦")
-            lines.append(f"[bold]{cat_icon} {cat.upper()}[/bold]")
-
-            for skill in skills[:10]:
-                pinned_mark = "📌 " if skill.get("pinned") else "   "
-                state_icon = self.SKILL_ICONS.get(skill.get("state", "active"), "🟢")
-                lines.append(f"  {pinned_mark}{state_icon} {skill['name']}")
-                if skill.get("description"):
-                    desc = skill["description"]
-                    if len(desc) > 35:
-                        desc = desc[:35] + "..."
-                    lines.append(f"       [dim]{desc}[/dim]")
-
-            if len(skills) > 10:
-                lines.append(f"       [dim]... 还有 {len(skills) - 10} 个[/dim]")
-
-        self._skills_list.update("\n".join(lines).strip())
-
-    def _refresh_bundles_list(self) -> None:
-        """刷新 Bundle 列表显示"""
-        if not self._filtered_bundles:
-            msg = "[dim]暂无 Bundle[/dim]"
-            if self._search_query:
-                msg = f"[dim]搜索 '{self._search_query}' 无结果[/dim]"
-            self._bundles_list.update(msg)
-            return
-
-        lines = []
-        for bundle in self._filtered_bundles[:10]:
-            lines.append(f"[accent]📦 {bundle['name']}[/accent]")
-            if bundle.get("description"):
-                desc = bundle["description"]
-                if len(desc) > 40:
-                    desc = desc[:40] + "..."
-                lines.append(f"   [dim]{desc}[/dim]")
-            skills_count = len(bundle.get("skills", []))
-            lines.append(f"   [dim]{skills_count} 个技能[/dim]")
-
-        if len(self._filtered_bundles) > 10:
-            lines.append(f"[dim]... 还有 {len(self._filtered_bundles) - 10} 个[/dim]")
-
-        self._bundles_list.update("\n".join(lines).strip())
+    def _show_skill_detail(self, item_data: dict) -> None:
+        """显示技能/Bundle 详情弹窗"""
+        from tui.views.skill_detail import SkillDetailScreen
+        self.app.push_screen(SkillDetailScreen(item_data))
 
     def set_focus_within(self) -> None:
         """设置面板内部焦点"""
