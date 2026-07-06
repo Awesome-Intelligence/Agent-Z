@@ -144,10 +144,7 @@ tools/, executor/ (通过抽象接口)
 
 ## 八、参考项目
 
-> 注：路径使用环境变量或相对路径配置，禁止硬编码绝对路径。
-
 | 项目 | 配置方式 |
 |------|---------|
-| OpenClaw | `OPENCLAW_PATH` 环境变量 |
-| Hermes | `HERMES_PATH` 环境变量 |
-| jiuwenswarm | `JIUWEN_PATH` 环境变量 |
+| OpenClaw | E:\openclaw-study\ |
+| Hermes | E:\hermes-agent-study\ |

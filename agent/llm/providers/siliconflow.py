@@ -131,9 +131,11 @@ class SiliconFlowProvider(BaseProvider):
                     usage=usage,
                     latency_ms=latency_ms,
                     function_call=function_call,
+                    reasoning_content=message.get("reasoning_content", ""),
                 )
 
             content = message.get("content", "")
+            reasoning_content = message.get("reasoning_content", "")
             self._log_output_content(content)
             self._log_request_completed(latency_ms)
 
@@ -143,6 +145,7 @@ class SiliconFlowProvider(BaseProvider):
                 finish_reason=data["choices"][0].get("finish_reason", "stop"),
                 usage=usage,
                 latency_ms=latency_ms,
+                reasoning_content=reasoning_content,
             )
 
         except httpx.HTTPError as e:

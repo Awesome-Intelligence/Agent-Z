@@ -178,10 +178,12 @@ class ClaudeProvider(BaseProvider):
                     },
                     latency_ms=latency_ms,
                     function_call=function_call,
+                    reasoning_content=data.get("thinking_content", ""),
                 )
 
             content = data["content"][0]["text"]
             usage = data.get("usage", {})
+            reasoning_content = data.get("thinking_content", "")
 
             self._log_output_content(content)
             self._log_request_completed(latency_ms)
@@ -195,6 +197,7 @@ class ClaudeProvider(BaseProvider):
                     "output_tokens": usage.get("output_tokens", 0),
                 },
                 latency_ms=latency_ms,
+                reasoning_content=reasoning_content,
             )
 
         except httpx.HTTPError as e:

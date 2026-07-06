@@ -198,11 +198,13 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object, can_focus=Fal
         self._message_collapsibles: dict[str, Collapsible] = {}  # 思考内容 Collapsible 引用
         self._message_containers: dict[str, Container] = {}  # 消息容器引用
         self._logger = get_access_logger("MessageList", sublayer="tui")
+        self._i18n = get_i18n()  # ponytail: cache i18n instance — avoid per-message call
 
         # 自动滚动优化
         self._user_scrolled_to_bottom: bool = True  # 用户是否在底部
-        self._scroll_throttle_ms: int = 100  # 滚动节流时间
+        self._scroll_throttle_ms: int = 300  # ponytail: increased from 100 — on_scroll entry has overhead even when throttled
         self._last_scroll_time: float = 0  # 上次滚动时间
+        self._suppress_scroll_event: bool = False  # ponytail: prevent scroll feedback loop
 
     # ========================================================================
     # 消息添加方法
@@ -340,10 +342,20 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object, can_focus=Fal
         self._streaming_buffer[message_id] = ""  # 清空缓冲区
         self._update_message_widget(msg)
 
+        # 如果 thinking 在 content flush 之前就到达了，但 Collapsible 还未创建
+        #（widget 还没 mount 时升级会静默失败），此时补创建
+        if (
+            msg.thinking and msg.thinking.strip()
+            and msg.role == MessageRole.ASSISTANT
+            and message_id not in self._message_collapsibles
+        ):
+            self._render_message(msg)
+
     def append_streaming_thinking(self, message_id: str, text: str) -> None:
         """流式追加思考内容到消息"""
+        # thinking 先于 start_streaming 到达时，主动创建流式消息
         if message_id not in self._streaming_active:
-            return
+            message_id = self.start_streaming(MessageRole.ASSISTANT)
 
         msg = self._message_index.get(message_id)
         if msg is None:
@@ -361,6 +373,9 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object, can_focus=Fal
             # 消息已渲染但还没有 Collapsible，需要创建
             # 重新渲染消息以包含 Collapsible
             self._upgrade_to_thinking_message(msg)
+        elif msg.is_complete:
+            # thinking 在 complete_streaming 之后才到达，补创建带 Collapsible 的消息
+            self._render_message(msg)
 
     def _update_thinking_collapsible(self, message_id: str, msg: MessageItem) -> None:
         """更新 Collapsible 内的思考内容"""
@@ -530,21 +545,20 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object, can_focus=Fal
         """智能滚动 - 只在必要时滚动"""
         if self._should_auto_scroll():
             self._last_scroll_time = time.time() * 1000
+            # ponytail: suppress scroll event during programmatic scroll — breaks feedback loop
+            self._suppress_scroll_event = True
             self.scroll_end(animate=False)
+            self._suppress_scroll_event = False
 
     def _check_if_at_bottom(self) -> bool:
         """检查滚动区域是否在底部附近（用于检测用户是否在底部）"""
+        # ponytail: only read scroll_y (cheap) — max_scroll_y triggers layout
         try:
-            # 获取可滚动区域的尺寸
-            scroll_height = self.scroll_home  # 滚动区域总高度
-            max_scroll = self.max_scroll_y  # 最大滚动偏移
-            current_y = self.scroll_y  # 当前滚动位置
-
-            # 如果最大滚动接近当前滚动位置，说明在底部
-            # 允许 50 像素的误差
+            current_y = self.scroll_y
+            max_scroll = self.max_scroll_y  # needed to compute distance to bottom
             return (max_scroll - current_y) < 50
         except Exception:
-            return True  # 默认认为在底部
+            return True
 
     def _mark_scrolled_to_bottom(self) -> None:
         """标记用户已滚动到/接近底部"""
@@ -615,7 +629,7 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object, can_focus=Fal
         msg_type = msg.role.value.upper()
         icon = MESSAGE_ICONS.get(msg_type, "💬")
 
-        i18n_instance = get_i18n()
+        i18n_instance = self._i18n
         role_key_map = {
             MessageRole.USER: "message.role.user",
             MessageRole.ASSISTANT: "message.role.assistant",
@@ -716,8 +730,7 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object, can_focus=Fal
         self._message_widgets[msg.id] = msg_widget
 
         # 创建思考内容的 Collapsible
-        i18n = get_i18n()
-        thinking_title = f"💭 {i18n.t('message.thinking', '思考过程')}"
+        thinking_title = f"💭 {self._i18n.t('message.thinking', '思考过程')}"
         thinking_content = msg.thinking if msg.thinking else ""
 
         collapsible = Collapsible(
@@ -760,24 +773,27 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object, can_focus=Fal
 
         widget = self._message_widgets[msg.id]
 
-        header = self._format_message_header(msg)
-        content = self._format_message_content(msg)
-        full_content = header + content
-
+        # ponytail: skip header rebuild during active streaming — only update content
         if isinstance(widget, Static):
             if msg.role == MessageRole.SYSTEM:
                 widget.update(f"--- {msg.content} ---")
+            elif msg.is_streaming:
+                # During streaming, just append the new content (buffer was already merged into msg.content)
+                # Don't rebuild full_content with header every flush
+                widget.update(msg.content + (" ▌" if msg.is_streaming else ""))
             else:
-                widget.update(full_content)
+                header = self._format_message_header(msg)
+                content = self._format_message_content(msg)
+                widget.update(header + content)
         elif isinstance(widget, Markdown):
-            pass
+            pass  # Markdown widget replaced on completion, not updated during stream
 
-        # 如果有思考内容且 Collapsible 已存在，更新思考内容
         if msg.thinking is not None and msg.id in self._message_collapsibles:
             self._update_thinking_collapsible(msg.id, msg)
 
-        # 使用智能滚动 - 只在用户位于底部时自动滚动
-        self.call_later(self._do_smart_scroll)
+        # ponytail: only schedule smart scroll if user is at bottom — skip during manual scroll
+        if self._user_scrolled_to_bottom:
+            self.call_later(self._do_smart_scroll)
 
     def _upgrade_to_markdown(self, msg: MessageItem) -> None:
         if msg.id not in self._message_widgets:
@@ -828,13 +844,31 @@ class MessageList(VerticalScroll if TEXTUAL_AVAILABLE else object, can_focus=Fal
 
     def on_scroll(self) -> None:
         """监听滚动事件，检测用户是否在底部"""
-        if self._check_if_at_bottom():
-            self._mark_scrolled_to_bottom()
-        else:
-            self._mark_scrolled_away()
+        if self._suppress_scroll_event:
+            return
+        current_time = time.time() * 1000
+        if current_time - self._last_scroll_time < self._scroll_throttle_ms:
+            return
+        self._last_scroll_time = current_time
+        # ponytail: max_scroll_y is layout-expensive — only read here, not on every scroll event
+        self._do_deferred_scroll_check()
+
+    def _do_deferred_scroll_check(self) -> None:
+        """Check if user is at bottom — reads max_scroll_y only when needed."""
+        try:
+            max_scroll = self.max_scroll_y
+            current_y = self.scroll_y
+            if (max_scroll - current_y) < 50:
+                self._mark_scrolled_to_bottom()
+            else:
+                self._mark_scrolled_away()
+        except Exception:
+            pass
 
     def on_scroll_to(self, event) -> None:
         """监听 scroll_to 事件"""
+        if self._suppress_scroll_event:
+            return
         self.on_scroll()
 
     def scroll_to_bottom(self, animate: bool = True) -> None:

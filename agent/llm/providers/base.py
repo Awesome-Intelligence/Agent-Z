@@ -53,6 +53,7 @@ class ProviderResponse(BaseModel):
     latency_ms: float = 0.0
     timestamp: datetime = Field(default_factory=datetime.now)
     function_call: Optional[Dict[str, Any]] = Field(default=None, description="函数调用信息 (用于 function calling)")
+    reasoning_content: Optional[str] = Field(default=None, description="思维链/推理内容 (如 MiniMax reasoning_content)")
 
     class Config:
         extra = "allow"
@@ -71,6 +72,7 @@ class StreamChunk(BaseModel):
     delta: str = ""
     finish: bool = False
     usage: Optional[Dict[str, int]] = None
+    reasoning_content: Optional[str] = Field(default=None, description="思维链/推理内容")
 
 
 class BaseProvider(ABC):

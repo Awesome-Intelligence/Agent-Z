@@ -235,8 +235,12 @@ class ChatView(Container, can_focus=False):
         Args:
             text: 思考内容
         """
-        if not self._message_list or not self._current_streaming_id:
+        if not self._message_list:
             return
+
+        # thinking 先于 start_streaming 到达时，主动创建流式消息
+        if not self._current_streaming_id:
+            self._current_streaming_id = self._message_list.start_streaming("assistant")
 
         self._message_list.append_streaming_thinking(self._current_streaming_id, text)
 

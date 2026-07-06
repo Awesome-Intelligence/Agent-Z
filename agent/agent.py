@@ -282,6 +282,10 @@ class Agent:
             if self._stream_emitter:
                 self._stream_emitter.emit_delta(text)
 
+    def _emit_thinking(self, text: str):
+        if text and self._thinking_callback:
+            self._thinking_callback(text)
+
     def _emit_stream_complete(self, text: str = ""):
         if self._stream_emitter:
             self._stream_emitter.emit_complete(text)

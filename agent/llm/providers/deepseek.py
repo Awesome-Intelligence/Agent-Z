@@ -133,6 +133,7 @@ class DeepSeekProvider(BaseProvider):
                     usage=usage,
                     latency_ms=latency_ms,
                     function_call=function_call[0] if isinstance(function_call, list) else function_call,
+                    reasoning_content=message.get("reasoning_content", ""),
                 )
 
             self._log_output_content(content)
@@ -148,6 +149,7 @@ class DeepSeekProvider(BaseProvider):
                 finish_reason=data["choices"][0].get("finish_reason", "stop"),
                 usage=usage,
                 latency_ms=latency_ms,
+                reasoning_content=message.get("reasoning_content", ""),
             )
 
         except httpx.HTTPError as e:

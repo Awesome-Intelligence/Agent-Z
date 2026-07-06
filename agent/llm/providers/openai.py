@@ -144,9 +144,11 @@ class OpenAIProvider(BaseProvider):
                     usage=data.get("usage", {}),
                     latency_ms=latency_ms,
                     function_call=function_call,
+                    reasoning_content=message.get("reasoning_content", ""),
                 )
 
             output_content = message.get("content", "")
+            reasoning_content = message.get("reasoning_content", "")
             usage = data.get("usage", {})
 
             self._log_output_content(output_content)
@@ -158,6 +160,7 @@ class OpenAIProvider(BaseProvider):
                 finish_reason=data["choices"][0].get("finish_reason", "stop"),
                 usage=usage,
                 latency_ms=latency_ms,
+                reasoning_content=reasoning_content,
             )
 
         except httpx.HTTPError as e:

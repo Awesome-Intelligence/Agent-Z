@@ -11,6 +11,7 @@ from typing import Optional, List, AsyncIterator
 from .base import BaseProvider, ProviderConfig, ProviderResponse, Message, StreamChunk
 from common.logging_manager import get_llm_logger
 from common.config import DEFAULT_LLM_BASE_URLS
+from common.streaming.think_scrubber import StreamingThinkScrubber
 
 
 class MiniMaxProvider(BaseProvider):
@@ -117,14 +118,20 @@ class MiniMaxProvider(BaseProvider):
             self._log_input_messages(msg_list, prompt_meta)
             response = await client.post("/chat/completions", json=request_body)
 
-            # 使用基类方法处理错误，确保 HTTPStatusError 携带 response
+
             self._raise_for_status(response)
 
             data = response.json()
             latency_ms = (time.time() - start_time) * 1000
 
             message = data["choices"][0]["message"]
-            output_content = message.get("content", "")
+            raw_content = message.get("content", "")
+
+            # MiniMax-M3 embeds thinking in content as <think>...[/think]\n\n\n{answer}
+            import re as minimax_re
+            thinking_blocks = minimax_re.findall(r"<think>(.*?)\[/think]", raw_content, minimax_re.DOTALL)
+            reasoning_content = "\n".join(b.strip() for b in thinking_blocks if b.strip())
+            output_content = minimax_re.sub(r"<think>.*?\[/think]\n+", "", raw_content, flags=minimax_re.DOTALL).strip()
 
             function_call = self._should_handle_function_call(message)
             if function_call:
@@ -138,6 +145,7 @@ class MiniMaxProvider(BaseProvider):
                     usage=data.get("usage", {}),
                     latency_ms=latency_ms,
                     function_call=function_call[0] if isinstance(function_call, list) else function_call,
+                    reasoning_content=reasoning_content,
                 )
 
             usage = data.get("usage", {})
@@ -151,6 +159,7 @@ class MiniMaxProvider(BaseProvider):
                 finish_reason=data["choices"][0].get("finish_reason", "stop"),
                 usage=usage,
                 latency_ms=latency_ms,
+                reasoning_content=reasoning_content,
             )
 
         except httpx.HTTPError as e:
@@ -202,22 +211,42 @@ class MiniMaxProvider(BaseProvider):
                     raise Exception(f"MiniMax API error: {response.status_code}")
 
                 accumulated_content = ""
+                accumulated_reasoning = ""
+                scrubber = StreamingThinkScrubber()
+
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data_str = line[6:]
                         if data_str == "[DONE]":
-                            yield StreamChunk(finish=True)
+                            remaining_visible, remaining_reasoning = scrubber.flush()
+                            if remaining_visible:
+                                accumulated_content += remaining_visible
+                            if remaining_reasoning:
+                                accumulated_reasoning += remaining_reasoning
+                            yield StreamChunk(
+                                content=accumulated_content,
+                                finish=True,
+                                reasoning_content=accumulated_reasoning,
+                            )
                             break
 
                         try:
                             data = json.loads(data_str)
                             delta = data["choices"][0]["delta"].get("content", "")
-                            accumulated_content += delta
+
+                            visible_delta, reasoning_delta = scrubber.feed(delta)
+
+                            if visible_delta:
+                                accumulated_content += visible_delta
+
+                            if reasoning_delta:
+                                accumulated_reasoning += reasoning_delta
 
                             yield StreamChunk(
                                 content=accumulated_content,
-                                delta=delta,
+                                delta=visible_delta,
                                 finish=False,
+                                reasoning_content=reasoning_delta if reasoning_delta else None,
                             )
                         except json.JSONDecodeError:
                             continue

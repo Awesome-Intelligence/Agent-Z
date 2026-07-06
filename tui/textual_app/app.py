@@ -1137,32 +1137,29 @@ class HandsomeAgentApp(App):
             return None
 
     def _get_theme_banner_color(self) -> str:
-        """从 CSS 主题文件读取 --banner-color 变量.
+        """从 CSS 主题文件读取 --banner-color 变量."""
+        # ponytail: cache per theme — avoid reading CSS file on every render
+        cache_key = f"_banner_color_{self.theme_id}"
+        if hasattr(self, cache_key):
+            return getattr(self, cache_key)
 
-        从 tui/theming/css/themes/{theme_id}.css 中解析 --banner-color 值。
-        如果解析失败，返回默认紫色。
-
-        Returns:
-            HEX 格式的颜色值
-        """
         import re
         themes_dir = Path(__file__).resolve().parent.parent / "theming" / "css" / "themes"
         css_file = themes_dir / f"{self.theme_id}.css"
 
-        if not css_file.exists():
-            return "#C9A0E0"  # 默认紫色
+        color = "#C9A0E0"  # 默认紫色
+        if css_file.exists():
+            try:
+                content = css_file.read_text(encoding="utf-8")
+                pattern = r'\.' + re.escape(self.theme_id) + r'.*?--banner-color\s*:\s*([^;]+);'
+                match = re.search(pattern, content, re.DOTALL)
+                if match:
+                    color = match.group(1).strip()
+            except Exception:
+                pass
 
-        try:
-            content = css_file.read_text(encoding="utf-8")
-            # 匹配 .theme-default { ... --banner-color: #C9A0E0; ... }
-            pattern = r'\.' + re.escape(self.theme_id) + r'.*?--banner-color\s*:\s*([^;]+);'
-            match = re.search(pattern, content, re.DOTALL)
-            if match:
-                return match.group(1).strip()
-        except Exception:
-            pass
-
-        return "#C9A0E0"  # 默认紫色
+        setattr(self, cache_key, color)
+        return color
 
     def _render_welcome_banner(self) -> None:
         """渲染欢迎 Banner 和右侧信息。
@@ -1957,72 +1954,58 @@ class HandsomeAgentApp(App):
         self._agent_start_time = __import__("time").time()
         self._current_thinking = ""
 
-        if hasattr(self, '_poll_timer') and self._poll_timer is not None:
-            self._poll_timer.stop()
+        # ponytail: done_callback instead of fixed-interval polling — no CPU waste
+        def _on_done(f):
+            self.app.call_later(self._agent_result_callback)
 
-        self._poll_timer = self.set_interval(0.3, self._poll_agent_result)
+        future.add_done_callback(_on_done)
 
-    def _poll_agent_result(self) -> None:
+    def _agent_result_callback(self) -> None:
+        """Called on main thread when agent future completes."""
         import time
         future = getattr(self, '_agent_future', None)
         if future is None:
             return
 
-        if future.done():
-            self._poll_timer.stop()
-            self._poll_timer = None
+        self._stop_loading_animation()
+        self.set_agent_status("online")
 
-            self._stop_loading_animation()
-            self.set_agent_status("online")
+        elapsed = time.time() - getattr(self, '_agent_start_time', time.time())
+        elapsed_minutes = int(elapsed // 60)
+        elapsed_seconds = int(elapsed % 60)
 
-            elapsed = time.time() - getattr(self, '_agent_start_time', time.time())
-            elapsed_minutes = int(elapsed // 60)
-            elapsed_seconds = int(elapsed % 60)
-
-            try:
-                response = future.result()
-                if response:
-                    if hasattr(response, 'content'):
-                        content = str(response.content)
-                    else:
-                        content = str(response)
+        try:
+            response = future.result()
+            if response:
+                if hasattr(response, 'content'):
+                    content = str(response.content)
                 else:
-                    content = "（无回复）"
+                    content = str(response)
+            else:
+                content = "（无回复）"
 
-                self._complete_agent_stream()
+            self._complete_agent_stream()
 
-                # 如果没有使用流式输出，使用传统方式显示
-                if not getattr(self, '_current_streaming_id', None):
-                    self._show_typewriter_message(content)
+            if not getattr(self, '_current_streaming_id', None):
+                self._show_typewriter_message(content)
 
-                # 使用缓存的 widget（优化性能）
-                time_widget = self._widget_cache.get("status_time")
-                if time_widget:
-                    if elapsed_minutes > 0:
-                        time_widget.update(f"│ {elapsed_minutes}m {elapsed_seconds}s ")
-                    else:
-                        time_widget.update(f"│ {elapsed_seconds}s ")
+            time_widget = self._widget_cache.get("status_time")
+            if time_widget:
+                if elapsed_minutes > 0:
+                    time_widget.update(f"│ {elapsed_minutes}m {elapsed_seconds}s ")
+                else:
+                    time_widget.update(f"│ {elapsed_seconds}s ")
 
-                # 更新 token 计数（方案B：消息完成后估算，不影响性能）
-                # 先 flush 确保消息已保存到 store
-                if self._session_store:
-                    self._session_store.flush_pending_messages()
-                self.call_later(self._update_token_count)
-            except Exception as e:
-                self._stop_loading_animation()
-                self.set_agent_status("error")
-                self._append_message("system", f"❌ 处理失败: {str(e)}")
-                self._current_streaming_id = None
-
-            self._agent_future = None
-            return
-
-        if time.time() - getattr(self, '_agent_start_time', time.time()) > 60:
-            self._poll_timer.stop()
-            self._poll_timer = None
-            self._append_message("system", "⏱️ 处理超时，请重试")
-            self._agent_future = None
+            if self._session_store:
+                self._session_store.flush_pending_messages()
+            self.call_later(self._update_token_count)
+        except Exception as e:
+            self._stop_loading_animation()
+            self.set_agent_status("error")
+            self._append_message("system", f"❌ 处理失败: {str(e)}")
             self._current_streaming_id = None
+
+        self._agent_future = None
 
     def _get_agent(self):
         if hasattr(self, '_agent') and self._agent:
@@ -2050,7 +2033,7 @@ class HandsomeAgentApp(App):
         if chat_area is None:
             chat_area = self.query_one("#chat-area", ChatView)
         
-        if chat_area and hasattr(chat_area, 'append_streaming_thinking') and hasattr(self, '_current_streaming_id'):
+        if chat_area and hasattr(chat_area, 'append_streaming_thinking'):
             chat_area.append_streaming_thinking(text)
     
     def _complete_agent_stream(self) -> None:

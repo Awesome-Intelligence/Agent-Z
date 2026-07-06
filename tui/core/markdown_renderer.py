@@ -399,8 +399,9 @@ class MarkdownRenderer:
         self._enable_code_highlight = enable_code_highlight
         self._markdown: Optional[HandsomeAgentMarkdown] = None
         self._cache_size = cache_size or self.DEFAULT_CACHE_SIZE
-        self._render_cache: dict[str, str] = {}  # 简单缓存
-        self._cache_order: list[str] = []  # LRU 顺序
+        # ponytail: OrderedDict for O(1) LRU — move_to_end() instead of list pop(0)
+        from collections import OrderedDict
+        self._render_cache: "OrderedDict[str, str]" = OrderedDict()
 
         if MISTUNE_AVAILABLE:
             self._init_markdown()
@@ -447,19 +448,17 @@ class MarkdownRenderer:
 
     def _put_to_cache(self, cache_key: str, rendered: str) -> None:
         """放入缓存（LRU 策略）."""
+        if cache_key in self._render_cache:
+            self._render_cache.move_to_end(cache_key)
+            self._render_cache[cache_key] = rendered
+            return
         if len(self._render_cache) >= self._cache_size:
-            # 移除最旧的条目
-            if self._cache_order:
-                oldest = self._cache_order.pop(0)
-                self._render_cache.pop(oldest, None)
-
+            self._render_cache.popitem(last=False)  # 移除最旧的 O(1)
         self._render_cache[cache_key] = rendered
-        self._cache_order.append(cache_key)
 
     def clear_cache(self) -> None:
         """清空渲染缓存."""
         self._render_cache.clear()
-        self._cache_order.clear()
 
     def get_cache_stats(self) -> dict:
         """获取缓存统计信息."""

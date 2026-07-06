@@ -216,10 +216,12 @@ class GeminiProvider(BaseProvider):
                     },
                     latency_ms=latency_ms,
                     function_call=function_call,
+                    reasoning_content=candidate.get("thinkingToolInfo", {}).get("thought", ""),
                 )
 
             parts = candidate.get("content", {}).get("parts", [])
             content = parts[0].get("text", "") if parts else ""
+            reasoning_content = candidate.get("thinkingToolInfo", {}).get("thought", "")
 
             self._log_output_content(content)
             self._log_request_completed(latency_ms)
@@ -234,6 +236,7 @@ class GeminiProvider(BaseProvider):
                     "total_tokens": usage.get("totalTokenCount", 0),
                 },
                 latency_ms=latency_ms,
+                reasoning_content=reasoning_content,
             )
 
         except httpx.HTTPError as e:

@@ -335,6 +335,10 @@ class AgentLoop:
     async def _execute_step(self, context, step_num: int) -> LoopStepResult:
         decision = await self._llm_decide(context)
 
+        # 发送思考内容到 TUI（思维链）
+        if decision.reasoning and self._agent:
+            self._agent._emit_thinking(decision.reasoning)
+
         # 参考 Hermes：判断是否只有 execute_code（纯计算轮次不消耗预算）
         is_execute_code_only = (
             decision.action == "use_tool"
@@ -529,6 +533,18 @@ class AgentLoop:
 
             function_call = getattr(response, "function_call", None)
 
+            # 优先使用 ProviderResponse.reasoning_content（MiniMax 等模型）
+            # 回退到正则提取 <think>...[/think] 标签
+            provider_reasoning = getattr(response, "reasoning_content", None) or ""
+            if provider_reasoning:
+                reasoning = provider_reasoning
+            elif content.strip():
+                import re
+                thinking_blocks = re.findall(r"<think>(.*?)\[/(?:INST|think)\]", content, re.DOTALL)
+                reasoning = "\n".join(b.strip() for b in thinking_blocks if b.strip())
+            else:
+                reasoning = ""
+
             if function_call:
                 func_data = function_call.get("function", function_call)
                 tool_name = func_data.get("name")
@@ -550,18 +566,16 @@ class AgentLoop:
                     action="use_tool",
                     tool_name=tool_name,
                     parameters=arguments or {},
-                    reasoning=f"Called function: {tool_name}",
+                    reasoning=reasoning,
                 )
 
             if content.strip():
-                cleaned = content.strip()
-                if cleaned.startswith("<think>"):
-                    end_idx = cleaned.find("]")
-                    if end_idx > 0:
-                        cleaned = cleaned[end_idx + 1 :].strip()
+                import re
 
-                if len(cleaned) > 0 and "error" not in cleaned.lower():
-                    return Decision(action="direct_response", content=cleaned)
+                cleaned = re.sub(r"<think>.*?\[/(?:INST|think)\]", "", content, flags=re.DOTALL).strip()
+
+                if cleaned and "error" not in cleaned.lower():
+                    return Decision(action="direct_response", content=cleaned, reasoning=reasoning)
 
             return Decision(
                 action="direct_response", content="处理出错: LLM 响应无法解析"

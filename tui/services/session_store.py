@@ -643,36 +643,29 @@ class SessionStore:
         if not messages:
             return 0
         
+        # ponytail: batch insert — N executemany instead of N execute calls
+        msg_rows = [
+            (m["id"], m["session_id"], m["role"], m["content"], m["created_at"],
+             m["tokens"], m["thinking_content"], m["metadata"])
+            for m in messages
+        ]
+
         with self._transaction() as conn:
             cursor = conn.cursor()
-            
-            for msg in messages:
+            cursor.executemany(
+                "INSERT INTO messages (id, session_id, role, content, created_at, tokens, thinking_content, metadata) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                msg_rows,
+            )
+            # 单次 UPDATE 按 session_id 分组，避免 N 次 round-trip
+            from collections import defaultdict
+            by_session: dict[str, list[datetime]] = defaultdict(list)
+            for m in messages:
+                by_session[m["session_id"]].append(m["created_at"])
+            for sid, timestamps in by_session.items():
                 cursor.execute(
-                    """
-                    INSERT INTO messages (id, session_id, role, content, created_at, tokens, thinking_content, metadata)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        msg["id"],
-                        msg["session_id"],
-                        msg["role"],
-                        msg["content"],
-                        msg["created_at"],
-                        msg["tokens"],
-                        msg["thinking_content"],
-                        msg["metadata"],
-                    ),
-                )
-                
-                # 更新会话统计
-                cursor.execute(
-                    """
-                    UPDATE sessions 
-                    SET message_count = message_count + 1,
-                        updated_at = ?
-                    WHERE id = ?
-                    """,
-                    (msg["created_at"], msg["session_id"]),
+                    "UPDATE sessions SET message_count = message_count + ?, updated_at = ? WHERE id = ?",
+                    (len(timestamps), max(timestamps), sid),
                 )
         
         self._logger.debug(f"Flushed {len(messages)} messages")
