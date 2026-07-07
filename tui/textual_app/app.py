@@ -280,7 +280,6 @@ class HandsomeAgentApp(App):
         Binding("f1", "open_help", "Help"),
         Binding("f2", "open_settings", "Settings"),
         Binding("f3", "open_log_screen", "Logs"),
-        Binding("ctrl+shift+t", "toggle_theme", "Toggle Theme", show=False),
         # --- 标签管理快捷键 ---
         Binding("ctrl+t", "new_tab", "New Tab", show=False),
         Binding("ctrl+w", "close_tab", "Close Tab", show=False),
@@ -442,7 +441,7 @@ class HandsomeAgentApp(App):
                     yield Static("", id="skills-info")
                     yield Static("", id="tools-info")
                 # 最右下角：主题切换按钮
-                yield Static("🎨", id="theme-toggle", classes="theme-toggle")
+                yield Static("►", id="theme-toggle", classes="theme-toggle")
 
         with Horizontal(id="main-area"):
             yield ChatView(id="chat-area")
@@ -794,8 +793,8 @@ class HandsomeAgentApp(App):
             except Exception:
                 return
 
-        display_name = self._theme_manager.get_current_display_name()
-        theme_toggle.tooltip = f"{display_name} (Ctrl+Shift+T)"
+        theme_name = t("tui.command.toggle_theme")
+        theme_toggle.tooltip = theme_name
 
     def _update_token_count(self) -> None:
         """更新 token 计数（方案B：消息完成后估算，不影响性能）."""

@@ -86,9 +86,9 @@ Screen {
 }
 
 #header-info-right {
-    height: 4;
+    height: 3;
     width: 1fr;
-    align: right top;
+    align: right middle;
 }
 
 #version-info,
@@ -101,18 +101,17 @@ Screen {
 }
 
 #theme-toggle {
-    width: 4;
-    height: auto;
-    padding: 0 1;
+    width: 3;
+    height: 3;
+    padding: 0;
     margin-left: 2;
-    background: transparent;
-    color: $accent;
-    align: right middle;
+    background: $accent;
+    color: white;
+    content-align: center middle;
 }
 
 #theme-toggle:hover {
-    background: $surface;
-    color: $primary;
+    background: $primary;
 }
 
 .header-content {

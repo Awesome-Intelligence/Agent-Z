@@ -293,7 +293,6 @@ ScrollbarTrack {
     padding: 1;
     background: $accent 15%;
     border: solid $accent;
-    border-radius: 4;
     margin-bottom: 1;
 }
 
