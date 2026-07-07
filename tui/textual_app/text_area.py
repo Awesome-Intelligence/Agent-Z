@@ -66,9 +66,6 @@ class SubmitTextArea(TextArea):
         """
         key = event.key
 
-        # DEBUG
-        print(f"[_on_key] key={repr(key)} slash_show={self.slash_show} text={repr(self.text[:20])}")
-
         # Tab：确认斜杠命令补全
         if key == "tab" and self.slash_complete is not None:
             result = self.slash_complete()
@@ -84,10 +81,8 @@ class SubmitTextArea(TextArea):
 
         # 检测 / 键：第一次按下时触发补全浮层
         if key == "/" and self.slash_show is not None:
-            print(f"[/] triggering slash_show, text={repr(self.text)}, cursor={self.cursor_location}")
             self._slash_snapshot = (self.text, self.cursor_location)
             self.slash_show()
-            print(f"[/] after slash_show, _slash_snapshot={self._slash_snapshot}")
             # 让默认行为插入 /
 
         # 检测普通可打印字符：更新补全过滤
