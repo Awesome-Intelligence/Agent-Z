@@ -350,7 +350,7 @@ class GoalPane(SidebarPane):
     
     def _ensure_timer_running(self) -> None:
         """确保定时器正在运行"""
-        if self._refresh_timer is None:
+        if self._refresh_timer is None or not self._refresh_timer.is_active:
             self._refresh_timer = self.set_interval(self._refresh_interval, self._refresh_all)
             if self._logger:
                 self._logger.debug("Refresh timer started")

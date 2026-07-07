@@ -181,7 +181,7 @@ class TUIConsumer(StreamConsumer):
         result = data.get("result", "")
         error = data.get("error", "")
         subtask_title = data.get("subtask_title", "Unknown")
-        
+
         if task_id in self._tasks:
             task_state = self._tasks[task_id]
             if subtask_id in task_state.subtasks:
@@ -189,27 +189,36 @@ class TUIConsumer(StreamConsumer):
                 task_state.subtasks[subtask_id].completed_at = datetime.now()
                 task_state.subtasks[subtask_id].result = result
                 task_state.subtasks[subtask_id].error = error
-                
+
                 # 计算持续时间
                 started = task_state.subtasks[subtask_id].started_at
                 if started:
                     duration = (datetime.now() - started).total_seconds() * 1000
                     task_state.subtasks[subtask_id].duration_ms = int(duration)
-                
+
                 # 清除当前任务
                 if self._current_subtask_id == subtask_id:
                     self._current_task_id = None
                     self._current_subtask_id = None
-        
+
         status_icon = "✅" if success else "❌"
         duration_ms = 0
         if task_id in self._tasks and subtask_id in self._tasks[task_id].subtasks:
             duration_ms = getattr(self._tasks[task_id].subtasks[subtask_id], 'duration_ms', 0)
-        
+
         if success:
             task_logger.info(f"{status_icon} 完成: {subtask_title} ({(duration_ms/1000):.1f}s)")
         else:
             task_logger.warning(f"{status_icon} 失败: {subtask_title} - {error}")
+
+        # ponytail: 限制 _tasks 大小，超过 200 条时清理最老的已完成任务
+        if len(self._tasks) > 200:
+            oldest_keys = sorted(
+                self._tasks.keys(),
+                key=lambda k: self._tasks[k].completed_at or datetime.min
+            )[:50]
+            for k in oldest_keys:
+                del self._tasks[k]
     
     async def _handle_tool_start(self, event: StreamEvent) -> None:
         """处理工具开始"""

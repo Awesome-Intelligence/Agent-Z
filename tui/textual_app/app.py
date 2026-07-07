@@ -383,10 +383,12 @@ class HandsomeAgentApp(App):
             self._theme_manager = get_theme_manager()
             if initial_theme:
                 self._theme_manager.set_theme(initial_theme)
-            # 注册主题变更回调
+            # 注册主题变更回调（必须在 set_theme 之后，这样初始主题切换也会触发回调）
             self._theme_manager.register_theme_change_callback(self._on_theme_changed)
-
-        self.theme_id: str = "default"
+            # 同步 theme_id 到 _theme_manager 的当前主题
+            self.theme_id = self._theme_manager.get_current_theme_id()
+        else:
+            self.theme_id: str = "default"
         self._theme_css_loaded: bool = False
         self._theme_css_paths: list[str] = []  # 已加载的主题 CSS 文件路径
         self._session_store: Optional[SessionStore] = None
@@ -659,8 +661,15 @@ class HandsomeAgentApp(App):
         """主题变更回调（CSS 已预加载，只需更新 class）."""
         # CSS 在初始化时已全部预加载，这里只需更新 class
         self.theme_id = theme_id
+        self.theme = theme_id  # 切换 Textual 原生主题（驱动 $primary 等核心变量）
         self._apply_theme_class()
         self._update_theme_toggle_tooltip()
+
+        # 清除 banner 颜色缓存并重新渲染（切换 Banner 颜色）
+        cache_key = f"_banner_color_{theme_id}"
+        if hasattr(self, cache_key):
+            delattr(self, cache_key)
+        self._render_welcome_banner()
 
     def update_theme_css(self) -> None:
         self._apply_theme_class()
@@ -1362,10 +1371,11 @@ class HandsomeAgentApp(App):
         if css_file.exists():
             try:
                 content = css_file.read_text(encoding="utf-8")
+                # 匹配选择器块内的 --banner-color（支持多行 CSS）
+                # .theme-default { ... --banner-color: #C9A0E0; ... }
                 pattern = (
-                    r"\."
-                    + re.escape(self.theme_id)
-                    + r".*?--banner-color\s*:\s*([^;]+);"
+                    r"\.theme-" + re.escape(self.theme_id)
+                    + r"\s*\{[\s\S]*?--banner-color\s*:\s*([^;]+);"
                 )
                 match = re.search(pattern, content, re.DOTALL)
                 if match:
