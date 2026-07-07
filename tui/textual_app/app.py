@@ -1626,8 +1626,6 @@ class HandsomeAgentApp(App):
 
         success = self._theme_manager.set_theme(theme_id)
         if success:
-            display_name = self._theme_manager.get_current_display_name()
-            self.notify(f"Theme changed to: {display_name}")
             self._logger.info(f"Theme changed to: {theme_id}")
         else:
             self.notify(f"Theme '{theme_id}' not found")
