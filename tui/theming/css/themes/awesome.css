@@ -23,6 +23,7 @@
     --tab-active-color: #C5FF9E;
     --sidebar-focus-border: #A9FC6E;
     --frame-border: #A9FC6E;
+    --primary: #1a4d1a;
 }
 
 /* ============================================================================
@@ -84,4 +85,9 @@
 .theme-awesome [id="sidebar-container-inner"] Tabs .active {
     color: #C5FF9E;
     border-bottom: solid #A9FC6E;
+}
+
+/* StatusBar 深绿色背景 */
+.theme-awesome #status-bar {
+    background: #1a4d1a;
 }

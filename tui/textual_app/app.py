@@ -251,7 +251,7 @@ if TEXTUAL_AVAILABLE:
     # Awesome 主题 - 活力绿
     THEME_AWESOME = Theme(
         name="awesome",
-        primary="#A9FC6E",
+        primary="#1a4d1a",
         secondary="#C5FF9E",
         accent="#A9FC6E",
         foreground="#FFFFFF",
