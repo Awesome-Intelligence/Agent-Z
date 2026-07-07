@@ -2238,6 +2238,16 @@ class HandsomeAgentApp(App):
     def _get_agent(self):
         if hasattr(self, "_agent") and self._agent:
             return self._agent
+        if getattr(self, "_agent", None) is not None:
+            return self._agent
+        try:
+            from agent.agent import create_agent_from_config
+
+            self._agent = create_agent_from_config()
+            if self._agent:
+                self._logger.info("Agent lazily created from config")
+        except Exception as e:
+            self._logger.warning(f"Failed to lazy-create agent: {e}")
         return getattr(self, "_agent", None)
 
     def _on_agent_stream_delta(self, text: str) -> None:

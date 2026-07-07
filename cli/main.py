@@ -65,9 +65,7 @@ if not _logging_already_configured:
 from agent.agent import Agent, AgentResponse
 from common.exceptions import AgentError, InputValidationError, ResponseGenerationError
 from common.logging_manager import get_access_logger
-
-# 常量
-CONFIG_FILE = os.path.expanduser("~/.handsome_agent/config.json")
+from common.config import load_config, get_config_path
 
 # LLM 可用性检测
 LLM_AVAILABLE = False
@@ -78,20 +76,9 @@ except ImportError:
     pass
 
 
-def load_saved_config() -> dict:
-    """Load saved configuration from file."""
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {}
-
-
 def has_existing_config() -> bool:
     """Check if configuration file exists."""
-    return os.path.exists(CONFIG_FILE)
+    return get_config_path().exists()
 
 
 def run_setup_if_needed():
@@ -907,8 +894,8 @@ def main():
 
     # Handle legacy setup mode
     if args.setup or args.reset_config:
-        if args.reset_config and os.path.exists(CONFIG_FILE):
-            os.remove(CONFIG_FILE)
+        if args.reset_config and get_config_path().exists():
+            get_config_path().unlink()
         from cli.setup.setup_wizard import run_setup_wizard
         run_setup_wizard()
         return
@@ -918,12 +905,12 @@ def main():
     # =========================================================================
 
     # Load saved configuration
-    saved_config = load_saved_config()
+    saved_config = load_config()
 
     # Run setup wizard on first run (if not in non-interactive mode)
     if not has_existing_config():
         run_setup_if_needed()
-        saved_config = load_saved_config()
+        saved_config = load_config()
 
     saved_display = saved_config.get("display", {})
     saved_prefs = saved_config.get("preferences", {})
@@ -986,7 +973,7 @@ def main():
         from common.config import get_logs_dir
         
         # 从 config.json 读取日志配置（兼容 preferences 和 logging 两种格式）
-        saved_config = load_saved_config()
+        saved_config = load_config()
         logging_cfg = saved_config.get('logging', {})
         # 兼容旧格式：preferences 中也有 file_enabled
         if not logging_cfg:

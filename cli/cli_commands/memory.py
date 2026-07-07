@@ -17,19 +17,22 @@ from typing import Optional
 
 from common.terminal.colors import Colors, Theme
 from common.terminal.ui import print_header, print_substep, print_info, print_divider
-from common.config import get_settings, Settings
+from common.config import get_settings
 
 
 def show_memory_status() -> None:
     """显示记忆状态和使用情况"""
     from agent.memory.memory_store import MemoryStore, get_memory_dir
+    from common.config import get_memory_config
     from pathlib import Path
 
     print_header("记忆状态")
     print()
 
     try:
-        store = MemoryStore.from_config(get_settings().memory)
+        mem_cfg = get_memory_config()
+        # MemoryStore.from_config expects an object with .memory_char_limit, .user_char_limit, .max_entries
+        store = MemoryStore.from_config(mem_cfg)
         store.load_from_disk()
 
         stats = store.get_stats()
@@ -42,8 +45,12 @@ def show_memory_status() -> None:
         print_info("使用统计:")
         print_substep(f"  记忆条目数: {stats['memory_entries']}")
         print_substep(f"  用户画像条目数: {stats['user_entries']}")
-        print_substep(f"  记忆字符: {stats['memory_char_count']:,}/{stats['memory_char_limit']:,} ({stats['memory_char_limit']})")
-        print_substep(f"  用户画像字符: {stats['user_char_count']:,}/{stats['user_char_limit']:,} ({stats['user_char_limit']})")
+        print_substep(
+            f"  记忆字符: {stats['memory_char_count']:,}/{stats['memory_char_limit']:,} ({stats['memory_char_limit']})"
+        )
+        print_substep(
+            f"  用户画像字符: {stats['user_char_count']:,}/{stats['user_char_limit']:,} ({stats['user_char_limit']})"
+        )
         print_substep(f"  最大条目限制: {stats['max_entries'] or '无限制'}")
         print()
 
@@ -92,19 +99,21 @@ def list_memory_entries(target: str = "memory") -> None:
 def setup_memory() -> None:
     """交互式记忆配置向导"""
     from cli.setup.interactive_select import ask_choice, print_menu_with_logo
-    from common.config import update_settings
+    from common.config import load_config, save_config
 
     print_header("记忆配置向导")
     print()
 
-    settings = get_settings()
-    current_config = settings.memory
+    cfg = load_config()
+    current_mem = cfg.get("memory", {})
 
     print_info("当前配置:")
-    print_substep(f"  记忆字符限制: {current_config.memory_char_limit:,}")
-    print_substep(f"  用户画像字符限制: {current_config.user_char_limit:,}")
-    print_substep(f"  最大条目数: {current_config.max_entries or '无限制'}")
-    print_substep(f"  语义检索: {'启用' if current_config.semantic_retrieval_enabled else '禁用'}")
+    print_substep(f"  记忆字符限制: {current_mem.get('memory_char_limit', 2200):,}")
+    print_substep(f"  用户画像字符限制: {current_mem.get('user_char_limit', 1375):,}")
+    print_substep(f"  最大条目数: {current_mem.get('max_entries') or '无限制'}")
+    print_substep(
+        f"  语义检索: {'启用' if current_mem.get('semantic_retrieval_enabled') else '禁用'}"
+    )
     print()
     print_divider()
     print()
@@ -127,12 +136,16 @@ def setup_memory() -> None:
     }
 
     try:
-        choice = print_menu_with_logo(char_limit_options, "记忆字符限制", current_config.memory_char_limit)
+        choice = print_menu_with_logo(
+            char_limit_options,
+            "记忆字符限制",
+            current_mem.get("memory_char_limit", 2200),
+        )
         if choice is not None:
             selected = char_limit_options[choice][0]
             new_memory_limit = char_limit_map.get(selected, 2200)
         else:
-            new_memory_limit = current_config.memory_char_limit
+            new_memory_limit = current_mem.get("memory_char_limit", 2200)
     except (EOFError, KeyboardInterrupt):
         print()
         print_substep("  配置取消")
@@ -150,12 +163,12 @@ def setup_memory() -> None:
         choice = print_menu_with_logo(
             semantic_options,
             "语义检索",
-            "1" if current_config.semantic_retrieval_enabled else "2"
+            "1" if current_mem.get("semantic_retrieval_enabled") else "2",
         )
         if choice is not None:
             enable_semantic = choice == 0
         else:
-            enable_semantic = current_config.semantic_retrieval_enabled
+            enable_semantic = current_mem.get("semantic_retrieval_enabled", False)
     except (EOFError, KeyboardInterrupt):
         print()
         print_substep("  配置取消")
@@ -163,26 +176,10 @@ def setup_memory() -> None:
 
     # 保存配置
     try:
-        from common.config import Settings
-
-        new_settings = Settings(
-            memory=type(current_config)(
-                memory_char_limit=new_memory_limit,
-                user_char_limit=current_config.user_char_limit,
-                max_entries=current_config.max_entries,
-                semantic_retrieval_enabled=enable_semantic,
-                semantic_max_results=current_config.semantic_max_results,
-                semantic_min_score=current_config.semantic_min_score,
-            )
-        )
-
-        # 保留其他配置
-        new_settings.llm = settings.llm
-        new_settings.agent = settings.agent
-        new_settings.context = settings.context
-        new_settings.gateway = settings.gateway
-
-        update_settings(new_settings)
+        mem_cfg = cfg.setdefault("memory", {})
+        mem_cfg["memory_char_limit"] = new_memory_limit
+        mem_cfg["semantic_retrieval_enabled"] = enable_semantic
+        save_config(cfg)
 
         print()
         print_info("配置已保存!")
@@ -199,52 +196,52 @@ def setup_memory() -> None:
 def diagnose_providers(args: Optional[list] = None) -> None:
     """
     诊断所有或指定的 Memory Provider。
-    
+
     显示 Provider 状态、可用性、工具和配置信息。
     """
     from plugins.memory import diagnose_all_providers, diagnose_provider
-    
+
     print_header("Memory Provider 诊断")
     print()
-    
+
     # 确定要诊断的 Provider
     target_name = None
     if args and len(args) > 0 and not args[0].startswith("-"):
         target_name = args[0]
-    
+
     try:
         if target_name:
             # 诊断指定的 Provider
             print_info(f"诊断 Provider: {target_name}")
             print()
-            
+
             diagnostics = diagnose_provider(target_name, force_refresh=True)
             _print_provider_diagnostics(diagnostics)
         else:
             # 诊断所有 Provider
             print_info("诊断所有 Providers...")
             print()
-            
+
             all_diagnostics = diagnose_all_providers(force_refresh=True)
-            
+
             for name, diagnostics in all_diagnostics.items():
                 _print_provider_diagnostics(diagnostics)
                 print()
-        
+
         print_divider()
         print()
-        
+
         # 显示健康检查摘要
         healthy_count = sum(1 for d in all_diagnostics.values() if d.is_valid)
         total_count = len(all_diagnostics)
-        
+
         if healthy_count == total_count:
             print_info(f"✓ 所有 Provider 健康 ({healthy_count}/{total_count})")
         else:
             print_substep(f"⚠ {healthy_count}/{total_count} Provider 健康")
-        
+
         print()
-        
+
     except Exception as e:
         print_substep(f"  诊断失败: {e}")
         print()
@@ -253,7 +250,7 @@ def diagnose_providers(args: Optional[list] = None) -> None:
 def _print_provider_diagnostics(diagnostics) -> None:
     """打印单个 Provider 的诊断信息"""
     from plugins.memory import ProviderStatus
-    
+
     # 状态
     status_icon = {
         ProviderStatus.LOADED: "⚡",
@@ -263,43 +260,43 @@ def _print_provider_diagnostics(diagnostics) -> None:
         ProviderStatus.ERROR: "✗",
         ProviderStatus.CONFIG_INVALID: "⚠",
     }
-    
+
     status = diagnostics.status
     icon = status_icon.get(status, "?")
-    
+
     print_info(f"{icon} Provider: {diagnostics.name}")
     print_substep(f"  状态: {status.value}")
-    
+
     if diagnostics.path:
         print_substep(f"  路径: {diagnostics.path}")
-    
+
     # 可用性
     if diagnostics.is_available:
         print_substep("  可用性: ✓ 可用")
     else:
         print_substep("  可用性: ✗ 不可用")
-    
+
     # 错误
     if diagnostics.error:
         print_substep(f"  错误: {diagnostics.error}")
-    
+
     # 工具
     if diagnostics.available_tools:
         print_substep(f"  工具: {', '.join(diagnostics.available_tools)}")
-    
+
     # 警告
     if diagnostics.warnings:
         print_substep("  警告:")
         for warning in diagnostics.warnings:
             print_substep(f"    - {warning}")
-    
+
     # 配置模式
     if diagnostics.config_schema:
         print_substep(f"  配置字段: {len(diagnostics.config_schema)} 个")
         for field in diagnostics.config_schema:
             required = "必需" if field.get("required") else "可选"
             print_substep(f"    - {field.get('key')} ({required})")
-    
+
     # 建议
     if diagnostics.config_errors:
         print_substep("  配置错误:")
@@ -310,40 +307,42 @@ def _print_provider_diagnostics(diagnostics) -> None:
 def health_check_command(args: Optional[list] = None) -> None:
     """执行 Provider 健康检查"""
     from plugins.memory import health_check_provider
-    
+
     print_header("Memory Provider 健康检查")
     print()
-    
+
     # 确定要检查的 Provider
     target_name = "builtin"
     if args and len(args) > 0 and not args[0].startswith("-"):
         target_name = args[0]
-    
+
     try:
         print_info(f"检查 Provider: {target_name}")
         print()
-        
+
         result = health_check_provider(target_name)
-        
+
         # 检查结果
         if result["healthy"]:
             print_info("✓ Provider 健康检查通过")
         else:
             print_substep("✗ Provider 健康检查失败")
-        
+
         print()
         print_info("检查项:")
-        
+
         for check_name, check_result in result.get("checks", {}).items():
             if check_result.get("passed"):
                 status_icon = "✓"
             else:
                 status_icon = "✗"
-            
-            print_substep(f"  {status_icon} {check_name}: {check_result.get('error') or '通过'}")
-        
+
+            print_substep(
+                f"  {status_icon} {check_name}: {check_result.get('error') or '通过'}"
+            )
+
         print()
-        
+
     except Exception as e:
         print_substep(f"  健康检查失败: {e}")
         print()

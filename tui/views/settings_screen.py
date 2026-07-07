@@ -317,7 +317,7 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
         elif category == "about":
             yield from self._build_about_content(settings)
         else:
-            yield Static("暂无设置项", id="no-settings")
+            yield Static("暂无设置项")
 
     def _build_language_content(self, settings: SettingsDocument) -> ComposeResult:
         """构建语言设置内容"""
@@ -397,7 +397,7 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
         """构建模型参数设置内容"""
         yield Static("🔧 模型参数", classes="setting-group-title")
 
-        model = settings.model
+        model = settings.model_settings
 
         yield Static("Temperature (0.0-1.0)", classes="setting-row")
         yield Input(
@@ -448,17 +448,17 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
 
         yield Static("最大迭代次数", classes="setting-row")
         yield Input(
-            str(agent.max_iterations),
+            str(agent.max_turns),
             id="agent-maxiterations-input",
-            placeholder=f"当前: {agent.max_iterations}",
+            placeholder=f"当前: {agent.max_turns}",
             classes="setting-row"
         )
 
         yield Static("超时时间 (秒)", classes="setting-row")
         yield Input(
-            str(agent.timeout_seconds),
+            str(agent.gateway_timeout),
             id="agent-timeout-input",
-            placeholder=f"当前: {agent.timeout_seconds}s",
+            placeholder=f"当前: {agent.gateway_timeout}s",
             classes="setting-row"
         )
 
@@ -585,11 +585,11 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
 
         # 刷新内容区
         content_area = self.query_one("#content-area", VerticalScroll)
-        # 清除旧内容
-        for widget in content_area.query("*"):
-            widget.remove()
-        # 重新构建内容
-        for widget in self._build_category_content(category):
+        # 清除旧内容（同步移除，不等异步）
+        content_area.remove_children()
+        # 重新构建内容（先完全构建，再一次性挂载）
+        new_widgets = list(self._build_category_content(category))
+        for widget in new_widgets:
             content_area.mount(widget)
 
         self._logger.debug(f"Switched to category: {category}")
@@ -702,8 +702,8 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
             temp_input = self.query_one("#model-temperature-input", Input)
             temp_val = float(temp_input.value) if temp_input.value else 0.7
             if 0.0 <= temp_val <= 1.0:
-                if settings.model.temperature != temp_val:
-                    settings.model.temperature = temp_val
+                if settings.model_settings.temperature != temp_val:
+                    settings.model_settings.temperature = temp_val
                     changed_settings.append(f"Temperature: {temp_val}")
             else:
                 validation_errors.append(f"Temperature 必须在 0.0-1.0 范围内（当前: {temp_val}）")
@@ -715,8 +715,8 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
             maxtokens_input = self.query_one("#model-maxtokens-input", Input)
             maxtokens_val = int(maxtokens_input.value) if maxtokens_input.value else 4096
             if maxtokens_val > 0:
-                if settings.model.max_tokens != maxtokens_val:
-                    settings.model.max_tokens = maxtokens_val
+                if settings.model_settings.max_tokens != maxtokens_val:
+                    settings.model_settings.max_tokens = maxtokens_val
                     changed_settings.append(f"Max Tokens: {maxtokens_val}")
             else:
                 validation_errors.append(f"Max Tokens 必须是正整数（当前: {maxtokens_val}）")
@@ -728,8 +728,8 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
             context_input = self.query_one("#model-contextwindow-input", Input)
             context_val = int(context_input.value) if context_input.value else 128000
             if context_val > 0:
-                if settings.model.context_window != context_val:
-                    settings.model.context_window = context_val
+                if settings.model_settings.context_window != context_val:
+                    settings.model_settings.context_window = context_val
                     changed_settings.append(f"Context Window: {context_val}")
             else:
                 validation_errors.append(f"Context Window 必须是正整数（当前: {context_val}）")
@@ -743,8 +743,8 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
             maxiter_input = self.query_one("#agent-maxiterations-input", Input)
             maxiter_val = int(maxiter_input.value) if maxiter_input.value else 10
             if maxiter_val > 0:
-                if settings.agent.max_iterations != maxiter_val:
-                    settings.agent.max_iterations = maxiter_val
+                if settings.agent.max_turns != maxiter_val:
+                    settings.agent.max_turns = maxiter_val
                     changed_settings.append(f"最大迭代次数: {maxiter_val}")
             else:
                 validation_errors.append(f"最大迭代次数 必须是正整数（当前: {maxiter_val}）")
@@ -756,8 +756,8 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
             timeout_input = self.query_one("#agent-timeout-input", Input)
             timeout_val = float(timeout_input.value) if timeout_input.value else 60.0
             if timeout_val > 0:
-                if settings.agent.timeout_seconds != timeout_val:
-                    settings.agent.timeout_seconds = timeout_val
+                if settings.agent.gateway_timeout != timeout_val:
+                    settings.agent.gateway_timeout = timeout_val
                     changed_settings.append(f"超时时间: {timeout_val}s")
             else:
                 validation_errors.append(f"超时时间 必须是正数（当前: {timeout_val}）")

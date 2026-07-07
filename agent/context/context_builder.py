@@ -27,6 +27,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from common.logging_manager import get_decision_logger
+from common.config import load_config
 from agent.progressive_disclosure import get_skills_system_prompt
 from agent.context.prompt_templates import (
     AGENT_IDENTITY,
@@ -46,20 +47,20 @@ from agent.context.prompt_templates import (
 class ContextBuilder:
     """
     上下文构建器 - 专门负责构建完整的系统提示词
-    
+
     职责：
     1. 加载 Agent 定义（身份、能力、用户信息）
     2. 构建工具 Schema
     3. 收集对话历史
     4. 组装完整的系统提示词（三层架构）
-    
+
     注意：
     - 记忆预取由 ContextManager（协调层）完成，结果通过 memory_snapshot 参数传入
     - 构建层只负责组装，不持有任何存储层引用（职责分离原则）
-    
+
     日志子层：💾 Context
     """
-    
+
     def __init__(
         self,
         tools: Optional[Dict[str, Any]] = None,
@@ -73,12 +74,12 @@ class ContextBuilder:
         self.logger = get_decision_logger(self.__class__.__name__, sublayer="context")
         self.tools = tools or {}
         self.enable_guidance = enable_guidance
-        
+
         # 🧠 Decision - 💾 Context - 上下文构建器初始化
         self.logger.debug(
             f"ContextBuilder initialized (enable_guidance={enable_guidance})"
         )
-    
+
     def set_tools(self, tools: Dict[str, Any]) -> None:
         """设置工具字典"""
         self.tools = tools or {}
@@ -90,8 +91,9 @@ class ContextBuilder:
         使用统一的 schema_registry 生成 OpenAI 格式的工具 Schema。
         """
         from tools.schema_registry import generate_openai_tools_schema
+
         return generate_openai_tools_schema(self.tools)
-    
+
     def build_messages(
         self,
         conversation_history: Optional[List[Dict]] = None,
@@ -130,7 +132,7 @@ class ContextBuilder:
         Returns:
             标准消息列表
         """
-        
+
         # 1. 使用 build_parts() 获取三层结构（传入记忆快照和上下文文件）
         parts = self.build_parts(
             user_message=user_message,
@@ -143,11 +145,13 @@ class ContextBuilder:
         # 2. 合并为 system 消息（与 Hermes 一致）
         # 三层顺序：stable -> context -> volatile
         # 工具 Schema 通过 API 的 tools 参数传递
-        system_content = "\n\n".join([
-            parts.get("stable", ""),
-            parts.get("context", ""),
-            parts.get("volatile", "")
-        ])
+        system_content = "\n\n".join(
+            [
+                parts.get("stable", ""),
+                parts.get("context", ""),
+                parts.get("volatile", ""),
+            ]
+        )
 
         # 3. 构建消息列表
         messages: List[Dict[str, Any]] = []
@@ -178,7 +182,7 @@ class ContextBuilder:
         layer1_count = 1  # system 消息
         layer2_count = len(conversation_history) if conversation_history else 0
         layer3_count = 1 if user_message else 0
-        
+
         # Token 估算（简单方法：总字符数 / 3，中文约 / 2）
         total_chars = sum(len(m.get("content", "") or "") for m in messages)
         # 中英混合估算：假设平均每 token 约 3 字符
@@ -188,10 +192,10 @@ class ContextBuilder:
             tokens_display = f"≈{estimated_tokens/1000:.1f}k tokens"
         else:
             tokens_display = f"≈{estimated_tokens} tokens"
-        
+
         # 工具数
         tools_count = len(self.tools)
-        
+
         # 输出摘要日志
         self.logger.info(
             f"📊 Context built: {len(messages)} msgs ({tokens_display}) | "
@@ -202,32 +206,31 @@ class ContextBuilder:
         return messages
 
     def _convert_history_to_messages(
-        self,
-        conversation_history: List[Dict]
+        self, conversation_history: List[Dict]
     ) -> List[Dict[str, Any]]:
         """
         将对话历史转换为标准消息列表格式
-        
+
         处理各种消息格式：
         - 普通文本消息：{"role": "user/assistant", "content": "..."}
         - 工具调用消息：{"role": "assistant", "tool_calls": [...]}
         - 工具结果消息：{"role": "tool", "tool_call_id": "...", "content": "..."}
-        
+
         Args:
             conversation_history: 对话历史
-            
+
         Returns:
             标准消息列表
         """
         messages = []
-        
+
         for msg in conversation_history:
-            role = msg.get('role', 'unknown')
-            content = msg.get('content', '')
-            tool_calls = msg.get('tool_calls')
-            tool_call_id = msg.get('tool_call_id')
-            name = msg.get('name')  # 工具名
-            
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+            tool_calls = msg.get("tool_calls")
+            tool_call_id = msg.get("tool_call_id")
+            name = msg.get("name")  # 工具名
+
             # 处理工具调用消息
             if tool_calls:
                 # assistant 消息可以同时有 content 和 tool_calls
@@ -238,46 +241,50 @@ class ContextBuilder:
                 assistant_msg["tool_calls"] = self._normalize_tool_calls(tool_calls)
                 messages.append(assistant_msg)
             # 处理工具结果消息
-            elif role == 'tool' and tool_call_id:
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call_id,
-                    "content": content,
-                    "name": name  # 保留工具名
-                })
+            elif role == "tool" and tool_call_id:
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call_id,
+                        "content": content,
+                        "name": name,  # 保留工具名
+                    }
+                )
             # 处理普通消息
-            elif role in ('user', 'assistant', 'system'):
+            elif role in ("user", "assistant", "system"):
                 msg_dict = {"role": role}
                 if content:
                     msg_dict["content"] = content
                 messages.append(msg_dict)
             else:
                 # 未知角色，作为 assistant 处理
-                self.logger.warning(f"Unknown message role: {role}, treating as assistant")
+                self.logger.warning(
+                    f"Unknown message role: {role}, treating as assistant"
+                )
                 msg_dict = {"role": "assistant"}
                 if content:
                     msg_dict["content"] = content
                 messages.append(msg_dict)
-        
+
         return messages
-    
+
     def _normalize_tool_calls(self, tool_calls: Any) -> List[Dict[str, Any]]:
         """
         标准化工具调用格式
-        
+
         支持多种格式的 tool_calls：
         - OpenAI 格式：[{"id": "...", "type": "function", "function": {...}}]
         - 简化格式：[{"name": "...", "arguments": {...}}]
-        
+
         Args:
             tool_calls: 原始工具调用数据
-            
+
         Returns:
             标准化的工具调用列表
         """
         if not tool_calls:
             return []
-        
+
         normalized = []
         # 处理列表格式
         if isinstance(tool_calls, list):
@@ -293,29 +300,33 @@ class ContextBuilder:
                             "type": "function",
                             "function": {
                                 "name": tc.get("name", ""),
-                                "arguments": json.dumps(tc.get("arguments", {})) if isinstance(tc.get("arguments"), dict) else str(tc.get("arguments", "{}"))
-                            }
+                                "arguments": (
+                                    json.dumps(tc.get("arguments", {}))
+                                    if isinstance(tc.get("arguments"), dict)
+                                    else str(tc.get("arguments", "{}"))
+                                ),
+                            },
                         }
                         normalized.append(normalized_tc)
                 else:
                     self.logger.warning(f"Skipping non-dict tool call: {type(tc)}")
-        
+
         return normalized
-    
+
     def _get_user_profile(self, user_profile: str = "") -> str:
         """
         获取用户画像
-        
+
         Args:
             user_profile: 由调用方传入的用户画像内容
-            
+
         Returns:
             用户画像内容，默认为 DEFAULT_USER_PROFILE
         """
         if user_profile and user_profile.strip():
             self.logger.debug(f"Using provided user profile: {len(user_profile)} chars")
             return user_profile
-        
+
         # 降级到默认模板
         self.logger.debug("Using default user profile template")
         return DEFAULT_USER_PROFILE
@@ -330,28 +341,28 @@ class ContextBuilder:
     ) -> Dict[str, str]:
         """
         构建系统提示词的三层结构（Hermes 风格）
-        
+
         三层架构（参照 Hermes system_prompt.py）：
         - stable:   Agent 身份 + 能力 + 工具指导 + 技能索引 + 模型特定指导（会话级缓存）
         - context:  上下文文件（AGENTS.md、项目规则等）+ 调用方系统消息（工作目录级缓存）
         - volatile: 记忆快照（USER.md + MEMORY.md）+ 时间戳（每次变化，永不缓存）
-        
+
         注意：
         - 记忆快照由 ContextManager（协调层）提供，构建层只负责组装
         - 用户画像（USER.md）属于 volatile 层，与 MEMORY.md 一起作为记忆快照传入
         - 上下文文件属于 context 层，由调用方通过 context_files 参数传入
-        
+
         Args:
             user_message: 用户消息
             model: 模型名称（用于模型特定指导）
             memory_snapshot: 记忆快照（USER.md + MEMORY.md，由 ContextManager 提供）
             context_files: 上下文文件内容（AGENTS.md、项目规则等）
             context_sources: 上下文文件来源列表（用于日志显示）
-            
+
         Returns:
             Dict[str, str]: 包含 stable/context/volatile 三层内容的字典
         """
-        
+
         # 🧠 Decision - 💾 Context - 开始构建三层架构
         self.logger.debug("Context Assembly: Building three-layer architecture")
 
@@ -361,7 +372,7 @@ class ContextBuilder:
         cache_key = f"stable_v1_guidance_{self.enable_guidance}"
 
         # 尝试从缓存获取 stable 层
-        if hasattr(self, '_stable_cache') and cache_key in self._stable_cache:
+        if hasattr(self, "_stable_cache") and cache_key in self._stable_cache:
             stable_parts = [self._stable_cache[cache_key]]
         else:
             stable_parts = []
@@ -369,13 +380,13 @@ class ContextBuilder:
         # 构建 stable 层内容
         # 工具 Schema 通过 API 的 tools 参数传递
         stable_parts = [
-            AGENT_IDENTITY,                              # Agent 身份
-            CAPABILITIES,                                # 能力摘要
+            AGENT_IDENTITY,  # Agent 身份
+            CAPABILITIES,  # 能力摘要
         ]
-        
+
         # 记录 stable 层使用的模板变量名（用于日志）
         stable_keys = ["AGENT_IDENTITY", "CAPABILITIES"]
-        
+
         # 添加渐进式披露技能索引（Tier 1）
         try:
             skills_index = get_skills_system_prompt()
@@ -387,37 +398,49 @@ class ContextBuilder:
 
         # 仅当启用指导时添加指导性文本
         if self.enable_guidance:
-            stable_parts.extend([
-                TOOL_USE_ENFORCEMENT,                       # 工具使用强制规范
-                MANDATORY_TOOL_USE,                          # 必须使用工具的场景
-                ACT_DONT_ASK,                                # 行动而非询问
-                MEMORY_GUIDANCE,                             # 记忆使用指导
-                SESSION_SEARCH_GUIDANCE,                     # 跨会话搜索指导
-                SKILLS_GUIDANCE,                             # 技能保存指导
-            ])
-            stable_keys.extend([
-                "TOOL_USE_ENFORCEMENT",
-                "MANDATORY_TOOL_USE",
-                "ACT_DONT_ASK",
-                "MEMORY_GUIDANCE",
-                "SESSION_SEARCH_GUIDANCE",
-                "SKILLS_GUIDANCE",
-            ])
+            stable_parts.extend(
+                [
+                    TOOL_USE_ENFORCEMENT,  # 工具使用强制规范
+                    MANDATORY_TOOL_USE,  # 必须使用工具的场景
+                    ACT_DONT_ASK,  # 行动而非询问
+                    MEMORY_GUIDANCE,  # 记忆使用指导
+                    SESSION_SEARCH_GUIDANCE,  # 跨会话搜索指导
+                    SKILLS_GUIDANCE,  # 技能保存指导
+                ]
+            )
+            stable_keys.extend(
+                [
+                    "TOOL_USE_ENFORCEMENT",
+                    "MANDATORY_TOOL_USE",
+                    "ACT_DONT_ASK",
+                    "MEMORY_GUIDANCE",
+                    "SESSION_SEARCH_GUIDANCE",
+                    "SKILLS_GUIDANCE",
+                ]
+            )
 
             # 模型特定指导
             if model:
                 model_lower = model.lower()
-                if any(p in model_lower for p in ["deepseek", "gpt", "grok", "glm", "qwen"]):
+                if any(
+                    p in model_lower for p in ["deepseek", "gpt", "grok", "glm", "qwen"]
+                ):
                     stable_parts.append(OPENAI_MODEL_EXECUTION_GUIDANCE)
                     stable_keys.append("OPENAI_MODEL_EXECUTION_GUIDANCE")
-        
+
+        # Standing operator instructions (coding_instructions)
+        coding_instr = load_config().get("agent", {}).get("coding_instructions", "")
+        if coding_instr:
+            stable_parts.append(coding_instr)
+            stable_keys.append("CODING_INSTRUCTIONS")
+
         stable_content = "\n\n".join(stable_parts)
-        
+
         # 缓存 stable 层
-        if not hasattr(self, '_stable_cache'):
+        if not hasattr(self, "_stable_cache"):
             self._stable_cache = {}
         self._stable_cache[cache_key] = stable_content
-        
+
         # ─────────────────────────────────────────────────────────
         # Context Layer - 工作目录级缓存
         # 包含：AGENTS.md、项目规则、上下文文件等
@@ -425,26 +448,26 @@ class ContextBuilder:
         context_parts = []
         if context_files and context_files.strip():
             context_parts.append(context_files)
-        
+
         context_content = "\n\n".join(p for p in context_parts if p and p.strip())
-        
+
         # ─────────────────────────────────────────────────────────
         # Volatile Layer - 每次变化，永不缓存
         # 包含：记忆快照（USER.md + MEMORY.md）+ 时间戳
         # 参照 Hermes：volatile 层放记忆和时间戳
         # ─────────────────────────────────────────────────────────
         volatile_parts = []
-        
+
         # 记忆快照：USER.md + MEMORY.md（由 ContextManager 在协调层提供）
         if memory_snapshot and memory_snapshot.strip():
             volatile_parts.append(memory_snapshot)
-        
+
         # 时间戳（使用日精度，与 Hermes 一致，避免 stable 层缓存失效）
         timestamp = time.strftime("%Y-%m-%d")
         volatile_parts.append(f"Conversation started: {timestamp}")
-        
+
         volatile_content = "\n\n".join(p for p in volatile_parts if p and p.strip())
-        
+
         # 🧠 Decision - 💾 Context - 三层架构构建完成
         self.logger.debug(
             f"Context Assembly: three-layer complete - "
@@ -452,7 +475,7 @@ class ContextBuilder:
             f"context={len(context_content)} chars, "
             f"volatile={len(volatile_content)} chars"
         )
-        
+
         return {
             "stable": stable_content,
             "context": context_content,

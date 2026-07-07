@@ -64,6 +64,8 @@ def register_integrated_tools(engine):
                     try:
                         # 合并 context 和额外参数（如 parent_agent）
                         merged = {**(context or {}), **kwargs}
+                        # 过滤掉 parent_agent，避免传递给不接受该参数的底层工具
+                        merged.pop("parent_agent", None)
                         result = entry.handler(parameters, **merged)
                         # 如果返回字符串，尝试解析为 JSON
                         if isinstance(result, str):
@@ -125,6 +127,8 @@ def get_all_tools_as_simplified() -> List[Tool]:
             def create_handler(entry):
                 async def handler(params, **kwargs):
                     try:
+                        # 过滤掉 parent_agent，避免传递给不接受该参数的底层工具
+                        kwargs.pop("parent_agent", None)
                         result = entry.handler(params, **kwargs)
                         if isinstance(result, str):
                             try:

@@ -12,7 +12,7 @@ import os
 import json
 import logging
 import time
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field
 from pathlib import Path
 from dataclasses import dataclass as dc
@@ -55,6 +55,30 @@ class AgentResponse:
     confidence_score: float = 1.0
     metadata: Dict[str, Any] = field(default_factory=dict)
     execution_time: float = 0.0
+
+
+def create_agent_from_config() -> Optional["Agent"]:
+    """Create an Agent from unified config. Returns None if LLM not configured."""
+    from common.config import load_config
+    from agent.llm.factory import LLMFactory
+
+    cfg = load_config()
+    llm = cfg.get("llm", {})
+    provider = llm.get("provider", "")
+    model = llm.get("model", "")
+    api_key = llm.get("api_key", "")
+    base_url = llm.get("base_url")
+
+    if not (provider and model and api_key):
+        return None
+
+    llm_provider = LLMFactory.create(
+        provider=provider,
+        api_key=api_key,
+        model=model,
+        base_url=base_url,
+    )
+    return Agent(llm_provider=llm_provider)
 
 
 class Agent:

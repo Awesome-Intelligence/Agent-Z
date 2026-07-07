@@ -1,5 +1,5 @@
 """shared - 共享模块"""
-from .config import Settings, get_settings
+from .config import get_settings, load_config
 from .logging import setup_logging, get_logger
 from .exceptions import (
     HandsomeAgentError,
@@ -10,8 +10,8 @@ from .exceptions import (
 )
 
 __all__ = [
-    "Settings",
     "get_settings",
+    "load_config",
     "setup_logging",
     "get_logger",
     "HandsomeAgentError",

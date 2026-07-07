@@ -374,7 +374,9 @@ class ToolExecutor:
             else:
                 # 调用工具，支持传递额外上下文参数
                 if extra_context:
-                    result = handler(parameters, **extra_context)
+                    # 过滤掉 parent_agent，避免传递给不接受该参数的底层工具
+                    filtered_context = {k: v for k, v in extra_context.items() if k != "parent_agent"}
+                    result = handler(parameters, **filtered_context)
                 else:
                     result = handler(parameters)
 

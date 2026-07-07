@@ -1,210 +1,196 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Unit tests for the shared module configuration.
+Unit tests for the unified YAML configuration system.
 
-Tests cover Settings management, workspace directory configuration,
-and environment variable handling.
+Tests cover: load/save, cache, env override, dotenv, migration,
+workspace directories, and config helpers.
 """
 
-import pytest
 import os
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 import tempfile
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 
-class TestSettings:
-    """Test Settings configuration management."""
-    
-    def test_default_settings(self):
-        """Test default settings values."""
-        from common.config import Settings
-        
-        settings = Settings()
-        
-        assert settings.app_name == "HandsomeAgent"
-        assert settings.app_version == "1.0.0"
-        assert settings.debug is False
-        assert settings.brain_service_host == "0.0.0.0"
-        assert settings.brain_service_port == 8000
-        assert settings.gateway_host == "0.0.0.0"
-        assert settings.gateway_port == 8000
-        assert settings.executor_port == 8002
-    
-    def test_settings_with_env_variables(self):
-        """Test settings override with environment variables."""
-        with patch.dict(os.environ, {
-            'APP_NAME': 'TestAgent',
-            'DEBUG': 'true',
-            'BRAIN_SERVICE_PORT': '9000'
-        }):
-            # Clear cached settings
-            from common import config
-            config.get_settings.cache_clear()
-            
-            settings = config.get_settings()
-            
-            assert settings.app_name == 'TestAgent'
-            assert settings.debug is True
-            assert settings.brain_service_port == 9000
-    
-    def test_get_settings_singleton(self):
-        """Test that get_settings returns cached singleton."""
-        from common.config import get_settings
-        
-        settings1 = get_settings()
-        settings2 = get_settings()
-        
-        assert settings1 is settings2
-    
-    def test_allowed_commands_default(self):
-        """Test default allowed commands list."""
-        from common.config import Settings
-        
-        settings = Settings()
-        
-        assert "git" in settings.allowed_commands
-        assert "npm" in settings.allowed_commands
-        assert "pip" in settings.allowed_commands
-        assert "python" in settings.allowed_commands
-    
-    def test_blocked_patterns_default(self):
-        """Test default blocked patterns list."""
-        from common.config import Settings
-        
-        settings = Settings()
-        
-        assert "rm -rf /" in settings.blocked_patterns
-        assert "curl | sh" in settings.blocked_patterns
+class TestLoadSaveConfig:
+    """Test config loading and saving."""
+
+    def test_load_config_returns_dict(self):
+        """Test load_config returns a dict with expected top-level keys."""
+        from common.config import load_config
+
+        cfg = load_config()
+        assert isinstance(cfg, dict)
+        assert "model" in cfg
+        assert "agent" in cfg
+        assert "terminal" in cfg
+
+    def test_load_config_includes_defaults(self):
+        """Test default values are present."""
+        from common.config import load_config
+
+        cfg = load_config()
+        assert cfg["agent"]["max_turns"] == 90
+        assert cfg["agent"]["gateway_timeout"] == 1800
+        assert cfg["terminal"]["backend"] == "local"
+
+    def test_save_and_reload(self):
+        """Test saving and reloading preserves values."""
+        from common.config import load_config, save_config
+
+        cfg = load_config()
+        cfg["agent"]["max_turns"] = 42
+        save_config(cfg)
+
+        cfg2 = load_config(use_cache=False)
+        assert cfg2["agent"]["max_turns"] == 42
+
+        # restore default
+        cfg["agent"]["max_turns"] = 90
+        save_config(cfg)
 
 
-class TestWorkspaceConfiguration:
-    """Test workspace directory configuration."""
-    
-    def test_get_default_handsome_home(self):
-        """Test default handsome home directory."""
-        from common.config import get_default_handsome_home, HANDSOME_HOME
-        
-        default_home = get_default_handsome_home()
-        
-        assert isinstance(default_home, Path)
-        assert default_home.name == ".handsome_agent"
-        assert str(HANDSOME_HOME) == str(default_home)
-    
-    def test_custom_handsome_home_via_env(self):
-        """Test custom handsome home via environment variable."""
+class TestEnvOverride:
+    """Test environment variable override."""
+
+    def test_handsome_home_from_env(self):
+        """Test HANDSOME_HOME env var is respected."""
         with tempfile.TemporaryDirectory() as tmpdir:
             custom_home = Path(tmpdir) / "custom_agent"
-            
-            with patch.dict(os.environ, {'HANDSOME_HOME': str(custom_home)}):
-                # Reload module to pick up new environment
+            with patch.dict(os.environ, {"HANDSOME_HOME": str(custom_home)}):
+                # Reload module to pick up new env
                 import importlib
-                from common import config
-                importlib.reload(config)
-                
-                from common.config import HANDSOME_HOME
-                
+                from common import config as cfg_module
+
+                importlib.reload(cfg_module)
+
+                from common.config import HANDSOME_HOME, get_config_path
+
                 assert str(HANDSOME_HOME) == str(custom_home)
-    
+                assert get_config_path().parent == custom_home
+
+
+class TestWorkspaceDirs:
+    """Test workspace directory helpers."""
+
     def test_get_sessions_dir(self):
         """Test sessions directory path."""
         from common.config import get_sessions_dir, HANDSOME_HOME
-        
-        sessions_dir = get_sessions_dir()
-        
-        assert sessions_dir == HANDSOME_HOME / "sessions"
-    
+
+        assert get_sessions_dir() == HANDSOME_HOME / "sessions"
+
     def test_get_memories_dir(self):
         """Test memories directory path."""
         from common.config import get_memories_dir, HANDSOME_HOME
-        
-        memories_dir = get_memories_dir()
-        
-        assert memories_dir == HANDSOME_HOME / "memories"
-    
+
+        assert get_memories_dir() == HANDSOME_HOME / "memories"
+
     def test_get_logs_dir(self):
         """Test logs directory path."""
         from common.config import get_logs_dir, HANDSOME_HOME
-        
-        logs_dir = get_logs_dir()
-        
-        assert logs_dir == HANDSOME_HOME / "logs"
-    
-    def test_get_config_dir(self):
-        """Test config directory path."""
-        from common.config import get_config_dir, HANDSOME_HOME
-        
-        config_dir = get_config_dir()
-        
-        assert config_dir == HANDSOME_HOME / "config"
 
+        assert get_logs_dir() == HANDSOME_HOME / "logs"
 
-class TestEnsureWorkspaceDirs:
-    """Test workspace directory creation."""
-    
-    def test_ensure_workspace_dirs_creates_directories(self):
-        """Test that ensure_workspace_dirs creates all required directories."""
+    def test_ensure_workspace_dirs_creates_them(self):
+        """Test ensure_workspace_dirs creates all required directories."""
         with tempfile.TemporaryDirectory() as tmpdir:
             custom_home = Path(tmpdir) / "test_agent"
-            
-            with patch.dict(os.environ, {'HANDSOME_HOME': str(custom_home)}):
-                # Reload module
+
+            with patch.dict(os.environ, {"HANDSOME_HOME": str(custom_home)}):
                 import importlib
-                from common import config
-                importlib.reload(config)
-                
-                from common.config import ensure_workspace_dirs, get_sessions_dir, get_memories_dir
-                
+                from common import config as cfg_module
+
+                importlib.reload(cfg_module)
+
+                from common.config import (
+                    ensure_workspace_dirs,
+                    get_sessions_dir,
+                    get_memories_dir,
+                )
+
                 ensure_workspace_dirs()
-                
+
                 assert custom_home.exists()
                 assert get_sessions_dir().exists()
                 assert get_memories_dir().exists()
-    
-    def test_ensure_workspace_dirs_idempotent(self):
-        """Test that ensure_workspace_dirs is idempotent."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            custom_home = Path(tmpdir) / "test_agent"
-            
-            with patch.dict(os.environ, {'HANDSOME_HOME': str(custom_home)}):
-                import importlib
-                from common import config
-                importlib.reload(config)
-                
-                from common.config import ensure_workspace_dirs
-                
-                # First call
-                ensure_workspace_dirs()
-                
-                # Second call should not raise
-                ensure_workspace_dirs()
-                
-                assert custom_home.exists()
 
 
-class TestDatabasePath:
-    """Test database path configuration."""
-    
-    def test_default_db_path(self):
-        """Test default database path."""
-        from common.config import Settings, HANDSOME_HOME
-        
-        settings = Settings()
-        
-        expected_path = HANDSOME_HOME / "handsome_agent.db"
-        assert settings.db_path == str(expected_path)
-    
-    def test_custom_db_path(self):
-        """Test custom database path."""
-        # This test verifies db_path is constructed from HANDSOME_HOME
-        from common.config import Settings, HANDSOME_HOME
-        
-        settings = Settings()
-        
-        # db_path should contain handsome_agent.db
-        assert "handsome_agent.db" in settings.db_path
-        assert settings.db_path == str(HANDSOME_HOME / "handsome_agent.db")
+class TestConfigHelpers:
+    """Test typed config getters."""
+
+    def test_get_model_config(self):
+        """Test get_model_config returns a dict."""
+        from common.config import get_model_config
+
+        cfg = get_model_config()
+        assert isinstance(cfg, dict)
+        assert "name" in cfg
+
+    def test_get_terminal_config(self):
+        """Test get_terminal_config returns a dict."""
+        from common.config import get_terminal_config
+
+        cfg = get_terminal_config()
+        assert isinstance(cfg, dict)
+        assert cfg["backend"] == "local"
+
+    def test_get_memory_config(self):
+        """Test get_memory_config returns a dict."""
+        from common.config import get_memory_config
+
+        cfg = get_memory_config()
+        assert isinstance(cfg, dict)
+        assert cfg["enabled"] is True
+
+    def test_get_compression_config(self):
+        """Test get_compression_config returns a dict."""
+        from common.config import get_compression_config
+
+        cfg = get_compression_config()
+        assert isinstance(cfg, dict)
+        assert cfg["enabled"] is True
+
+    def test_get_disabled_skills(self):
+        """Test get_disabled_skills returns a list."""
+        from common.config import get_disabled_skills
+
+        disabled = get_disabled_skills()
+        assert isinstance(disabled, list)
+
+
+class TestDefaultConfig:
+    """Test DEFAULT_CONFIG schema."""
+
+    def test_agent_section_complete(self):
+        """Test agent section has all expected keys."""
+        from common.config import DEFAULT_CONFIG
+
+        agent = DEFAULT_CONFIG["agent"]
+        assert "max_turns" in agent
+        assert "gateway_timeout" in agent
+        assert "verify_on_stop" in agent
+        assert "coding_context" in agent
+
+    def test_tool_loop_guardrails_top_level(self):
+        """Test tool_loop_guardrails is a top-level key."""
+        from common.config import DEFAULT_CONFIG
+
+        tlr = DEFAULT_CONFIG["tool_loop_guardrails"]
+        assert "warn_after" in tlr
+        assert "hard_stop_after" in tlr
+
+    def test_tool_loop_guardrails_structure(self):
+        """Test tool_loop_guardrails has warn and hard_stop thresholds."""
+        from common.config import DEFAULT_CONFIG
+
+        tlr = DEFAULT_CONFIG["tool_loop_guardrails"]
+        assert "warn_after" in tlr
+        assert "hard_stop_after" in tlr
+        assert tlr["warn_after"]["exact_failure"] == 2
+        assert tlr["hard_stop_after"]["exact_failure"] == 5
 
 
 if __name__ == "__main__":

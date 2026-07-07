@@ -33,6 +33,7 @@ from common.logging_manager import get_decision_logger
 @dataclass
 class GoalDisplayInfo:
     """用于 UI 显示的目标信息"""
+
     status: str
     goal: str
     goal_truncated: str  # 截断后的目标文本
@@ -47,10 +48,20 @@ class GoalDisplayInfo:
 # Constants & defaults
 # ──────────────────────────────────────────────────────────────────────
 
-# 参考 Hermes 的默认值：父代理 90 次，子代理 50 次
-DEFAULT_MAX_TURNS = 90
-DEFAULT_JUDGE_TIMEOUT = 30.0
-DEFAULT_JUDGE_MAX_TOKENS = 4096
+
+def _get_goal_defaults() -> tuple[int, float, int]:
+    """Load goal defaults from unified config, with hardcoded fallbacks."""
+    from common.config import load_config
+
+    cfg = load_config()
+    agent = cfg.get("agent", {})
+    return (
+        agent.get("max_turns", 90),
+        agent.get("judge_timeout", 30.0),
+        agent.get("judge_max_tokens", 4096),
+    )
+
+
 # Cap how much of the last response we send to the judge.
 _JUDGE_RESPONSE_SNIPPET_CHARS = 4000
 # After this many consecutive judge *parse* failures, the loop auto-pauses.
@@ -66,7 +77,7 @@ JUDGE_SYSTEM_PROMPT = (
     "- The response explains the goal is unachievable / blocked / needs "
     "user input\n\n"
     "Otherwise the goal is NOT done — CONTINUE.\n\n"
-    'Reply ONLY with a single JSON object on one line:\n'
+    "Reply ONLY with a single JSON object on one line:\n"
     '{"done": <true|false>, "reason": "<one-sentence rationale>"}'
 )
 
@@ -146,15 +157,22 @@ class GoalManager:
         session_id: str = None,
         *,
         judge_llm_provider=None,
-        default_max_turns: int = DEFAULT_MAX_TURNS,
-        judge_timeout: float = DEFAULT_JUDGE_TIMEOUT,
-        judge_max_tokens: int = DEFAULT_JUDGE_MAX_TOKENS,
+        default_max_turns: Optional[int] = None,
+        judge_timeout: Optional[float] = None,
+        judge_max_tokens: Optional[int] = None,
         on_state_change=None,
     ):
+        _max_turns, _timeout, _max_tokens = _get_goal_defaults()
         self._session_id = session_id
-        self._default_max_turns = int(default_max_turns or DEFAULT_MAX_TURNS)
-        self._judge_timeout = float(judge_timeout)
-        self._judge_max_tokens = int(judge_max_tokens)
+        self._default_max_turns = int(
+            default_max_turns if default_max_turns is not None else _max_turns
+        )
+        self._judge_timeout = float(
+            judge_timeout if judge_timeout is not None else _timeout
+        )
+        self._judge_max_tokens = int(
+            judge_max_tokens if judge_max_tokens is not None else _max_tokens
+        )
         self._current_goal: Optional[GoalState] = None
         self._memory_store: Dict[str, Any] = {}  # 简单的内存存储后备
         self._judge_llm = judge_llm_provider  # Judge LLM provider
@@ -178,11 +196,17 @@ class GoalManager:
 
     def is_active(self) -> bool:
         """检查是否有活跃目标"""
-        return self._current_goal is not None and self._current_goal.status == GoalStatus.ACTIVE.value
+        return (
+            self._current_goal is not None
+            and self._current_goal.status == GoalStatus.ACTIVE.value
+        )
 
     def has_goal(self) -> bool:
         """检查是否有活跃或暂停的 Goal"""
-        return self._current_goal is not None and self._current_goal.status in {GoalStatus.ACTIVE.value, GoalStatus.PAUSED.value}
+        return self._current_goal is not None and self._current_goal.status in {
+            GoalStatus.ACTIVE.value,
+            GoalStatus.PAUSED.value,
+        }
 
     def status_line(self) -> str:
         """返回可打印的状态行"""
@@ -191,7 +215,11 @@ class GoalManager:
             return "No active goal. Set one with /goal <text>."
 
         turns = f"{s.current_turn}/{s.max_turns} turns"
-        sub = f", {len(s.subgoals)} subgoal{'s' if len(s.subgoals) != 1 else ''}" if s.subgoals else ""
+        sub = (
+            f", {len(s.subgoals)} subgoal{'s' if len(s.subgoals) != 1 else ''}"
+            if s.subgoals
+            else ""
+        )
 
         if s.status == GoalStatus.ACTIVE.value:
             return f"⊙ Goal (active, {turns}{sub}): {s.goal}"
@@ -231,7 +259,9 @@ class GoalManager:
         return GoalDisplayInfo(
             status=state.status,
             goal=state.goal,
-            goal_truncated=state.goal[:50] + "..." if len(state.goal) > 50 else state.goal,
+            goal_truncated=(
+                state.goal[:50] + "..." if len(state.goal) > 50 else state.goal
+            ),
             current_turn=state.current_turn,
             max_turns=state.max_turns,
             remaining_turns=remaining,
@@ -266,7 +296,9 @@ class GoalManager:
     def pause(self, reason: Optional[str] = None):
         """暂停目标"""
         if self._current_goal and self._current_goal.status == GoalStatus.ACTIVE.value:
-            self._current_goal.set_status(GoalStatus.PAUSED.value, reason or "User paused")
+            self._current_goal.set_status(
+                GoalStatus.PAUSED.value, reason or "User paused"
+            )
             self._current_goal.paused_reason = reason
             self.logger.info(f"Goal paused: {reason or 'User paused'}")
             self._save_goal()
@@ -313,7 +345,9 @@ class GoalManager:
         if not text:
             raise ValueError("subgoal text is empty")
         self._current_goal.subgoals.append(text)
-        self.logger.info(f"Subgoal added: {text[:50]}... (total: {len(self._current_goal.subgoals)})")
+        self.logger.info(
+            f"Subgoal added: {text[:50]}... (total: {len(self._current_goal.subgoals)})"
+        )
         self._save_goal()
         return text
 
@@ -323,7 +357,9 @@ class GoalManager:
             raise RuntimeError("no active goal")
         idx = int(index_1based) - 1
         if idx < 0 or idx >= len(self._current_goal.subgoals):
-            raise IndexError(f"index out of range (1..{len(self._current_goal.subgoals)})")
+            raise IndexError(
+                f"index out of range (1..{len(self._current_goal.subgoals)})"
+            )
         removed = self._current_goal.subgoals.pop(idx)
         self.logger.info(f"Subgoal removed: {removed[:50]}...")
         self._save_goal()
@@ -348,11 +384,17 @@ class GoalManager:
         """渲染子目标为编号块"""
         if not self._current_goal or not self._current_goal.subgoals:
             return ""
-        return "\n".join(f"- {i}. {text}" for i, text in enumerate(self._current_goal.subgoals, start=1))
+        return "\n".join(
+            f"- {i}. {text}"
+            for i, text in enumerate(self._current_goal.subgoals, start=1)
+        )
 
     def next_continuation_prompt(self) -> Optional[str]:
         """返回 continuation prompt 字符串"""
-        if not self._current_goal or self._current_goal.status != GoalStatus.ACTIVE.value:
+        if (
+            not self._current_goal
+            or self._current_goal.status != GoalStatus.ACTIVE.value
+        ):
             return None
         if self._current_goal.subgoals:
             return CONTINUATION_PROMPT_WITH_SUBGOALS_TEMPLATE.format(
@@ -378,7 +420,9 @@ class GoalManager:
             return "continue", "empty response (nothing to evaluate)", False
 
         # 尝试使用 auxiliary 模型
-        verdict_str, reason, parse_failed = await self._call_auxiliary_judge(goal, last_response, subgoals)
+        verdict_str, reason, parse_failed = await self._call_auxiliary_judge(
+            goal, last_response, subgoals
+        )
         if verdict_str != "skipped":
             return verdict_str, reason, parse_failed
 
@@ -402,7 +446,9 @@ class GoalManager:
 
         # 构建 prompt
         clean_subgoals = [s.strip() for s in (subgoals or []) if s and s.strip()]
-        current_time = datetime.now(tz=timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+        current_time = (
+            datetime.now(tz=timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+        )
 
         if clean_subgoals:
             subgoals_block = self._render_subgoals_block_static(clean_subgoals)
@@ -440,7 +486,9 @@ class GoalManager:
 
         done, reason, parse_failed = self._parse_judge_response(raw)
         verdict = "done" if done else "continue"
-        self.logger.info(f"Goal judge: verdict={verdict} reason={self._truncate(reason, 120)}")
+        self.logger.info(
+            f"Goal judge: verdict={verdict} reason={self._truncate(reason, 120)}"
+        )
         return verdict, reason, parse_failed
 
     async def _call_main_judge(
@@ -470,7 +518,9 @@ Current time: {current_time}
                 max_tokens=self._judge_max_tokens,
                 temperature=0.0,
             )
-            content = response.content if hasattr(response, "content") else str(response)
+            content = (
+                response.content if hasattr(response, "content") else str(response)
+            )
         except Exception as exc:
             self.logger.warning("GoalManager: main judge call failed: %s", exc)
             return "continue", f"judge error: {exc}", False
@@ -504,7 +554,7 @@ Current time: {current_time}
             text = text.strip("`")
             nl = text.find("\n")
             if nl != -1:
-                text = text[nl + 1:]
+                text = text[nl + 1 :]
 
         # 尝试解析 JSON
         data: Optional[Dict[str, Any]] = None
@@ -520,7 +570,11 @@ Current time: {current_time}
                     data = None
 
         if not isinstance(data, dict):
-            return False, f"judge reply was not JSON: {self._truncate(raw, 200)!r}", True
+            return (
+                False,
+                f"judge reply was not JSON: {self._truncate(raw, 200)!r}",
+                True,
+            )
 
         done_val = data.get("done")
         if isinstance(done_val, str):
@@ -543,6 +597,7 @@ Current time: {current_time}
         try:
             from agent.session import FileSessionStore
             from common.config import get_sessions_dir
+
             return FileSessionStore(str(get_sessions_dir()))
         except ImportError:
             return None
@@ -556,15 +611,20 @@ Current time: {current_time}
             db = self._get_session_db()
             if db:
                 # 使用 session_id 保存，添加元数据
-                db.save(self._session_id, {
-                    "goal": self._current_goal.to_json(),
-                    "_goal_meta": {
-                        "session_id": self._session_id,
-                        "goal_text": self._current_goal.goal[:100],
-                        "status": self._current_goal.status,
-                    }
-                })
-                self.logger.debug("Goal saved to SessionDB for session: %s", self._session_id)
+                db.save(
+                    self._session_id,
+                    {
+                        "goal": self._current_goal.to_json(),
+                        "_goal_meta": {
+                            "session_id": self._session_id,
+                            "goal_text": self._current_goal.goal[:100],
+                            "status": self._current_goal.status,
+                        },
+                    },
+                )
+                self.logger.debug(
+                    "Goal saved to SessionDB for session: %s", self._session_id
+                )
             else:
                 key = f"goal:{self._session_id}"
                 self._memory_store[key] = {"goal": self._current_goal.to_json()}
@@ -672,7 +732,7 @@ Current time: {current_time}
         if state.consecutive_parse_failures >= DEFAULT_MAX_CONSECUTIVE_PARSE_FAILURES:
             state.set_status(
                 GoalStatus.PAUSED.value,
-                f"judge model returned unparseable output {state.consecutive_parse_failures} turns in a row"
+                f"judge model returned unparseable output {state.consecutive_parse_failures} turns in a row",
             )
             state.paused_reason = f"judge model returned unparseable output {state.consecutive_parse_failures} turns in a row"
             self._save_goal()
@@ -685,7 +745,10 @@ Current time: {current_time}
 
         # 轮次耗尽（由 AgentState 检查后传入）
         if current_turn >= max_turns:
-            state.set_status(GoalStatus.PAUSED.value, f"turn budget exhausted ({current_turn}/{max_turns})")
+            state.set_status(
+                GoalStatus.PAUSED.value,
+                f"turn budget exhausted ({current_turn}/{max_turns})",
+            )
             state.paused_reason = f"turn budget exhausted ({current_turn}/{max_turns})"
             self._save_goal()
             return ExitDecision(
