@@ -17,11 +17,7 @@
     border-bottom: solid #B180D7;
 }
 
-/* 侧边栏聚焦边框 */
-.theme-default #sidebar-container:hover,
-.theme-default #sidebar-container:focus-within {
-    border: solid #B180D7;
-}
+
 
 /* 输入框边框 */
 .theme-default #user-input {

@@ -47,14 +47,13 @@ Screen {
     margin: 0;
     padding: 0;
     border: blank;
-    overflow: hidden;
+    /* #chat-area 就是 ChatContainer(VerticalScroll) 本身，必须允许纵向滚动。
+       原来的 overflow: hidden 会禁用它自身的滚动（无滚动条、鼠标滚轮失效）。 */
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
-/* 默认边框样式 */
-#chat-area:hover,
-#chat-area:focus-within {
-    border: blank;
-}
+
 
 /* MessageList (VerticalScroll) 样式 */
 #chat-area MessageList {
@@ -483,11 +482,7 @@ Button:focus {
     padding: 0;
 }
 
-/* 默认边框样式 */
-#sidebar-container:hover,
-#sidebar-container:focus-within {
-    border: solid $primary;
-}
+
 
 #sidebar-container-inner {
     width: 100%;

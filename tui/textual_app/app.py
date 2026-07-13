@@ -14,6 +14,7 @@ import logging
 import os
 import sys
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
@@ -97,9 +98,9 @@ except ImportError:
     estimate_messages_tokens_rough = None
 
 try:
-    from tui.views.chat_view import ChatView
+    from tui.widgets.chat_container import ChatContainer
 except ImportError:
-    ChatView = None
+    ChatContainer = None
 
 try:
     from tui.views.session_picker import SessionPickerScreen
@@ -348,12 +349,7 @@ class HandsomeAgentApp(App):
         self._busy_frame_index: int = 0  # busy 状态动画帧索引
 
         self._is_streaming: bool = False
-        self._streaming_text: str = ""
-        self._streaming_widget_id: str | None = None
-        self._streaming_timer: Optional[callable] = None
-        self._streaming_chars_per_tick: int = 10  # 优化：从 3 改为 10，减少更新频率
-        self._streaming_delay_ms: int = 50  # 优化：从 30 改为 50ms
-        self._streaming_scroll_threshold: int = 15  # 每累积 15 个字符才滚动一次
+        # 流式状态完全委托给 ChatContainer；app 不再维护独立的 typewriter 状态。
 
         self._agent = agent
         self._theme_manager: ThemeManager | None = None
@@ -409,6 +405,15 @@ class HandsomeAgentApp(App):
         # ========== Widget 缓存（优化性能）==========
         self._widget_cache: dict = {}  # 缓存常用 widget 引用
 
+        # ========== Agent 执行器（长生命周期，单线程复用）==========
+        # ponytail: 之前每条用户消息都新建一个 ThreadPoolExecutor 再立即
+        # shutdown(wait=False)，导致 worker 线程和事件循环对象在多轮后
+        # 持续累积。改为进程内一个执行器，线程和 thread-local event loop
+        # 都自然复用，max_workers=1 配合 _pending_queue 实现排队。
+        self._agent_executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="agent-worker"
+        )
+
     def compose(self) -> ComposeResult:
         with Container(id="app-header"):
             with Horizontal():
@@ -423,7 +428,8 @@ class HandsomeAgentApp(App):
                 yield Static("►", id="theme-toggle", classes="theme-toggle")
 
         with Horizontal(id="main-area"):
-            yield ChatView(id="chat-area")
+            if ChatContainer:
+                yield ChatContainer(id="chat-area")
             if SidebarContainer:
                 with Container(id="sidebar-container"):
                     # 获取 Agent 的 GoalManager（如果存在）
@@ -1166,136 +1172,60 @@ class HandsomeAgentApp(App):
         self._logger.debug(f"Agent status changed to: {status}")
 
     def start_streaming_message(self, widget_id: str) -> None:
-        self._is_streaming = True
-        self._streaming_text = ""
-        self._streaming_widget_id = widget_id
+        """兼容旧 API：把流开始转发给 ChatContainer。
 
-        log = self.query_one(f"#{widget_id}", RichLog)
-        if log:
-            from rich.text import Text as RichText
-
-            header = RichText.from_markup("[bold #3fb950]**Assistant**[/]\n\n")
-            log.write(header)
+        老版本向 RichLog widget 写入；新版不再维护独立 typewriter 路径，
+        一律走 ChatContainer.start_streaming。
+        """
+        chat_area = self._widget_cache.get("chat_area")
+        if chat_area is None and ChatContainer is not None:
+            try:
+                chat_area = self.query_one("#chat-area", ChatContainer)
+            except Exception:
+                chat_area = None
+        if chat_area is not None:
+            chat_area.start_streaming("assistant")
+            self._is_streaming = True
 
     def append_streaming_text(self, text: str) -> None:
-        if not self._is_streaming:
+        """兼容旧 API：把 delta 转发给 ChatContainer。"""
+        if not text:
             return
-        self._streaming_text += text
-
-    def start_typewriter_effect(self, full_text: str, widget_id: str) -> None:
-        self._is_streaming = True
-        self._streaming_text = full_text
-        self._streaming_widget_id = widget_id
-        self._streaming_displayed = 0
-        self._streaming_current_content = ""
-
-        self._remove_streaming_widget()
-
-        from textual.widgets import Static
-
-        streaming_widget = Static(
-            id="streaming-output",
-            classes="typewriter-output",
-            markup=True,
-        )
-
-        # 使用缓存的 chat_area（优化性能）
         chat_area = self._widget_cache.get("chat_area")
-        if chat_area:
-            chat_area.mount(streaming_widget)
-
-        # 初始化滚动计数器
-        self._streaming_chars_since_scroll = 0
-
-        self._streaming_timer = self.set_interval(
-            self._streaming_delay_ms / 1000.0, self._update_typewriter_frame
-        )
-
-    def _remove_streaming_widget(self) -> None:
-        try:
-            widget = self.query_one("#streaming-output")
-            widget.remove()
-        except Exception:
-            pass
-
-    def _update_typewriter_frame(self) -> None:
-        if not self._is_streaming:
-            return
-
-        try:
-            streaming_widget = self.query_one("#streaming-output")
-        except Exception:
-            return
-
-        current_displayed = getattr(self, "_streaming_displayed", 0)
-        chars_to_add = self._streaming_chars_per_tick
-        end_index = min(current_displayed + chars_to_add, len(self._streaming_text))
-        new_chars = self._streaming_text[current_displayed:end_index]
-
-        if new_chars:
-            self._streaming_current_content += new_chars
-            streaming_widget.update(self._streaming_current_content)
-            self._streaming_displayed = end_index
-            # 更新滚动计数器
-            self._streaming_chars_since_scroll = getattr(
-                self, "_streaming_chars_since_scroll", 0
-            ) + len(new_chars)
-
-        # 滚动节流：每累积一定字符数才滚动一次（优化性能）
-        should_scroll = (
-            self._streaming_chars_since_scroll >= self._streaming_scroll_threshold
-        )
-        if should_scroll:
-            self._streaming_chars_since_scroll = 0
+        if chat_area is None and ChatContainer is not None:
             try:
-                chat_area = self._widget_cache.get("chat_area")
-                if chat_area:
-                    if hasattr(chat_area, "scroll_home"):
-                        chat_area.scroll_home(animate=False)
-                    elif hasattr(chat_area, "scroll_to"):
-                        chat_area.scroll_to(0, animate=False)
+                chat_area = self.query_one("#chat-area", ChatContainer)
             except Exception:
-                pass
-
-        if self._streaming_displayed >= len(self._streaming_text):
-            self._finish_typewriter_effect()
-        else:
-            streaming_widget.update(self._streaming_current_content + "[blink]▋[/]")
-
-    def _finish_typewriter_effect(self) -> None:
-        if self._streaming_timer:
-            self._streaming_timer.stop()
-            self._streaming_timer = None
-
-        full_content = getattr(self, "_streaming_current_content", "") or ""
-        full_content = full_content.replace("[blink]▋[/]", "")
-
-        if full_content and self._streaming_widget_id:
-            try:
-                log = self.query_one(f"#{self._streaming_widget_id}", RichLog)
-                log.write(full_content)
-                log.write("\n")
-            except Exception:
-                pass
-
-        self._remove_streaming_widget()
-        self._is_streaming = False
-        self._streaming_displayed = 0
+                chat_area = None
+        if chat_area is not None:
+            if not getattr(self, "_is_streaming", False):
+                chat_area.start_streaming("assistant")
+                self._is_streaming = True
+            chat_area.append_streaming_text(text)
 
     def is_streaming(self) -> bool:
-        return self._is_streaming
+        """当前是否在流式输出。委托给 ChatContainer。"""
+        chat_area = self._widget_cache.get("chat_area")
+        if chat_area is None and ChatContainer is not None:
+            try:
+                chat_area = self.query_one("#chat-area", ChatContainer)
+            except Exception:
+                chat_area = None
+        if chat_area is None:
+            return False
+        return bool(chat_area.is_streaming())
 
     def cancel_streaming(self) -> None:
-        if self._streaming_timer:
-            self._streaming_timer.stop()
-            self._streaming_timer = None
-
-        self._remove_streaming_widget()
+        """取消流；委托给 ChatContainer。"""
+        chat_area = self._widget_cache.get("chat_area")
+        if chat_area is None and ChatContainer is not None:
+            try:
+                chat_area = self.query_one("#chat-area", ChatContainer)
+            except Exception:
+                chat_area = None
+        if chat_area is not None:
+            chat_area.cancel_streaming()
         self._is_streaming = False
-        self._streaming_text = ""
-        self._streaming_widget_id = None
-        self._streaming_displayed = 0
-        self._streaming_current_content = ""
 
     def _init_banner_cache(self) -> None:
         """初始化 Banner 缓存（在后台线程中调用）"""
@@ -1340,7 +1270,9 @@ class HandsomeAgentApp(App):
             self._widget_cache["status_bar"] = self.query_one("#status-bar")
 
             # 聊天区域
-            self._widget_cache["chat_area"] = self.query_one("#chat-area", ChatView)
+            self._widget_cache["chat_area"] = self.query_one(
+                "#chat-area", ChatContainer
+            )
 
             # 输入框
             self._widget_cache["user_input"] = self.query_one("#user-input", TextArea)
@@ -1423,8 +1355,6 @@ class HandsomeAgentApp(App):
         # 使用缓存的 widgets
         welcome_widget = self._widget_cache.get("welcome_banner")
         if welcome_widget:
-            from rich.text import Text as RichText
-
             welcome_text = RichText.from_markup("\n".join(welcome_lines))
             welcome_widget.update(welcome_text)
 
@@ -1437,8 +1367,6 @@ class HandsomeAgentApp(App):
             greeting = "存在先于本质。"
 
         # 渲染右侧信息栏
-        from rich.text import Text as RichText
-
         # 尝试获取当前模式
         current_mode = "Agent"  # 默认模式
         try:
@@ -1513,8 +1441,6 @@ class HandsomeAgentApp(App):
             if wisdom:
                 version_widget = self._widget_cache.get("version_info")
                 if version_widget and self._banner_cache.get("version"):
-                    from rich.text import Text as RichText
-
                     version_text = RichText.from_markup(
                         f"[dim]{self._banner_cache['version']}[/] [dim]·[/] [italic dim]{wisdom}[/]"
                     )
@@ -1913,6 +1839,15 @@ class HandsomeAgentApp(App):
             self._logger.error(f"Failed to save message: {e}")
 
     def on_unmount(self) -> None:
+        # 先关 agent 执行器：cancel_futures 取消未跑的 LLM 任务，
+        # wait=True 等待正在跑的那一条收尾（避免在 app 拆完后 worker
+        # 还在往 UI 写回调导致诡异错误）。
+        if getattr(self, "_agent_executor", None) is not None:
+            try:
+                self._agent_executor.shutdown(wait=True, cancel_futures=True)
+            except Exception as e:
+                self._logger.debug(f"agent executor shutdown failed: {e}")
+            self._agent_executor = None
         self._flush_messages()
         self._logger.debug("Application unmounted, data saved")
         self._restore_console_handler()
@@ -2079,7 +2014,7 @@ class HandsomeAgentApp(App):
         # 使用缓存的 widget（优化性能）
         chat_area = self._widget_cache.get("chat_area")
         if chat_area is None:
-            chat_area = self.query_one("#chat-area", ChatView)
+            chat_area = self.query_one("#chat-area", ChatContainer)
 
         # 提取 tool_name 并跟踪工具
         tool_name = None
@@ -2191,7 +2126,6 @@ class HandsomeAgentApp(App):
     def _call_agent_async(self, user_input: str) -> None:
         """使用持久事件循环在子线程中运行异步 agent"""
         import asyncio
-        from concurrent.futures import ThreadPoolExecutor
 
         self.set_agent_status("busy")
         self._start_loading_animation()
@@ -2226,16 +2160,14 @@ class HandsomeAgentApp(App):
                             response = loop.run_until_complete(response)
                         return response
                     finally:
-                        # 不关闭循环，让它被垃圾回收
+                        # 不关闭循环，让 thread-local 的 loop 在下次复用
                         pass
                 else:
                     return "Agent 未初始化，请检查配置"
             except Exception as e:
                 return f"错误: {str(e)}"
 
-        executor = ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(run_agent)
-        executor.shutdown(wait=False)
+        future = self._agent_executor.submit(run_agent)
 
         self._agent_future = future
         self._agent_start_time = __import__("time").time()
@@ -2326,7 +2258,7 @@ class HandsomeAgentApp(App):
         """处理 Agent 流式输出增量"""
         chat_area = self._widget_cache.get("chat_area")
         if chat_area is None:
-            chat_area = self.query_one("#chat-area", ChatView)
+            chat_area = self.query_one("#chat-area", ChatContainer)
 
         if chat_area and hasattr(chat_area, "start_streaming"):
             if (
@@ -2344,7 +2276,7 @@ class HandsomeAgentApp(App):
 
         chat_area = self._widget_cache.get("chat_area")
         if chat_area is None:
-            chat_area = self.query_one("#chat-area", ChatView)
+            chat_area = self.query_one("#chat-area", ChatContainer)
 
         if chat_area and hasattr(chat_area, "append_streaming_thinking"):
             chat_area.append_streaming_thinking(text)
@@ -2353,7 +2285,7 @@ class HandsomeAgentApp(App):
         """完成 Agent 流式输出"""
         chat_area = self._widget_cache.get("chat_area")
         if chat_area is None:
-            chat_area = self.query_one("#chat-area", ChatView)
+            chat_area = self.query_one("#chat-area", ChatContainer)
 
         if (
             chat_area
@@ -2368,7 +2300,7 @@ class HandsomeAgentApp(App):
         """显示 Agent 回复消息"""
         chat_area = self._widget_cache.get("chat_area")
         if chat_area is None:
-            chat_area = self.query_one("#chat-area", ChatView)
+            chat_area = self.query_one("#chat-area", ChatContainer)
 
         if chat_area:
             if hasattr(chat_area, "add_assistant_message"):
@@ -2388,7 +2320,7 @@ class HandsomeAgentApp(App):
         self._logger.info(f"Session switched: {old_session_id} -> {event.session_id}")
         self._render_welcome_banner()
 
-        chat_view = self.query_one("#chat-area", ChatView)
+        chat_view = self.query_one("#chat-area", ChatContainer)
         chat_view.clear_messages()
         history = self._restore_session(event.session_id)
         for msg in history:
@@ -2412,14 +2344,14 @@ class HandsomeAgentApp(App):
                 )
                 self.session_id = new_id
                 self._render_welcome_banner()
-                chat_view = self.query_one("#chat-area", ChatView)
+                chat_view = self.query_one("#chat-area", ChatContainer)
                 chat_view.clear_messages()
                 chat_view.show_greeting()
 
         self._logger.info(f"Session deleted: {event.session_id}")
 
     def append_chat_message(self, role: str, content: str) -> None:
-        chat_area = self.query_one("#chat-area", ChatView)
+        chat_area = self.query_one("#chat-area", ChatContainer)
         if chat_area:
             label = "You" if role == "user" else "Agent"
             if hasattr(chat_area, "write"):
@@ -2428,12 +2360,13 @@ class HandsomeAgentApp(App):
                 chat_area.append_message(role, content)
 
     def clear_chat(self) -> None:
-        chat_area = self.query_one("#chat-area", ChatView)
+        chat_area = self.query_one("#chat-area", ChatContainer)
         if chat_area:
             if hasattr(chat_area, "clear"):
                 chat_area.clear()
             elif hasattr(chat_area, "clear_messages"):
                 chat_area.clear_messages()
+
 
 def run_textual_app(
     model_name: str = "Handsome Agent",

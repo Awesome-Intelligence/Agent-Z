@@ -541,7 +541,7 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
                 classes="provider-config-item",
             )
 
-    def _on_provider_item_click(self, provider_id: str) -> None:
+    async def _on_provider_item_click(self, provider_id: str) -> None:
         """点击 provider 条目 → 挂载编辑表单到 details 区"""
         settings = self._settings_manager.get_settings()
         providers_items = (
@@ -553,53 +553,38 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
         base_url = getattr(pconf, "base_url", "") or ""
 
         details_container = self.query_one("#llm-provider-details", Container)
-        details_container.remove_children()
+        await details_container.remove_children()
 
-        # Provider ID (只读标签)
         from tui.views.settings.models import ProviderItemConfig
 
-        # 保存当前编辑的 provider ID
         self._editing_provider_id = provider_id
 
-        details_container.mount(
-            Static(f"[bold]编辑:[/bold] {provider_id}", id="provider-edit-title")
-        )
-        details_container.mount(
-            Static("API Key", classes="setting-row")
-        )
-        details_container.mount(
+        await details_container.mount(
+            Static(f"[bold]编辑:[/bold] {provider_id}", id="provider-edit-title"),
+            Static("API Key", classes="setting-row"),
             Input(
                 api_key,
                 id="provider-apikey-input",
                 placeholder="输入 API Key（不填则保留原值）",
                 password=True,
                 classes="setting-row",
-            )
-        )
-        details_container.mount(
-            Static("模型名称", classes="setting-row")
-        )
-        details_container.mount(
+            ),
+            Static("模型名称", classes="setting-row"),
             Input(
                 model,
                 id="provider-model-input",
                 placeholder="留空使用 provider 默认模型",
                 classes="setting-row",
-            )
-        )
-        details_container.mount(
-            Static("Base URL（可选）", classes="setting-row")
-        )
-        details_container.mount(
+            ),
+            Static("Base URL（可选）", classes="setting-row"),
             Input(
                 base_url,
                 id="provider-baseurl-input",
                 placeholder="留空使用 provider 默认地址",
                 classes="setting-row",
-            )
+            ),
         )
 
-        # 隐藏添加 select
         try:
             add_sel = self.query_one("#llm-add-provider-select", Select)
             add_sel.value = None
@@ -872,7 +857,7 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
     # 事件处理
     # ========================================================================
 
-    def on_click(self, event: Click) -> None:
+    async def on_click(self, event: Click) -> None:
         """处理 provider 配置项点击"""
         if self._current_category != "llm":
             return
@@ -882,7 +867,7 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
         for widget in self.query(".provider-config-item"):
             if widget == target and hasattr(widget, "_provider_id"):
                 pid = widget._provider_id
-                self._on_provider_item_click(pid)
+                await self._on_provider_item_click(pid)
                 self.call_later(lambda: self._switch_category("llm"))
                 return
 

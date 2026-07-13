@@ -6,14 +6,16 @@ TUI Views - Textual UI View Components
 🚪 Access - 💬 CLI - TUI Views
 
 提供 Textual TUI 所需的内容视图组件，包括：
-- ChatView: 聊天视图组件
 - HelpScreen: 帮助面板组件
 - SessionPickerScreen: 会话选择器
 - WelcomeScreen: 欢迎界面组件
 - OnboardingScreen: 首次使用引导流程
+
+注意：原先 ChatView 已被替换为 tui.widgets.ChatContainer（oterm 风格），
+见 `tui/widgets/chat_container.py`。
 """
 
-from .chat_view import ChatView
+# ChatView 已迁移至 tui/widgets/chat_container.py 的 ChatContainer。
 
 # 帮助面板（带降级机制）
 try:
@@ -74,7 +76,6 @@ except ImportError:
     LogScreen = None
 
 __all__ = [
-    "ChatView",
     "HelpScreen",
     "SessionPickerScreen",
     # 欢迎界面

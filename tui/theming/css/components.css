@@ -135,9 +135,7 @@ TabPane {
     border: blank;
 }
 
-TabPane:focus-within {
-    border-left: heavy $accent;
-}
+
 
 /* SidebarPane 内部内容 */
 SidebarPane {

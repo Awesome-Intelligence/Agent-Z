@@ -48,7 +48,6 @@ from tui.theming import (
 
 # 视图
 from tui.views import (
-    ChatView,
     HelpScreen,
     SessionPickerScreen,
     WelcomeScreen,
@@ -57,8 +56,8 @@ from tui.views import (
 
 # 组件
 from tui.widgets import (
-    MessageList,
-    StreamingText,
+    ChatItem,
+    ChatContainer,
     ApprovalDialog,
 )
 
@@ -99,14 +98,13 @@ __all__ = [
     "get_theme_manager",
     "Theme",
     # 视图
-    "ChatView",
     "HelpScreen",
     "SessionPickerScreen",
     "WelcomeScreen",
     "OnboardingScreen",
     # 组件
-    "MessageList",
-    "StreamingText",
+    "ChatItem",
+    "ChatContainer",
     "ApprovalDialog",
     # 核心模块
     "markdown_renderer",
