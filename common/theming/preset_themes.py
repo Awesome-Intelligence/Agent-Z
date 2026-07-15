@@ -1,3 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Preset Themes — 内置主题字典。
+
+🚪 Access - 💬 Common - Theming - 预设主题
+
+本模块自 v8.x 起从 ``tui.theming.preset_themes`` 上移而来。
+"""
+
+from __future__ import annotations
+
 from .theme_config import Theme
 
 

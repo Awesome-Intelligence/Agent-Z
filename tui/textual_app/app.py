@@ -232,7 +232,7 @@ _patch_textual_logger()
 # ============================================================================
 
 if TEXTUAL_AVAILABLE:
-    from tui.theming.preset_themes import _PRESET_THEMES
+    from common.theming.preset_themes import _PRESET_THEMES
 
     THEMES = [
         Theme(

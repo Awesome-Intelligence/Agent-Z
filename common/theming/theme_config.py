@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Theme Configuration Data Classes.
+"""Theme Configuration Data Classes.
 
-🚪 Access - 💬 CLI - Theming - 主题配置数据类
+🚪 Access - 💬 Common - Theming - 主题配置数据类
 
 每个主题的样式定义在对应的 CSS 文件中（css/themes/*.css）。
+
+本模块自 v8.x 起从 ``tui.theming.theme_config`` 上移而来，
+供 tui/cli 两侧共用，不依赖任何 Textual 库。
 """
 
 from __future__ import annotations

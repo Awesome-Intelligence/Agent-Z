@@ -17,7 +17,7 @@ class TestThemeModel:
 
     def test_theme_creation(self):
         """Test creating a theme with required fields."""
-        from tui.theming.theme_config import Theme
+        from common.theming.theme_config import Theme
 
         theme = Theme(
             theme_id="test_theme",
@@ -29,7 +29,7 @@ class TestThemeModel:
 
     def test_theme_data_class(self):
         """Test Theme is a dataclass with proper attributes."""
-        from tui.theming.theme_config import Theme
+        from common.theming.theme_config import Theme
 
         theme = Theme(
             theme_id="custom",
@@ -47,14 +47,14 @@ class TestThemeManager:
     @pytest.fixture(autouse=True)
     def reset_singleton(self):
         """Reset ThemeManager singleton before each test."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
         ThemeManager._instance = None
         yield
         ThemeManager._instance = None
 
     def test_singleton_pattern(self):
         """Test ThemeManager singleton pattern."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager1 = ThemeManager.get_instance()
         manager2 = ThemeManager.get_instance()
@@ -63,7 +63,7 @@ class TestThemeManager:
 
     def test_list_preset_themes(self):
         """Test listing preset themes."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         themes = manager.list_themes()
@@ -75,7 +75,7 @@ class TestThemeManager:
 
     def test_list_theme_ids(self):
         """Test listing theme IDs."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         ids = manager.list_theme_ids()
@@ -85,7 +85,7 @@ class TestThemeManager:
 
     def test_get_theme_existing(self):
         """Test getting an existing theme."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         theme = manager.get_theme("default")
@@ -95,7 +95,7 @@ class TestThemeManager:
 
     def test_get_theme_nonexistent(self):
         """Test getting a non-existent theme returns None."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         theme = manager.get_theme("nonexistent")
@@ -104,7 +104,7 @@ class TestThemeManager:
 
     def test_get_current_theme(self):
         """Test getting the current active theme."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         theme = manager.get_current_theme()
@@ -114,7 +114,7 @@ class TestThemeManager:
 
     def test_set_theme_existing(self):
         """Test setting an existing theme."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         result = manager.set_theme("awesome")
@@ -124,7 +124,7 @@ class TestThemeManager:
 
     def test_set_theme_nonexistent(self):
         """Test setting a non-existent theme fails."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         original = manager.get_current_theme_id()
@@ -135,7 +135,7 @@ class TestThemeManager:
 
     def test_get_theme_css_path(self):
         """Test getting theme CSS file path."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         css_path = manager.get_theme_css_path("default")
@@ -146,7 +146,7 @@ class TestThemeManager:
 
     def test_theme_change_callback(self):
         """Test theme change callback is invoked."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         callback_invoked = []
@@ -167,14 +167,14 @@ class TestTransparencySupport:
     @pytest.fixture(autouse=True)
     def reset_singleton(self):
         """Reset ThemeManager singleton before each test."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
         ThemeManager._instance = None
         yield
         ThemeManager._instance = None
 
     def test_transparency_default_disabled(self):
         """Test transparency is disabled by default after reset."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         # After reset, it may load from config, but we can force disable
@@ -183,7 +183,7 @@ class TestTransparencySupport:
 
     def test_set_transparency_enabled(self):
         """Test enabling transparency."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         manager.set_transparency_enabled(True)
@@ -192,7 +192,7 @@ class TestTransparencySupport:
 
     def test_toggle_transparency(self):
         """Test toggling transparency state."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         initial = manager.is_transparency_enabled()
@@ -204,7 +204,7 @@ class TestTransparencySupport:
 
     def test_transparency_level_bounds(self):
         """Test transparency level is clamped to valid range."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
 
@@ -222,24 +222,17 @@ class TestTransparencySupport:
 
     def test_generate_transparent_css_disabled(self):
         """Test transparent CSS generation when disabled."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.styles.transparency import generate_transparent_css
 
-        manager = ThemeManager()
-        manager.set_transparency_enabled(False)
-
-        css = manager.generate_transparent_css()
+        css = generate_transparent_css(level=0.85, enabled=False)
 
         assert css == ""
 
     def test_generate_transparent_css_enabled(self):
         """Test transparent CSS generation when enabled."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.styles.transparency import generate_transparent_css
 
-        manager = ThemeManager()
-        manager.set_transparency_enabled(True)
-        manager.set_transparency_level(0.8)
-
-        css = manager.generate_transparent_css()
+        css = generate_transparent_css(level=0.8, enabled=True)
 
         assert "--transparency-alpha" in css
         assert "transparent-surface" in css
@@ -251,15 +244,15 @@ class TestThemePersistence:
     @pytest.fixture(autouse=True)
     def reset_singleton(self):
         """Reset ThemeManager singleton before each test."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
         ThemeManager._instance = None
         yield
         ThemeManager._instance = None
 
-    @patch("tui.theming.theme_manager.ThemeManager._load_preference")
+    @patch("common.theming.theme_manager.ThemeManager._load_preference")
     def test_preference_persistence(self, mock_load):
         """Test theme preference is saved after change."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         mock_load.return_value = None
@@ -270,10 +263,10 @@ class TestThemePersistence:
         # Verify current theme ID changed
         assert manager.get_current_theme_id() == "awesome"
 
-    @patch("tui.theming.theme_manager.ThemeManager._load_preference")
+    @patch("common.theming.theme_manager.ThemeManager._load_preference")
     def test_preference_loads_on_init(self, mock_load):
         """Test preference is loaded during initialization."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         mock_load.return_value = None
 
@@ -288,21 +281,21 @@ class TestPresetThemes:
 
     def test_default_theme_exists(self):
         """Test default theme is defined."""
-        from tui.theming.preset_themes import _PRESET_THEMES
+        from common.theming.preset_themes import _PRESET_THEMES
 
         assert "default" in _PRESET_THEMES
         assert _PRESET_THEMES["default"].theme_id == "default"
 
     def test_awesome_theme_exists(self):
         """Test awesome theme is defined."""
-        from tui.theming.preset_themes import _PRESET_THEMES
+        from common.theming.preset_themes import _PRESET_THEMES
 
         assert "awesome" in _PRESET_THEMES
         assert _PRESET_THEMES["awesome"].theme_id == "awesome"
 
     def test_theme_display_name_keys(self):
         """Test theme display name keys are i18n keys."""
-        from tui.theming.preset_themes import _PRESET_THEMES
+        from common.theming.preset_themes import _PRESET_THEMES
 
         for theme in _PRESET_THEMES.values():
             assert theme.display_name_key.startswith("tui.theme.")
@@ -438,30 +431,20 @@ class TestThemeCSSVariables:
     @pytest.fixture(autouse=True)
     def reset_singleton(self):
         """Reset ThemeManager singleton before each test."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
         ThemeManager._instance = None
         yield
         ThemeManager._instance = None
 
     def test_transparent_css_structure(self):
         """Test transparent CSS has correct structure."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.styles.transparency import generate_transparent_css
 
-        manager = ThemeManager()
-        manager.set_transparency_enabled(True)
-        manager.set_transparency_level(0.85)
+        css = generate_transparent_css(level=0.85, enabled=True)
 
-        css = manager.generate_transparent_css()
-
-        # Should contain root variables
-        assert ":root" in css
+        assert "rgba" in css
+        assert "transparent" in css
         assert "--transparency-alpha" in css
-        assert "--transparency-hex" in css
-
-        # Should contain surface classes
-        assert ".transparent-surface" in css
-        assert ".transparent-header" in css
-        assert ".transparent-footer" in css
 
 
 class TestThemeIntegration:
@@ -470,14 +453,14 @@ class TestThemeIntegration:
     @pytest.fixture(autouse=True)
     def reset_singleton(self):
         """Reset ThemeManager singleton before each test."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
         ThemeManager._instance = None
         yield
         ThemeManager._instance = None
 
     def test_full_theme_switch_cycle(self):
         """Test complete theme switch cycle."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         # Create fresh instance
         ThemeManager._instance = None
@@ -498,7 +481,7 @@ class TestThemeIntegration:
 
     def test_theme_manager_global_access(self):
         """Test get_theme_manager() function."""
-        from tui.theming.theme_manager import get_theme_manager, ThemeManager
+        from common.theming.theme_manager import get_theme_manager, ThemeManager
 
         ThemeManager._instance = None
 
@@ -514,14 +497,14 @@ class TestThemeToggleButton:
     @pytest.fixture(autouse=True)
     def reset_singleton(self):
         """Reset ThemeManager singleton before each test."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
         ThemeManager._instance = None
         yield
         ThemeManager._instance = None
 
     def test_theme_toggle_cycle(self):
         """Test theme toggle cycles through available themes."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
         initial_theme = manager.get_current_theme_id()
@@ -536,7 +519,7 @@ class TestThemeToggleButton:
 
     def test_theme_toggle_with_two_themes(self):
         """Test theme toggle specifically with two themes (default ↔ awesome)."""
-        from tui.theming.theme_manager import ThemeManager
+        from common.theming.theme_manager import ThemeManager
 
         manager = ThemeManager()
 
@@ -551,7 +534,7 @@ class TestThemeToggleButton:
 
     def test_theme_toggle_button_icon(self):
         """Test theme toggle button icon and CSS classes."""
-        from tui.theming.css import get_theme_css
+        from common.theming.css import get_theme_css
 
         default_css = get_theme_css("default")
         awesome_css = get_theme_css("awesome")

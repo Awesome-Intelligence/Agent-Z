@@ -3,18 +3,17 @@
 """
 TUI Theming System for Handsome Agent.
 
-🚪 Access - 💬 CLI - Theming - 统一的样式和主题管理
+🚪 Access - 💬 TUI - Theming - 样式和主题管理（向后兼容层）
 
-提供：
-- 主题配置管理 (ThemeManager)
-- 颜色常量 (STATUS_ONLINE, STATUS_ERROR 等)
-- 图标映射 (MESSAGE_ICONS, FILE_TYPE_ICONS 等)
-- 透明度工具 (transparent 函数)
-- 排版系统 (TypographyConfig)
+v8.x 重构说明：
+- 主题核心（``Theme`` / ``_PRESET_THEMES`` / ``ThemeManager``）已上移到
+  ``common.theming``，本模块改为 re-export 保持向后兼容。
+- 本地仍保留与 tui 绑定的工具：颜色辅助、图标映射、排版系统。
+- ``tui.theming.css`` 子模块继续 re-export 自 ``common.theming.css``。
 
 Usage::
 
-    from tui.theming import ThemeManager, get_theme_manager
+    from tui.theming import ThemeManager, get_theme_manager  # 现在来自 common
 
     manager = get_theme_manager()
     manager.set_theme("default")
@@ -28,11 +27,15 @@ CSS 模块::
 
 from __future__ import annotations
 
-# 导入子模块
-from .theme_config import (
+# 主题核心：上移到 common 层，本模块 re-export 保持向后兼容
+from common.theming import (
     Theme,
+    _PRESET_THEMES,
+    ThemeManager,
+    get_theme_manager,
 )
 
+# tui 本地工具：颜色辅助、图标映射、排版系统
 from .colors import (
     TRANSPARENCY_LEVELS,
     transparent,
@@ -59,11 +62,6 @@ from .icons import (
     PANEL_ICONS,
 )
 
-from .theme_manager import (
-    ThemeManager,
-    get_theme_manager,
-)
-
 # 排版系统
 from .typography import (
     # 字体大小常量
@@ -85,10 +83,6 @@ from .typography import (
     get_typography_preset,
     generate_typography_css,
     generate_element_font_css,
-)
-
-from .preset_themes import (
-    _PRESET_THEMES,
 )
 
 # 计算半透明颜色（使用 default 主题的紫色）
@@ -167,8 +161,6 @@ __all__ = [
     "WHITE",
     "GRAY_DIM",
     "GOLD",
-    # 预设主题
-    "_PRESET_THEMES",
     # 消息类型
     "MESSAGE_ICONS",
     "MESSAGE_COLORS",
