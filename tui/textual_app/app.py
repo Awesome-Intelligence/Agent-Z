@@ -79,6 +79,8 @@ from .actions import ActionsMixin
 from .agent_runner import AgentRunnerMixin
 from .approval import ApprovalMixin
 from .banner import BannerMixin
+from .greeting import GreetingMixin
+from .wisdom import WisdomMixin
 from .css import APP_CSS
 from .helpers import CompatibleLog, LogDescriptor, _COMPATIBLE_LOG
 from .loading import LoadingMixin
@@ -116,6 +118,8 @@ class AgentApp(
     StylingMixin,
     StatusBarMixin,
     BannerMixin,
+    GreetingMixin,
+    WisdomMixin,
     ModelSelectorMixin,
     ApprovalMixin,
     NotifyMixin,
@@ -127,14 +131,15 @@ class AgentApp(
     SlashCompletionMixin,
     App,
 ):
-    """Handsome Agent Textual TUI Application.
+    """Agent Textual TUI Application.
 
-    v8.x 重构：主类瘦身到只剩生命周期编排（__init__ / compose / on_mount / BINDINGS /
-    CSS / 入口函数）。所有职责已下放到 ``tui/textual_app/*.py`` 下的 12 个 mixin 模块。
+    v8.x 重构：主类瘦身到只剩生命周期编排。所有职责已下放到
+    ``tui/textual_app/*.py`` 下的 mixin 模块。
 
-    Mixin 继承顺序（从左到右优先级递减，最后是 Textual 基类 App）：
-      Styling → StatusBar → Banner → ModelSelector → Approval → Notify → Session →
-      AgentRunner → SidebarPanel → Actions → Loading → SlashCompletion → App
+    Mixin 继承顺序（从左到右优先级递减）：
+      Styling → StatusBar → Banner → Greeting → Wisdom →
+      ModelSelector → Approval → Notify → Session → AgentRunner →
+      SidebarPanel → Actions → Loading → SlashCompletion → App
     """
     log = LogDescriptor()
     BINDINGS = [Binding('ctrl+q', 'quit', 'Quit'), Binding('ctrl+c', 'copy', 'Copy'), Binding('ctrl+b', 'toggle_sidebar', 'Sidebar'), Binding('f1', 'open_help', 'Help'), Binding('f2', 'open_settings', 'Settings'), Binding('f3', 'open_log_screen', 'Logs'), Binding('ctrl+left', 'prev_panel', 'Prev Panel', show=False), Binding('ctrl+right', 'next_panel', 'Next Panel', show=False)]
