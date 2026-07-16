@@ -9,7 +9,6 @@ These tests cover custom exception classes and error handling functionality.
 import unittest
 from common.exceptions import (
     AgentError,
-    HandsomeAgentError,
     InputValidationError,
     ResponseGenerationError,
     ConfigurationError,
@@ -30,25 +29,25 @@ class TestExceptionClasses(unittest.TestCase):
         """Test InputValidationError."""
         error = InputValidationError("Test message")
         self.assertEqual(str(error), "Test message")
-        self.assertIsInstance(error, HandsomeAgentError)
+        self.assertIsInstance(error, AgentError)
 
     def test_response_generation_error(self):
         """Test ResponseGenerationError."""
         error = ResponseGenerationError("Test message")
         self.assertEqual(str(error), "Test message")
-        self.assertIsInstance(error, HandsomeAgentError)
+        self.assertIsInstance(error, AgentError)
 
     def test_configuration_error(self):
         """Test ConfigurationError."""
         error = ConfigurationError("Test message")
         self.assertEqual(str(error), "Test message")
-        self.assertIsInstance(error, HandsomeAgentError)
+        self.assertIsInstance(error, AgentError)
 
     def test_timeout_error(self):
         """Test TimeoutError."""
         error = TimeoutError("5.0")
         self.assertIn("5.0", str(error))
-        self.assertIsInstance(error, HandsomeAgentError)
+        self.assertIsInstance(error, AgentError)
 
 
 if __name__ == "__main__":

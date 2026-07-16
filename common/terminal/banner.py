@@ -77,21 +77,24 @@ GOLD = "rgb(255,215,0)"
 
 
 # ============================================================================
-# ASCII Art Logo - 高雅紫主题
+# ASCII Art Logo - 黑色主题
 # ============================================================================
 
-# 主体 Logo - 竖排 "Handsome" (default skin)
-HANDSOME_LOGO = """\
-[bold #B180D7]░█░█░█▀█░█▀█░█▀▄░█▀▀░█▀█░█▄█░█▀▀[/]
-[bold #B180D7]░█▀█░█▀█░█░█░█░█░▀▀█░█░█░█░█░█▀▀[/]
-[bold #B180D7]░▀░▀░▀░▀░▀░▀░▀▀░░▀▀▀░▀▀▀░▀░▀░▀▀▀[/]"""
+# Agent-Z ASCII Art Logo
+AGENT_Z_LOGO = """\
+[bold #000000]░█▀█░█▀▀░█▀▀░█▀█░▀█▀░░░▀▀█[/]
+[bold #000000]░█▀█░█░█░█▀▀░█░█░░█░░░░▄▀░[/]
+[bold #000000]░▀░▀░▀▀▀░▀▀▀░▀░▀░░▀░░░░▀▀▀[/]"""
 
-# Hero ASCII Art - 简约风格 (default skin)
+# 向后兼容别名
+HANDSOME_LOGO = AGENT_Z_LOGO
+
+# Hero ASCII Art - 简约风格
 HERO_ASCII = """\
-[bold #A0B45A]░█▀█░█░█░█▀▀░█▀▀░█▀█░█▄█░█▀▀░░░▀█▀░█▀█░▀█▀░█▀▀░█░░░█░░░▀█▀░█▀▀░█▀▀░█▀█░█▀▀░█▀▀[/]
-[bold #A0B45A]░█▀█░█▄█░█▀▀░▀▀█░█░█░█░█░█▀▀░░░░█░░█░█░░█░░█▀▀░█░░░█░░░░█░░█░█░█▀▀░█░█░█░░░█▀▀[/]
-[bold #A0B45A]░▀░▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░░░▀▀▀░▀░▀░░▀░░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀[/]
-[dim #647030]                                                    Agent[/]"""
+[bold #000000]░█▀█░█░█░█▀▀░█▀▀░█▀█░█▄█░█▀▀░░░▀█▀░█▀█░▀█▀░█▀▀░█░░░█░░░▀█▀░█▀▀░█▀▀░█▀█░█▀▀░█▀▀[/]
+[bold #000000]░█▀█░█▄█░█▀▀░▀▀█░█░█░█░█░█▀▀░░░░█░░█░█░░█░░█▀▀░█░░░█░░░░█░░█░█░█▀▀░█░█░█░░░█▀▀[/]
+[bold #000000]░▀░▀░▀░▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░░░▀▀▀░▀░▀░░▀░░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀▀▀[/]
+[dim #666666]                                                    Agent[/]"""
 
 
 # ============================================================================
@@ -120,7 +123,7 @@ def build_welcome_banner(
     banner_text = "white"
 
     # Fixed branding
-    agent_name = "Handsome Agent"
+    agent_name = "Agent-Z"
     welcome_msg = i18n.t("subtitle")
 
     # Print default logo
@@ -141,8 +144,8 @@ def build_welcome_banner(
         left_parts.append(line)
 
     left_parts.append("")
-    left_parts.append(f"[dim {banner_dim}]Handsome Agent[/]")
-    left_parts.append(f"[dim {banner_dim}]Handsome-Brain + OpenClaw-Body[/]")
+    left_parts.append(f"[dim {banner_dim}]Agent-Z[/]")
+    left_parts.append(f"[dim {banner_dim}]Hermes-Brain + OpenClaw-Body[/]")
 
     # Model info
     if model:
@@ -294,7 +297,7 @@ def print_simple_banner() -> None:
     i18n = get_i18n()
 
     # 清理 Rich 标记
-    clean_logo = HANDSOME_LOGO.replace('[bold #8B9A46]', '').replace('[/]', '')
+    clean_logo = AGENT_Z_LOGO.replace('[bold #000000]', '').replace('[/]', '')
     
     print()
     print(f"╔{'═' * 56}╗")
@@ -309,14 +312,98 @@ def print_simple_banner() -> None:
 
 
 # ============================================================================
+# Setup Wizard Banner Functions
+# ============================================================================
+
+def print_setup_banner(config: dict = None) -> None:
+    """Print setup wizard banner with optional config info."""
+    # 清理 Rich 标记
+    clean_logo = AGENT_Z_LOGO.replace('[bold #000000]', '').replace('[/]', '')
+
+    print()
+    print(f"╔{'═' * 56}╗")
+    print(f"║{' ' * 56}║")
+
+    # Logo
+    for line in clean_logo.split('\n'):
+        print(f"║   {line}{' ' * (56 - len(line))}║")
+
+    print(f"║{' ' * 56}║")
+    print(f"║   ⚙️  Setup Wizard{' ' * 38}║")
+    print(f"║{' ' * 56}║")
+
+    # 显示配置状态
+    if config:
+        llm = config.get('llm', {})
+        provider = llm.get('provider', 'none')
+        model = llm.get('model', '')
+        if provider and provider != 'none':
+            status_text = f"LLM: {provider}"
+            if model:
+                status_text += f" / {model}"
+            print(f"║   ✓ {status_text:<52}║")
+        else:
+            print(f"║   ○ {'Not configured':<49}║")
+    else:
+        print(f"║   ○ {'Not configured':<49}║")
+
+    print(f"║{' ' * 56}║")
+    print(f"╚{'═' * 56}╝")
+    print()
+
+
+def print_setup_summary(config_status: dict) -> None:
+    """Print setup configuration summary."""
+    print()
+    print(f"╔{'═' * 56}╗")
+    print(f"║{' ' * 56}║")
+    print(f"║   📋 Configuration Summary{' ' * 30}║")
+    print(f"║{' ' * 56}║")
+
+    # LLM Status
+    llm = config_status.get("llm", {})
+    if llm.get("configured"):
+        print(f"║   ✓ LLM: {llm.get('provider', 'unknown'):<46}║")
+        if llm.get("model"):
+            print(f"║     Model: {llm.get('model', '')[:44]:<44}║")
+    else:
+        print(f"║   ○ LLM: Not configured{' ' * 37}║")
+
+    print(f"║{' ' * 56}║")
+
+    # Terminal Status
+    terminal = config_status.get("terminal", {})
+    backend = terminal.get("backend", "local")
+    print(f"║   ✓ Terminal: {backend:<45}║")
+
+    print(f"║{' ' * 56}║")
+
+    # Memory Status
+    memory = config_status.get("memory", {})
+    if memory.get("enabled"):
+        semantic = memory.get("semantic_retrieval_enabled", False)
+        semantic_str = "Semantic" if semantic else "Basic"
+        print(f"║   ✓ Memory: {semantic_str:<44}║")
+    else:
+        print(f"║   ○ Memory: Disabled{' ' * 40}║")
+
+    print(f"║{' ' * 56}║")
+    print(f"╚{'═' * 56}╝")
+    print()
+
+
+# ============================================================================
 # 模块导出
 # ============================================================================
 
 __all__ = [
     "build_welcome_banner",
     "print_simple_banner",
+    "print_setup_banner",
+    "print_setup_summary",
     "HAS_RICH",
     # 常量
+    "AGENT_Z_LOGO",
     "AVOCADO",
     "AVOCADO_BRIGHT",
     "AVOCADO_DIM",

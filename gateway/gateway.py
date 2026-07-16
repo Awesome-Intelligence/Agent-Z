@@ -20,7 +20,7 @@ logger = get_access_logger("Gateway")
 @dataclass
 class GatewayConfig:
     """Gateway 配置"""
-    name: str = "HandsomeAgentGateway"
+    name: str = "AgentGateway"
     host: str = "0.0.0.0"
     port: int = 8000
     brain_service_url: str = "http://localhost:8000"  # 统一使用 8000 端口

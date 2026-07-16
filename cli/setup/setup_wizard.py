@@ -35,8 +35,9 @@ from common.terminal.ui import (
 from common.terminal.banner import (
     build_welcome_banner,
     print_simple_banner,
+    print_setup_banner,
+    print_setup_summary,
 )
-from cli.ui.banner import print_setup_banner, print_setup_summary
 
 enable_ansi_support()
 

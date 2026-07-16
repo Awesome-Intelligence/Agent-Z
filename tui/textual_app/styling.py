@@ -74,7 +74,7 @@ def build_textual_themes() -> list:
 class StylingMixin:
     """主题/样式/透明度 Mixin.
 
-    依赖主类（``HandsomeAgentApp``）初始化时设置以下属性：
+    依赖主类（``AgentApp``）初始化时设置以下属性：
     - ``self._theme_manager``           ThemeManager 单例
     - ``self._logger``                  logger
     - ``self._theme_css_loaded``        bool

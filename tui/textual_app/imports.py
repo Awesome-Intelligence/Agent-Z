@@ -17,7 +17,7 @@ v8.x 重构：
 - ``_patch_textual_logger()`` —— Textual LayerLogger 静音补丁
 
 所有导入均使用 ``None`` 或 stub fallback，**不会抛 ImportError**，
-以保证 ``from tui.textual_app.app import HandsomeAgentApp`` 在任何环境都能 import。
+以保证 ``from tui.textual_app.app import AgentApp`` 在任何环境都能 import。
 """
 
 from __future__ import annotations
@@ -136,7 +136,7 @@ except ImportError:
     logging.basicConfig(level=logging.INFO)
 
     def get_access_logger(*args, **kwargs):
-        return logging.getLogger("HandsomeAgent")
+        return logging.getLogger("Agent")
 
     LogManager = None  # type: ignore
 

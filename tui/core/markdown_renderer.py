@@ -231,8 +231,8 @@ class RichFormatter:
 # Mistune Markdown 渲染器
 # ============================================================================
 
-class HandsomeAgentRenderer:
-    """Handsome Agent 自定义 Mistune 渲染器.
+class AgentRenderer:
+    """Agent 自定义 Mistune 渲染器.
 
     将 Markdown 转换为 Rich 格式文本。
     """
@@ -357,16 +357,16 @@ class HandsomeAgentRenderer:
 
 # 仅在 mistune 可用时定义 Markdown 解析器
 if MISTUNE_AVAILABLE:
-    class HandsomeAgentMarkdown(mistune.Markdown):
-        """Handsome Agent 自定义 Markdown 解析器."""
+    class AgentMarkdown(mistune.Markdown):
+        """Agent 自定义 Markdown 解析器."""
 
         def __init__(self, renderer=None, **kwargs):
             if renderer is None:
-                renderer = HandsomeAgentRenderer()
+                renderer = AgentRenderer()
             super().__init__(renderer=renderer, **kwargs)
 else:
     # 降级：提供一个空的占位类
-    class HandsomeAgentMarkdown:
+    class AgentMarkdown:
         """降级：mistune 不可用时的占位类."""
         def __init__(self, **kwargs):
             pass
@@ -397,7 +397,7 @@ class MarkdownRenderer:
             cache_size: LRU 缓存大小，None 则使用默认值
         """
         self._enable_code_highlight = enable_code_highlight
-        self._markdown: Optional[HandsomeAgentMarkdown] = None
+        self._markdown: Optional[AgentMarkdown] = None
         self._cache_size = cache_size or self.DEFAULT_CACHE_SIZE
         # ponytail: OrderedDict for O(1) LRU — move_to_end() instead of list pop(0)
         from collections import OrderedDict
@@ -410,12 +410,12 @@ class MarkdownRenderer:
         """初始化 Markdown 解析器."""
         try:
             # 尝试带参数的初始化
-            self._markdown = HandsomeAgentMarkdown(
-                renderer=HandsomeAgentRenderer(),
+            self._markdown = AgentMarkdown(
+                renderer=AgentRenderer(),
             )
         except TypeError:
             # 降级：不带参数初始化
-            self._markdown = HandsomeAgentMarkdown()
+            self._markdown = AgentMarkdown()
 
     def is_available(self) -> bool:
         """检查 Markdown 渲染是否可用."""
@@ -609,8 +609,8 @@ def get_markdown_features() -> dict:
 
 __all__ = [
     "MarkdownRenderer",
-    "HandsomeAgentRenderer",
-    "HandsomeAgentMarkdown",
+    "AgentRenderer",
+    "AgentMarkdown",
     "RichFormatter",
     "markdown_to_rich",
     "is_markdown_available",

@@ -1,12 +1,12 @@
 """
-Handsome Agent TUI Module
+Agent TUI Module
 
-A modern terminal user interface for the Handsome Agent application.
+A modern terminal user interface for the Agent application.
 
 🚪 Access - 💬 TUI - Module
 
 Usage:
-    from tui import HandsomeAgentApp, ThemeManager
+    from tui import AgentApp, ThemeManager
     from tui.textual_app import run_textual_app
 
     # 独立启动 TUI
@@ -20,7 +20,7 @@ __version__ = "0.1.0"
 
 # 主应用
 from tui.textual_app import (
-    HandsomeAgentApp,
+    AgentApp,
     run_textual_app,
     TEXTUAL_AVAILABLE,
     check_textual_available,
@@ -76,7 +76,7 @@ __all__ = [
     # 版本
     "__version__",
     # 主应用
-    "HandsomeAgentApp",
+    "AgentApp",
     "run_textual_app",
     "TEXTUAL_AVAILABLE",
     "check_textual_available",

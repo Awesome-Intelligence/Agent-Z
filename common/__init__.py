@@ -2,7 +2,7 @@
 from .config import get_settings, load_config
 from .logging import setup_logging, get_logger
 from .exceptions import (
-    HandsomeAgentError,
+    AgentError,
     BrainServiceError,
     ExecutorError,
     ToolError,
@@ -14,7 +14,7 @@ __all__ = [
     "load_config",
     "setup_logging",
     "get_logger",
-    "HandsomeAgentError",
+    "AgentError",
     "BrainServiceError",
     "ExecutorError",
     "ToolError",

@@ -147,7 +147,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
 
         self.send_json(200, {
             "status": overall_status,
-            "gateway": "HandsomeAgent Gateway v1.0",
+            "gateway": "Agent Gateway v1.0",
             "uptime_seconds": round(time.time() - self.start_time, 2),
             "process": process_health,
             "dependencies": deps_health,
@@ -163,7 +163,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "gateway": {
                 "uptime_seconds": round(time.time() - self.start_time, 2),
                 "version": "1.0.0",
-                "name": "HandsomeAgent Gateway"
+                "name": "Agent Gateway"
             },
             "rate_limiting": rate_stats,
             "system": system_stats
@@ -177,7 +177,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
     def _handle_info(self):
         """Gateway information endpoint."""
         self.send_json(200, {
-            "name": "HandsomeAgent Gateway",
+            "name": "Agent Gateway",
             "version": "1.0.0",
             "architecture": "Hermes-style",
             "endpoints": {
@@ -406,7 +406,7 @@ def run_gateway(config: Optional[GatewayConfig] = None, agent=None, llm_provider
     
     print(f"""
 ╔══════════════════════════════════════════════════════════════════╗
-║                  HandsomeAgent Gateway                       ║
+║                  Agent Gateway                               ║
 ║                  Hermes-style Architecture                 ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  URL: http://{config.host}:{config.port}                          
@@ -451,7 +451,7 @@ def run_gateway(config: Optional[GatewayConfig] = None, agent=None, llm_provider
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='HandsomeAgent Gateway')
+    parser = argparse.ArgumentParser(description='Agent Gateway')
     parser.add_argument('--host', default='0.0.0.0')
     parser.add_argument('--port', type=int, default=8000)
     parser.add_argument('--api-key', help='API key for authentication')

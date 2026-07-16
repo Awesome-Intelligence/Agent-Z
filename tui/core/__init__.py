@@ -15,8 +15,8 @@ from __future__ import annotations
 # 导出 Markdown 渲染模块
 from tui.core.markdown_renderer import (
     MarkdownRenderer,
-    HandsomeAgentRenderer,
-    HandsomeAgentMarkdown,
+    AgentRenderer,
+    AgentMarkdown,
     RichFormatter,
     markdown_to_rich,
     is_markdown_available,
@@ -40,8 +40,8 @@ from common.terminal.curses_ui import (
 __all__ = [
     # markdown_renderer
     "MarkdownRenderer",
-    "HandsomeAgentRenderer",
-    "HandsomeAgentMarkdown",
+    "AgentRenderer",
+    "AgentMarkdown",
     "RichFormatter",
     "markdown_to_rich",
     "is_markdown_available",

@@ -56,7 +56,7 @@ except ImportError:
     import logging
     logging.basicConfig(level=logging.INFO)
     def get_access_logger(*args, **kwargs):
-        return logging.getLogger("HandsomeAgent")
+        return logging.getLogger("Agent")
 
 
 # ============================================================================

@@ -112,7 +112,7 @@ _patch_textual_logger()
 THEMES: list[Theme] = build_textual_themes() if TEXTUAL_AVAILABLE else []
 
 
-class HandsomeAgentApp(
+class AgentApp(
     StylingMixin,
     StatusBarMixin,
     BannerMixin,
@@ -142,7 +142,7 @@ class HandsomeAgentApp(
         themes: list[Theme] = THEMES
     CSS = APP_CSS
 
-    def __init__(self, model_name: str='Handsome Agent', provider: str | None=None, cwd: str | None=None, session_id: str | None=None, context_length: int | None=None, approval_mode: str | ApprovalMode='suggest', initial_theme: str | None=None, agent=None, **kwargs):
+    def __init__(self, model_name: str='Agent', provider: str | None=None, cwd: str | None=None, session_id: str | None=None, context_length: int | None=None, approval_mode: str | ApprovalMode='suggest', initial_theme: str | None=None, agent=None, **kwargs):
         _patch_textual_logger()
         self._tui_log_handler: TuiLogHandler | None = None
         self._saved_console_handler: logging.Handler | None = None
@@ -663,7 +663,7 @@ def run_textual_app(model_name: str='Handsome Agent', provider: str | None=None,
         print(f'\n⚠ Cannot start Textual TUI: {reason}')
         print('Falling back to legacy CLI mode...\n')
         return 1
-    app = HandsomeAgentApp(model_name=model_name, provider=provider, cwd=cwd, session_id=session_id, context_length=context_length, approval_mode=approval_mode, initial_theme=initial_theme, agent=agent)
+    app = AgentApp(model_name=model_name, provider=provider, cwd=cwd, session_id=session_id, context_length=context_length, approval_mode=approval_mode, initial_theme=initial_theme, agent=agent)
     try:
         return app.run()
     finally:
@@ -717,7 +717,7 @@ def create_fallback_app(model_name: str='Handsome Agent', provider: str | None=N
     print_info('For TUI mode, install: pip install textual>=0.50.0')
     print()
 __all__ = [
-    "HandsomeAgentApp",
+    "AgentApp",
     "run_textual_app",
     "check_textual_available",
     "get_textual_import_error",
@@ -734,7 +734,7 @@ __all__ = [
     "NotificationType",
 ]
 if __name__ == '__main__':
-    print('Testing HandsomeAgentApp...')
+    print('Testing AgentApp...')
     print()
     if not TEXTUAL_AVAILABLE:
         print('Textual is not available.')

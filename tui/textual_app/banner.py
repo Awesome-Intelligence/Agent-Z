@@ -35,13 +35,21 @@ from .imports import RichText
 
 logger = logging.getLogger(__name__)
 
+# 从 common.terminal.banner 导入统一的 Logo
+from common.terminal.banner import AGENT_Z_LOGO
 
-# ASCII Art 常量
-_BANNER_LINES = (
-    "░█░█░█▀█░█▀█░█▀▄░█▀▀░█▀█░█▄█░█▀▀",
-    "░█▀█░█▀█░█░█░█░█░▀▀█░█░█░█░█░█▀▀",
-    "░▀░▀░▀░▀░▀░▀░▀▀░░▀▀▀░▀▀▀░▀░▀░▀▀▀",
-)
+# 解析 AGENT_Z_LOGO 为行列表（用于 TUI 渲染）
+def _parse_logo_lines() -> tuple:
+    """解析 AGENT_Z_LOGO 为行列表."""
+    # 移除 Rich 标记，只保留 ASCII 字符
+    lines = []
+    for line in AGENT_Z_LOGO.split('\n'):
+        # 移除 [bold #XXXXXX] 和 [/] 标记
+        clean_line = line.replace('[bold #000000]', '').replace('[/]', '')
+        lines.append(clean_line)
+    return tuple(lines)
+
+_BANNER_LINES = _parse_logo_lines()
 
 _DEFAULT_GREETINGS = {
     "zh": [

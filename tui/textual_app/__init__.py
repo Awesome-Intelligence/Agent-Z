@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Textual TUI Application Module - Handsome Agent
+Textual TUI Application Module
 
 🚪 Access - 💬 CLI - Textual UI
 
@@ -14,7 +14,7 @@ from __future__ import annotations
 # 向后兼容：暴露公共 API
 # ---------------------------------------------------------------------------
 #
-# 注意：原代码使用 ``from .app import (HandsomeAgentApp, run_textual_app, ...)``
+# 注意：原代码使用 ``from .app import (AgentApp, run_textual_app, ...)``
 # 这种**显式列表**形式在 v8.x 重构后容易因依赖顺序问题失败（若 app.py 顶部
 # import 任一子模块出错，整个 from-import 块会被 Python 静默回滚）。
 # 改用 ``import`` + 显式 ``__getattr__`` 风格，**鲁棒**地暴露所有公共符号。
@@ -27,7 +27,7 @@ from . import text_area as _text_area_module
 from . import screens as _screens_module
 
 # 主应用类 & 启动函数（来自 app.py）
-HandsomeAgentApp = _app_module.HandsomeAgentApp
+AgentApp = _app_module.AgentApp
 run_textual_app = _app_module.run_textual_app
 check_textual_available = _app_module.check_textual_available
 get_textual_import_error = _app_module.get_textual_import_error
@@ -60,7 +60,7 @@ PURPLE_DARK = _app_module.PURPLE_DARK
 
 __all__ = [
     # 主应用类
-    "HandsomeAgentApp",
+    "AgentApp",
     # 启动函数
     "run_textual_app",
     "check_textual_available",

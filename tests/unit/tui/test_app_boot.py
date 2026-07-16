@@ -82,7 +82,7 @@ class TestTextualCompatibility:
 
 
 class TestAppInitialization:
-    """Test HandsomeAgentApp initialization."""
+    """Test AgentApp initialization."""
 
     def test_app_creation_basic(self):
         """Test basic app creation with minimal parameters."""
@@ -91,11 +91,11 @@ class TestAppInitialization:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp()
+        app = AgentApp()
         
-        assert app.model_name == "Handsome Agent"
+        assert app.model_name == "Agent"
         assert app.provider is None
         assert app.session_id is None
 
@@ -106,9 +106,9 @@ class TestAppInitialization:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp(
+        app = AgentApp(
             model_name="gpt-4o",
             provider="OpenAI",
             cwd="/test/path",
@@ -129,9 +129,9 @@ class TestAppInitialization:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp()
+        app = AgentApp()
         
         # Check initial state
         assert app._is_loading is False
@@ -145,9 +145,9 @@ class TestAppInitialization:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp()
+        app = AgentApp()
         
         # Theme should be initialized
         assert hasattr(app, 'theme_id')
@@ -163,9 +163,9 @@ class TestAppInitialization:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp()
+        app = AgentApp()
         
         # Check loading frames are defined
         assert "dots" in app._LOADING_FRAMES
@@ -183,21 +183,21 @@ class TestAppInitialization:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp()
+        app = AgentApp()
         
         # Check builtin models are defined
         assert len(app._builtin_models) > 0
         
-        # First model should be Handsome Agent
+        # First model should be Agent
         model_values = [m[0] for m in app._builtin_models]
-        assert "Handsome Agent" in model_values
+        assert "Agent" in model_values
         assert "custom" in model_values
 
 
 class TestAppMethods:
-    """Test HandsomeAgentApp methods."""
+    """Test AgentApp methods."""
 
     def test_set_loading_style_valid(self):
         """Test setting valid loading style."""
@@ -206,9 +206,9 @@ class TestAppMethods:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp()
+        app = AgentApp()
         
         result = app.set_loading_style("circle")
         assert result is True
@@ -221,9 +221,9 @@ class TestAppMethods:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp()
+        app = AgentApp()
         
         result = app.set_loading_style("invalid_style")
         assert result is False
@@ -235,9 +235,9 @@ class TestAppMethods:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp()
+        app = AgentApp()
         
         initial_style = app._loading_style
         next_style = app.cycle_loading_style()
@@ -252,9 +252,9 @@ class TestAppMethods:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp()
+        app = AgentApp()
         
         # Initially not streaming
         assert app.is_streaming() is False
@@ -270,9 +270,9 @@ class TestAppMethods:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp()
+        app = AgentApp()
         
         # Set streaming state
         app._is_streaming = True
@@ -294,9 +294,9 @@ class TestAppMethods:
         if not TEXTUAL_AVAILABLE:
             pytest.skip("Textual not available")
         
-        from tui.textual_app.app import HandsomeAgentApp
+        from tui.textual_app.app import AgentApp
         
-        app = HandsomeAgentApp()
+        app = AgentApp()
         
         # Test millions
         assert app._format_context(2000000) == "2M"
@@ -328,7 +328,7 @@ class TestRunTextualApp:
 
     @patch('tui.textual_app.app.TEXTUAL_AVAILABLE', True)
     @patch('tui.textual_app.app.is_textual_compatible')
-    @patch('tui.textual_app.app.HandsomeAgentApp')
+    @patch('tui.textual_app.app.AgentApp')
     def test_run_textual_app_not_compatible(self, mock_app_class, mock_compatible):
         """Test run_textual_app when environment is not compatible."""
         from tui.textual_app.app import run_textual_app
@@ -343,13 +343,13 @@ class TestRunTextualApp:
     @patch('tui.textual_app.app.is_textual_compatible')
     def test_run_textual_app_returns_app_exit_code(self, mock_compatible):
         """Test that run_textual_app returns the app's exit code."""
-        from tui.textual_app.app import run_textual_app, HandsomeAgentApp
+        from tui.textual_app.app import run_textual_app, AgentApp
         
         mock_compatible.return_value = (True, None)
         
         mock_app = MagicMock()
         mock_app.run.return_value = 0
-        HandsomeAgentApp.return_value = mock_app
+        AgentApp.return_value = mock_app
         
         result = run_textual_app()
         
