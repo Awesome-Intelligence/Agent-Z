@@ -654,18 +654,22 @@ class AgentApp(
 
     def on_settings_saved(self, event) -> None:
         """Settings 保存后同步 Agent 运行时模型（无需重启）。"""
-        if not hasattr(self, '_agent') or not self._agent:
-            return
         try:
             from common.config import load_config
             cfg = load_config()
             llm = cfg.get('llm', {})
             provider = llm.get('provider', '')
-            if provider:
+            if provider and hasattr(self, '_agent') and self._agent:
                 self._agent.set_model(provider=provider, model=llm.get('model') or None, api_key=llm.get('api_key') or None, base_url=llm.get('base_url') or None)
                 self._logger.info(f'Agent model synced to {provider}')
         except Exception as e:
             self._logger.warning(f'Failed to sync agent model: {e}')
+
+        try:
+            self._refresh_model_selector()
+            self._logger.info('Model selector refreshed after settings saved')
+        except Exception as e:
+            self._logger.warning(f'Failed to refresh model selector: {e}')
 
 def run_textual_app(model_name: str='Agent-Z', provider: str | None=None, cwd: str | None=None, session_id: str | None=None, context_length: int | None=None, approval_mode: str='suggest', agent=None) -> int:
     if not TEXTUAL_AVAILABLE:
