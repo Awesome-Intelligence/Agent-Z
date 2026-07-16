@@ -1,4 +1,4 @@
-# Handsome Agent 정적 메시지 카탈로그 -- 한국어
+# Agent-Z 정적 메시지 카탈로그 -- 한국어
 # See common/locales/en.yaml for the source of truth; keep keys in sync.
 
 # =============================================================================
@@ -7,7 +7,7 @@
 
 setup:
   banner:
-    title: "◆ Handsome Agent 설정 마법사 ◆"
+    title: "◆ Agent-Z 설정 마법사 ◆"
     subtitle: "당신의 만능 AI 어시스턴트"
     current_config: "현재 설정"
     not_configured: "설정되지 않음"
@@ -95,7 +95,7 @@ setup:
   # Workspace Config
   workspace:
     title: "📁 작업 공간 설정"
-    description: "Handsome Agent의 작업 공간 디렉토리를 설정합니다. 설정, 세션, 메모리 등의 파일을 포함합니다."
+    description: "Agent-Z의 작업 공간 디렉토리를 설정합니다. 설정, 세션, 메모리 등의 파일을 포함합니다."
     current: "현재 경로"
     change_prompt: "작업 공간 경로를 변경하시겠습니까?"
     new_path: "새 작업 공간 경로 입력"
@@ -331,7 +331,7 @@ setup:
 # =============================================================================
 
 cli:
-  welcome: "Handsome Agent에 오신 것을 환영합니다"
+  welcome: "Agent-Z에 오신 것을 환영합니다"
   goodbye: "안녕히 가세요！"
   running: "실행 중..."
   error: "오류: {message}"
@@ -352,7 +352,7 @@ interactive:
 # =============================================================================
 
 banner:
-  setup_title: "◆ Handsome Agent 설정 마법사 ◆"
+  setup_title: "◆ Agent-Z 설정 마법사 ◆"
   setup_subtitle: "당신의 만능 AI 어시스턴트"
   config_status: "설정 상태"
   run_commands: "실행 명령："
@@ -511,7 +511,7 @@ menu:
 
 onboarding:
   welcome:
-    title: "Handsome Agent에 오신 것을 환영합니다"
+    title: "Agent-Z에 오신 것을 환영합니다"
     subtitle: "당신의 만능 AI 어시스턴트"
     description: "몇 단계에서 AI 어시스턴트를 설정해 보겠습니다"
     steps_preview: "단계: 프로바이더 → API Key → 언어 → 디렉토리"
@@ -545,13 +545,13 @@ onboarding:
   
   directory:
     title: "📁 작업 디렉토리 신뢰"
-    description: "Handsome Agent의 작업 디렉토리 설정"
+    description: "Agent-Z의 작업 디렉토리 설정"
     current: "현재 작업 공간"
     info: "이 디렉토리는 구성, 세션 및 메모리 파일을 저장합니다."
   
   complete:
     title: "✅ 설정 완료!"
-    message: "Handsome Agent를 사용할 준비가 되었습니다!"
+    message: "Agent-Z를 사용할 준비가 되었습니다!"
     provider: "프로바이더"
     language: "언어"
     directory: "작업 공간"
@@ -644,7 +644,7 @@ tui:
     show_help: "도움말 표시"
     show_help_desc: "도움말 패널을 엽니다"
     quit: "앱 종료"
-    quit_desc: "Handsome Agent 를 종료합니다"
+    quit_desc: "Agent-Z 를 종료합니다"
     settings: "설정"
     settings_desc: "앱 설정을 엽니다"
   input:

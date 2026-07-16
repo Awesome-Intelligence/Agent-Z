@@ -1,4 +1,4 @@
-# Handsome Agent static-message catalog -- English (baseline / source of truth)
+# Agent-Z static-message catalog -- English (baseline / source of truth)
 #
 # Only user-facing static messages from the CLI approval prompt and a handful
 # of gateway slash-command replies live here.  Agent-generated output, log
@@ -15,7 +15,7 @@
 
 setup:
   banner:
-    title: "◆ Handsome Agent Setup ◆"
+    title: "◆ Agent-Z Setup ◆"
     subtitle: "Your AI assistant for everything"
     current_config: "Current configuration"
     not_configured: "Not configured yet"
@@ -103,7 +103,7 @@ setup:
   # Workspace Config
   workspace:
     title: "📁 Workspace Configuration"
-    description: "Set the workspace directory for Handsome Agent, containing config, sessions, memories, etc."
+    description: "Set the workspace directory for Agent-Z, containing config, sessions, memories, etc."
     current: "Current path"
     change_prompt: "Do you want to change the workspace path?"
     new_path: "Enter new workspace path"
@@ -340,7 +340,7 @@ setup:
 # =============================================================================
 
 cli:
-  welcome: "Welcome to Handsome Agent"
+  welcome: "Welcome to Agent-Z"
   goodbye: "Goodbye!"
   running: "Running..."
   error: "Error: {message}"
@@ -361,7 +361,7 @@ interactive:
 # =============================================================================
 
 banner:
-  setup_title: "◆ Handsome Agent Setup ◆"
+  setup_title: "◆ Agent-Z Setup ◆"
   setup_subtitle: "Your AI assistant for everything"
   config_status: "Configuration Status"
   run_commands: "Run commands:"
@@ -546,7 +546,7 @@ chat:
 
 onboarding:
   welcome:
-    title: "Welcome to Handsome Agent"
+    title: "Welcome to Agent-Z"
     subtitle: "Your AI assistant for everything"
     description: "Let's set up your AI assistant in a few steps"
     steps_preview: "Steps: Provider → API Key → Language → Directory"
@@ -580,13 +580,13 @@ onboarding:
   
   directory:
     title: "📁 Trust Workspace Directory"
-    description: "Set the working directory for Handsome Agent"
+    description: "Set the working directory for Agent-Z"
     current: "Current workspace"
     info: "This directory stores config, sessions, and memory files."
   
   complete:
     title: "✅ Setup Complete!"
-    message: "Your Handsome Agent is ready to use!"
+    message: "Your Agent-Z is ready to use!"
     provider: "Provider"
     language: "Language"
     directory: "Workspace"
@@ -679,7 +679,7 @@ tui:
     show_help: "Show Help"
     show_help_desc: "Open the help panel"
     quit: "Quit Application"
-    quit_desc: "Exit Handsome Agent"
+    quit_desc: "Exit Agent-Z"
     settings: "Settings"
     settings_desc: "Open application settings"
   input:

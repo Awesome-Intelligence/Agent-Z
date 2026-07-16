@@ -1,4 +1,4 @@
-# Handsome Agent 静的メッセージカタログ -- 日本語
+# Agent-Z 静的メッセージカタログ -- 日本語
 # See common/locales/en.yaml for the source of truth; keep keys in sync.
 
 # =============================================================================
@@ -7,7 +7,7 @@
 
 setup:
   banner:
-    title: "◆ Handsome Agent セットアップ ◆"
+    title: "◆ Agent-Z セットアップ ◆"
     subtitle: "あなたの万能AIアシスタント"
     current_config: "現在の設定"
     not_configured: "未設定"
@@ -95,7 +95,7 @@ setup:
   # Workspace Config
   workspace:
     title: "📁 ワークスペース設定"
-    description: "Handsome Agent のワークスペースディレクトリを設定します。設定、セッション、メモリなどのファイルを含みます。"
+    description: "Agent-Z のワークスペースディレクトリを設定します。設定、セッション、メモリなどのファイルを含みます。"
     current: "現在のパス"
     change_prompt: "ワークスペースパスを変更しますか？"
     new_path: "新しいワークスペースパスを入力"
@@ -331,7 +331,7 @@ setup:
 # =============================================================================
 
 cli:
-  welcome: "Handsome Agent へようこそ"
+  welcome: "Agent-Z へようこそ"
   goodbye: "さようなら！"
   running: "実行中..."
   error: "エラー: {message}"
@@ -352,7 +352,7 @@ interactive:
 # =============================================================================
 
 banner:
-  setup_title: "◆ Handsome Agent セットアップ ◆"
+  setup_title: "◆ Agent-Z セットアップ ◆"
   setup_subtitle: "あなたの万能AIアシスタント"
   config_status: "設定ステータス"
   run_commands: "実行コマンド："
@@ -511,7 +511,7 @@ menu:
 
 onboarding:
   welcome:
-    title: "Handsome Agent へようこそ"
+    title: "Agent-Z へようこそ"
     subtitle: "あなたの万能AIアシスタント"
     description: "いくつかのステップでAIアシスタントを設定しましょう"
     steps_preview: "ステップ：プロバイダー → API Key → 言語 → ディレクトリ"
@@ -545,13 +545,13 @@ onboarding:
   
   directory:
     title: "📁 ワークスペースディレクトリを信頼"
-    description: "Handsome Agent の作業ディレクトリを設定"
+    description: "Agent-Z の作業ディレクトリを設定"
     current: "現在のワークスペース"
     info: "このディレクトリは設定、セッション、メモリファイルを保存します。"
   
   complete:
     title: "✅ セットアップ完了！"
-    message: "Handsome Agent を使用する準備ができました！"
+    message: "Agent-Z を使用する準備ができました！"
     provider: "プロバイダー"
     language: "言語"
     directory: "ワークスペース"
@@ -644,7 +644,7 @@ tui:
     show_help: "ヘルプを表示"
     show_help_desc: "ヘルプパネルを開く"
     quit: "アプリを終了"
-    quit_desc: "Handsome Agent を終了"
+    quit_desc: "Agent-Z を終了"
     settings: "設定"
     settings_desc: "アプリ設定を開く"
   input:

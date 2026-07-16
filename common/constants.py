@@ -11,9 +11,9 @@ from pathlib import Path
 
 
 # Agent information
-AGENT_NAME = "Handsome Agent"
+AGENT_NAME = "Agent-Z"
 AGENT_VERSION = "1.0.0"
-AGENT_AUTHOR = "Handsome Agent Team"
+AGENT_AUTHOR = "Agent-Z Team"
 
 # Environment variables
 ENV_HERMES_HOME = "HERMES_HOME"

@@ -64,7 +64,7 @@ def build_top_level_parser():
     """
     parser = argparse.ArgumentParser(
         prog="handsome",
-        description="Handsome Agent - AI assistant with tool-calling capabilities",
+        description="Agent-Z - AI assistant with tool-calling capabilities",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=_EPILOGUE,
     )
@@ -466,7 +466,7 @@ def build_top_level_parser():
     logs_parser = subparsers.add_parser(
         "logs",
         help="View logs",
-        description="View Handsome Agent logs",
+        description="View Agent-Z logs",
     )
     logs_parser.add_argument(
         "-n", "--lines",

@@ -1,4 +1,4 @@
-# Handsome Agent 静态消息目录 -- 中文（简体）
+# Agent-Z 静态消息目录 -- 中文（简体）
 # See common/locales/en.yaml for the source of truth; keep keys in sync.
 
 # =============================================================================
@@ -7,7 +7,7 @@
 
 setup:
   banner:
-    title: "◆ Handsome Agent 设置向导 ◆"
+    title: "◆ Agent-Z 设置向导 ◆"
     subtitle: "你的全能 AI 助手"
     current_config: "当前配置"
     not_configured: "尚未配置"
@@ -95,7 +95,7 @@ setup:
   # Workspace Config
   workspace:
     title: "📁 工作空间配置"
-    description: "设置 Handsome Agent 的工作空间目录，包含配置、会话、记忆等文件。"
+    description: "设置 Agent-Z 的工作空间目录，包含配置、会话、记忆等文件。"
     current: "当前路径"
     change_prompt: "是否要修改工作空间路径？"
     new_path: "请输入新的工作空间路径"
@@ -331,7 +331,7 @@ setup:
 # =============================================================================
 
 cli:
-  welcome: "欢迎使用 Handsome Agent"
+  welcome: "欢迎使用 Agent-Z"
   goodbye: "再见！"
   running: "运行中..."
   error: "错误：{message}"
@@ -352,7 +352,7 @@ interactive:
 # =============================================================================
 
 banner:
-  setup_title: "◆ Handsome Agent 设置向导 ◆"
+  setup_title: "◆ Agent-Z 设置向导 ◆"
   setup_subtitle: "你的全能 AI 助手"
   config_status: "配置状态"
   run_commands: "运行命令："
@@ -526,7 +526,7 @@ chat:
 
 onboarding:
   welcome:
-    title: "欢迎使用 Handsome Agent"
+    title: "欢迎使用 Agent-Z"
     subtitle: "你的全能 AI 助手"
     description: "让我们在几个步骤内完成 AI 助手的设置"
     steps_preview: "步骤：提供商 → API Key → 语言 → 目录"
@@ -560,13 +560,13 @@ onboarding:
   
   directory:
     title: "📁 信任工作目录"
-    description: "设置 Handsome Agent 的工作目录"
+    description: "设置 Agent-Z 的工作目录"
     current: "当前工作空间"
     info: "此目录存储配置、会话和记忆文件。"
   
   complete:
     title: "✅ 设置完成！"
-    message: "您的 Handsome Agent 已准备就绪！"
+    message: "您的 Agent-Z 已准备就绪！"
     provider: "提供商"
     language: "语言"
     directory: "工作空间"
@@ -659,7 +659,7 @@ tui:
     show_help: "显示帮助"
     show_help_desc: "打开帮助面板"
     quit: "退出应用"
-    quit_desc: "退出 Handsome Agent"
+    quit_desc: "退出 Agent-Z"
     settings: "设置"
     settings_desc: "打开应用设置"
   input:

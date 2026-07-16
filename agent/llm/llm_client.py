@@ -156,7 +156,7 @@ class LLMClient:
     def _build_system_meta(
         tools: Optional[Dict[str, Any]] = None,
         provider_name: str = "auto",
-        model_name: str = "Handsome Agent",
+        model_name: str = "Agent-Z",
     ) -> Dict[str, Any]:
         """构建注入 Base(stable) 层的 Agent 启动元信息。
 
@@ -390,7 +390,7 @@ class LLMClient:
             if self._context_manager:
                 # H1: 构建 system_meta（启动时固定，影响 stable 层缓存）
                 provider_name = getattr(self._provider, "provider_name", "auto")
-                model_name = getattr(self._provider, "model", "Handsome Agent")
+                model_name = getattr(self._provider, "model", "Agent-Z")
                 system_meta = self._build_system_meta(
                     tools=tools,
                     provider_name=provider_name,

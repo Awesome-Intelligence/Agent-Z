@@ -26,7 +26,7 @@ def uninstall_agent(force: bool = False, backup: bool = True) -> None:
     from common.terminal.colors import Colors, color
     from common.terminal.ui import print_header, print_success, print_error, print_info, print_warning
     
-    print_header("🗑️ 卸载 Handsome Agent")
+    print_header("🗑️ 卸载 Agent-Z")
     
     config_dir = Path.home() / ".handsome_agent"
     
@@ -210,7 +210,7 @@ def list_backups() -> None:
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Uninstall Handsome Agent")
+    parser = argparse.ArgumentParser(description="Uninstall Agent-Z")
     parser.add_argument("-f", "--force", action="store_true", help="Skip confirmation")
     parser.add_argument("--no-backup", action="store_true", help="Don't create backup")
     parser.add_argument("action", nargs="?", choices=["backup", "restore", "list"],

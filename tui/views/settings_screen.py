@@ -843,7 +843,7 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
     def _build_about_content(self, settings: SettingsDocument) -> ComposeResult:
         """构建关于内容"""
         about = settings.about
-        yield Static("ℹ️ 关于 Handsome Agent", classes="about-title")
+        yield Static("ℹ️ 关于 Agent-Z", classes="about-title")
         yield Static(f"版本: {about.version}", classes="about-content")
         yield Static(f"许可证: {about.license}", classes="about-content")
         yield Static("一个基于 LLM 的智能助手", classes="about-content")

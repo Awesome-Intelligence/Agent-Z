@@ -94,7 +94,7 @@ def run_setup_if_needed():
     is_first_run = not workspace_manager.is_workspace_setup_completed()
 
     if is_first_run:
-        ui.print_header("🎉 欢迎使用 Handsome Agent")
+        ui.print_header("🎉 欢迎使用 Agent-Z")
         print()
         ui.print_info("正在初始化工作空间...")
 
@@ -983,7 +983,7 @@ def main():
                     enable_detailed_logs=enable_detailed_logs,
                 )
                 llm_provider = setup_llm_integration(llm_config)
-                model_name = model or "Handsome Agent"
+                model_name = model or "Agent-Z"
             except Exception as e:
                 print(f"Warning: Failed to load saved LLM config: {e}")
 
