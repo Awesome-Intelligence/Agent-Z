@@ -42,10 +42,11 @@ class ContextManager:
 ```
 
 **验收标准**:
-- [ ] 添加 `_system_prompt_cache` 和 `_cache_key`
-- [ ] 实现 `invalidate_cache()` 方法
-- [ ] 在上下文压缩后调用 `invalidate_cache()`
-- [ ] 添加缓存命中/未命中日志
+- [x] 添加 `_stable_cache` / `_context_cache` / `_cache_hits` / `_cache_misses`（ContextBuilder 内部）
+- [x] 实现 `invalidate_stable_cache()` 方法（ContextManager 顶层 API）
+- [x] 实现 `get_cache_stats()` 方法（ContextManager 顶层 API）
+- [x] 添加缓存命中/未命中日志（build_parts debug 日志）
+- [x] 切换模型时自动清除 stable 缓存（LLMClient.set_active_model）
 
 ---
 
@@ -113,10 +114,15 @@ class SystemPromptBuilder:
 - [x] stable 层支持会话级缓存
 - [x] volatile 层每次重新构建
 - [x] 提供 `invalidate_stable_cache()` 方法
+- [x] Base Layer 注入 Agent 自我认知（version/OS/Python/tools_count/技能数）
+- [x] Session Layer 注入对话元信息（rounds/used_tools/start_time/session_id）
+- [x] stable 层缓存 bug 修复（避免缓存取值后立即被覆盖）
+- [x] context 层按内容 hash 缓存
+- [x] 缓存命中率日志
 
 ---
 
-## 低优先级
+## 低优先级（未开始）
 
 ### LLM 调用优化
 

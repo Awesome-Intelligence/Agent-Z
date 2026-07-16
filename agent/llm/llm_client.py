@@ -20,6 +20,7 @@ Retry/Fallback 架构：
 """
 
 import asyncio
+import datetime
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
 from enum import Enum
 from dataclasses import dataclass
@@ -150,6 +151,118 @@ class LLMClient:
             f"context_manager={'yes' if context_manager else 'no'}"
         )
 
+    # ── H1: 系统元信息构建（Base Layer）───────────────────────────────
+    @staticmethod
+    def _build_system_meta(
+        tools: Optional[Dict[str, Any]] = None,
+        provider_name: str = "auto",
+        model_name: str = "Handsome Agent",
+    ) -> Dict[str, Any]:
+        """构建注入 Base(stable) 层的 Agent 启动元信息。
+
+        解决 Agent 不知道自己是谁的问题（G5）：Agent 启动时的真实系统信息
+        被注入到系统提示的 About You 段落中，让 Agent 始终知道自己运行在
+        什么环境、什么版本、有什么能力。
+
+        Args:
+            tools: 当前可用工具字典
+            provider_name: LLM Provider 名称
+            model_name: 模型名称
+
+        Returns:
+            system_meta dict，供 ContextBuilder.build_parts() 使用
+        """
+        import os
+        import platform
+        import sys
+        from pathlib import Path
+
+        # 版本号（从 common.config 或硬编码）
+        version = "dev"
+        try:
+            from common.config import load_config
+            cfg = load_config()
+            version = cfg.get("agent", {}).get("version", "dev")
+        except Exception:
+            pass
+
+        # 技能数量（扫描 skills 目录）
+        skills_count = 0
+        try:
+            from common.config import get_skills_dir
+            skills_dir = Path(get_skills_dir())
+            if skills_dir.exists():
+                skills_count = sum(1 for f in skills_dir.glob("*.md") if f.is_file())
+        except Exception:
+            pass
+
+        return {
+            "version": version,
+            "os_name": platform.system(),
+            "os_version": platform.release(),
+            "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+            "cwd": os.getcwd(),
+            "provider": provider_name,
+            "model": model_name,
+            "tools_count": len(tools) if tools else 0,
+            "skills_count": skills_count,
+            "mcp_tools_count": 0,
+        }
+
+    # ── H2: 会话元信息构建（Session Layer）────────────────────────────
+    def _build_session_info(self) -> Dict[str, Any]:
+        """构建注入 Session(volatile) 层的当前会话元信息。
+
+        包含：对话轮次、已使用工具列表、会话启动时间、Session ID 等。
+        每次 build_messages 调用时重新构建，不参与 stable 层缓存。
+
+        Returns:
+            session_info dict，供 ContextBuilder.build_parts() 使用
+        """
+        import datetime
+
+        used_tools = list(self._used_tools) if hasattr(self, "_used_tools") else []
+        session_id = self._session_id if hasattr(self, "_session_id") else ""
+        start_time = (
+            self._session_start_time.isoformat()
+            if hasattr(self, "_session_start_time") and self._session_start_time
+            else datetime.datetime.now().isoformat()
+        )
+        rounds = self._turn_count if hasattr(self, "_turn_count") else 0
+        user_lang = getattr(self, "_user_lang", "zh")
+
+        return {
+            "rounds": rounds,
+            "used_tools": used_tools[-50:],  # 保留最近 50 个工具调用
+            "start_time": start_time,
+            "session_id": session_id,
+            "language": user_lang,
+        }
+
+    def track_tool_call(self, tool_name: str) -> None:
+        """记录工具调用（用于 session_info 的 used_tools）。"""
+        if not hasattr(self, "_used_tools"):
+            self._used_tools: list[str] = []
+        self._used_tools.append(tool_name)
+
+    def set_session_meta(
+        self,
+        session_id: str = "",
+        start_time: Optional[datetime.datetime] = None,
+        user_lang: str = "zh",
+    ) -> None:
+        """设置会话元信息（由 Agent 入口在创建会话时调用）。"""
+        self._session_id = session_id
+        self._session_start_time = start_time or datetime.datetime.now()
+        self._user_lang = user_lang
+        self._turn_count = 0
+
+    def increment_turn(self) -> None:
+        """递增对话轮次计数器。"""
+        if not hasattr(self, "_turn_count"):
+            self._turn_count = 0
+        self._turn_count += 1
+
     @property
     def provider(self) -> "BaseLLMProvider":
         """获取 LLM 提供者"""
@@ -191,6 +304,10 @@ class LLMClient:
             base_url=resolved_url,
         )
         self.invalidate_cache()
+        # 切换模型时同时清除 ContextBuilder 的 stable 缓存（模型变了影响 stable 层）
+        if self._context_manager is not None:
+            if hasattr(self._context_manager, "invalidate_stable_cache"):
+                self._context_manager.invalidate_stable_cache()
         self._logger.info(
             f"Switched to provider={provider}, " f"model={model or pconf.get('model')}"
         )
@@ -256,6 +373,9 @@ class LLMClient:
         context_purpose = purpose_mapping.get(purpose, ContextPurpose.DIRECT_RESPONSE)
         self._llm_logger.info(f"Main call: purpose={purpose.value}")
 
+        # H2: 递增轮次计数器（在 retry 循环外，只计真实调用次数）
+        self.increment_turn()
+
         # 获取配置
         cfg = load_config()
         max_retries = cfg.get("api_max_retries", 3)
@@ -266,8 +386,19 @@ class LLMClient:
         last_error: Optional[Exception] = None
 
         while True:
-            # ── 构建消息 ─────────────────────────────────────────────────
+            # ── 构建消息（注入 Base/Session 层元信息）────────────────────
             if self._context_manager:
+                # H1: 构建 system_meta（启动时固定，影响 stable 层缓存）
+                provider_name = getattr(self._provider, "provider_name", "auto")
+                model_name = getattr(self._provider, "model", "Handsome Agent")
+                system_meta = self._build_system_meta(
+                    tools=tools,
+                    provider_name=provider_name,
+                    model_name=model_name,
+                )
+                # H2: 构建 session_info（每次调用都变，不参与缓存）
+                session_info = self._build_session_info()
+
                 messages_result = await self._context_manager.build_messages(
                     user_message=user_message,
                     conversation_history=conversation_history,
@@ -275,6 +406,8 @@ class LLMClient:
                     tools=tools,
                     include_tools=include_tools,
                     model=model,
+                    system_meta=system_meta,
+                    session_info=session_info,
                     **kwargs,
                 )
                 self._logger.debug(

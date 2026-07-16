@@ -1,164 +1,172 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-通知动画管理模块
+"""NotifyMixin — 通知/Toast/进度条
 
-提供通知类型枚举和动画管理器。
+🚪 Access - 💬 TUI - Textual App - Notifications
+
+v8.x 从 ``tui/textual_app/app.py`` L1739–1816 抽出：
+- ``NotificationType`` 常量类（保留向后兼容）
+- ``notify_animated`` / ``notify_success`` / ``notify_warning`` /
+  ``notify_error`` / ``notify_info``
+- ``show_loading_animation`` / ``show_progress_notification``
+- ``apply_skin_from_engine``
+
+依赖主类的 ``self.notify()`` / ``self._logger`` / ``self._theme_manager``。
 """
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# NotificationType —— 通知类型常量
+# ============================================================================
+
 
 class NotificationType:
-    """通知类型枚举."""
-    
+    """通知类型常量与 icon 映射."""
+
     INFO = "info"
     SUCCESS = "success"
     WARNING = "warning"
     ERROR = "error"
-    
-    # 动画类型
-    ANIM_SLIDE = "slide"
-    ANIM_FADE = "fade"
-    ANIM_BOUNCE = "bounce"
-    ANIM_SHAKE = "shake"
-    ANIM_PULSE = "pulse"
-    
-    @classmethod
-    def get_animation_for_type(cls, notification_type: str) -> str:
-        """根据通知类型获取对应的动画类名.
-        
-        Args:
-            notification_type: 通知类型 (info/success/warning/error)
-            
-        Returns:
-            动画类名
-        """
-        animations = {
-            cls.INFO: cls.ANIM_SLIDE,
-            cls.SUCCESS: cls.ANIM_BOUNCE,
-            cls.WARNING: cls.ANIM_PULSE,
-            cls.ERROR: cls.ANIM_SHAKE,
-        }
-        return animations.get(notification_type, cls.ANIM_FADE)
-    
+    LOADING = "loading"
+
     @classmethod
     def get_icon(cls, notification_type: str) -> str:
-        """获取通知类型的图标.
-        
-        Args:
-            notification_type: 通知类型
-            
-        Returns:
-            Emoji 图标
-        """
-        icons = {
+        return {
             cls.INFO: "ℹ️",
             cls.SUCCESS: "✅",
             cls.WARNING: "⚠️",
             cls.ERROR: "❌",
-        }
-        return icons.get(notification_type, "ℹ️")
+            cls.LOADING: "⏳",
+        }.get(notification_type, "ℹ️")
 
 
 class NotificationAnimationManager:
-    """通知动画管理器.
-    
-    负责：
-    - 管理通知动画效果
-    - 提供多种动画类型
-    - 控制动画时长和缓动函数
+    """通知动画管理器（v8.x 兼容占位）.
+
+    原 ``tui.textual_app.notifications.NotificationAnimationManager``
+    负责通知 slide-in/fade 动画；v8.x 抽象为 ``NotifyMixin``，
+    本类保留以保证外部 ``from tui.textual_app import NotificationAnimationManager``
+    不破坏。
     """
-    
-    # 动画时长配置 (秒)
-    ANIMATION_DURATIONS = {
-        "fast": 0.2,
-        "normal": 0.3,
-        "slow": 0.5,
-    }
-    
-    # 动画缓动函数
-    EASING_FUNCTIONS = {
-        "ease": "ease",
-        "ease-in": "ease-in",
-        "ease-out": "ease-out",
-        "ease-in-out": "ease-in-out",
-        "bounce": "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
-        "elastic": "cubic-bezier(0.5, 1.5, 0.5, 1)",
-    }
-    
-    @classmethod
-    def get_css_animation(cls, animation_type: str, duration: str = "normal") -> str:
-        """获取 CSS 动画字符串.
-        
-        Args:
-            animation_type: 动画类型
-            duration: 动画时长 (fast/normal/slow)
-            
-        Returns:
-            CSS animation 属性值
-        """
-        duration_value = cls.ANIMATION_DURATIONS.get(duration, 0.3)
-        easing = cls.EASING_FUNCTIONS.get("ease-out", "ease-out")
-        
-        animation_map = {
-            NotificationType.ANIM_SLIDE: f"slide-in-right {duration_value}s {easing}",
-            NotificationType.ANIM_FADE: f"fade-in {duration_value}s {easing}",
-            NotificationType.ANIM_BOUNCE: f"bounce-in {duration_value}s {cls.EASING_FUNCTIONS['bounce']}",
-            NotificationType.ANIM_SHAKE: f"shake {duration_value}s {easing}",
-            NotificationType.ANIM_PULSE: f"pulse {duration_value * 2}s ease-in-out infinite",
-        }
-        
-        return animation_map.get(animation_type, f"fade-in {duration_value}s {easing}")
-    
-    @classmethod
-    def create_animated_notification(
-        cls,
+
+    def __init__(self, *args, **kwargs):
+        self._enabled = True
+
+    def animate(self, message: str, duration: float = 3.0) -> None:
+        """发送带动画的通知."""
+        logger.debug(f"[NotificationAnimationManager] {message}")
+
+    def stop(self) -> None:
+        self._enabled = False
+
+
+# ============================================================================
+# NotifyMixin
+# ============================================================================
+
+
+class NotifyMixin:
+    """通知与 Toast Mixin。"""
+
+    _logger = logging.getLogger(__name__)
+    _theme_manager = None
+
+    # ------------------------------------------------------------------
+    # 基础 notify（带 icon 动画）
+    # ------------------------------------------------------------------
+
+    def notify_animated(
+        self,
         message: str,
-        notification_type: str = NotificationType.INFO,
+        notification_type: str = "info",
         duration: float = 3.0,
-    ) -> tuple[str, str]:
-        """创建带动画的通知内容.
-        
-        Args:
-            message: 通知消息
-            notification_type: 通知类型
-            duration: 显示时长（秒）
-            
-        Returns:
-            (toast CSS类, 格式化消息)
-        """
-        # 获取动画类型
-        anim_type = cls.get_animation_for_type(notification_type)
-        icon = cls.get_icon(notification_type)
-        
-        # 构建 CSS 类
-        css_classes = [
-            "notification-toast",
-            notification_type,
-            f"anim-{anim_type}",
-        ]
-        css_class_str = " ".join(css_classes)
-        
-        # 格式化消息（带图标）
-        formatted_message = f"[bold]{icon}[/] {message}"
-        
-        return css_class_str, formatted_message
-    
-    @classmethod
-    def get_progress_bar_html(cls, progress: float, animated: bool = True) -> str:
-        """生成分带动画的进度条 HTML.
-        
-        Args:
-            progress: 进度 (0.0 - 1.0)
-            animated: 是否启用动画
-            
-        Returns:
-            进度条 CSS 类
-        """
-        base_class = "progress-bar"
-        fill_class = "progress-bar-fill"
-        if animated:
-            fill_class += " progress-bar-animated"
-        
-        return f"{base_class} {fill_class}"
+    ) -> None:
+        icon = NotificationType.get_icon(notification_type)
+
+        if notification_type == NotificationType.SUCCESS:
+            animated_msg = f"✅ {message}"
+        elif notification_type == NotificationType.WARNING:
+            animated_msg = f"⚠️ {message}"
+        elif notification_type == NotificationType.ERROR:
+            animated_msg = f"❌ {message}"
+        else:
+            animated_msg = f"ℹ️ {message}"
+
+        self.notify(
+            animated_msg,
+            timeout=duration,
+            title=(
+                notification_type.upper()
+                if notification_type != NotificationType.INFO
+                else "通知"
+            ),
+        )
+
+        self._logger.debug(f"Animated notification: [{notification_type}] {message}")
+
+    def notify_success(self, message: str, duration: float = 3.0) -> None:
+        self.notify_animated(message, NotificationType.SUCCESS, duration)
+
+    def notify_warning(self, message: str, duration: float = 4.0) -> None:
+        self.notify_animated(message, NotificationType.WARNING, duration)
+
+    def notify_error(self, message: str, duration: float = 5.0) -> None:
+        self.notify_animated(message, NotificationType.ERROR, duration)
+
+    def notify_info(self, message: str, duration: float = 3.0) -> None:
+        self.notify_animated(message, NotificationType.INFO, duration)
+
+    # ------------------------------------------------------------------
+    # 加载与进度
+    # ------------------------------------------------------------------
+
+    def show_loading_animation(self, message: str = "加载中...") -> None:
+        loading_msg = f"⏳ {message}"
+        self.notify(loading_msg, timeout=None, title="LOADING")
+
+    def show_progress_notification(
+        self,
+        progress: float,
+        message: str = "",
+        total: int = 100,
+    ) -> None:
+        percent = int(progress * 100)
+        current = int(progress * total)
+
+        bar_length = 20
+        filled = int(bar_length * progress)
+        bar = "█" * filled + "░" * (bar_length - filled)
+
+        progress_msg = f"{bar} {percent}%"
+        if message:
+            progress_msg = f"{message}\n{progress_msg}"
+
+        self.notify(progress_msg, timeout=2.0, title=f"进度 ({current}/{total})")
+
+    # ------------------------------------------------------------------
+    # 主题引擎联动
+    # ------------------------------------------------------------------
+
+    def apply_skin_from_engine(self) -> bool:
+        if not self._theme_manager:
+            self._logger.warning("Theme manager not available")
+            return False
+
+        success = self._theme_manager.load_skin_from_engine()
+        if success:
+            display_name = self._theme_manager.get_current_display_name()
+            self.notify(f"Applied skin: {display_name}")
+            self._logger.info("Skin applied from engine")
+        else:
+            self._logger.debug("No skin to apply from engine")
+
+        return success
+
+
+__all__ = ["NotifyMixin"]

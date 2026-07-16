@@ -468,16 +468,18 @@ class ContextManager:
         tools: Optional[Dict[str, Any]] = None,
         include_tools: bool = None,
         model: str = None,
-        skip_compression: bool = False
+        skip_compression: bool = False,
+        system_meta: dict = None,
+        session_info: dict = None,
     ) -> BuildPartsResult:
         """
-        构建上下文的三层结构（Hermes 风格）
-        
+        构建上下文的三层结构（Hermes 风格，语义对齐 Base/Role/Session）
+
         三层架构：
-        - stable: Agent 身份 + 能力 + 工具指导 + 技能索引 + 模型特定指导（会话级缓存）
-        - context: 用户画像 + 项目上下文（配置相关）
-        - volatile: 记忆预取 + 时间戳（每次变化）
-        
+        - stable   (Base    Layer)：Agent 身份 + 能力 + 自我认知 + 工具指导 + 模型特定指导
+        - context  (Role    Layer)：项目级上下文（AGENTS.md 等）
+        - volatile (Session Layer)：记忆快照 + 时间戳 + 会话元信息
+
         Args:
             user_message: 用户消息
             conversation_history: 对话历史
@@ -486,7 +488,9 @@ class ContextManager:
             include_tools: 是否包含工具列表
             model: 模型名称
             skip_compression: 是否跳过自动压缩（避免重复压缩）
-            
+            system_meta: Agent 启动元信息（version/provider/tools_count 等），Base 层
+            session_info: 当前会话元信息（rounds/used_tools 等），Session 层
+
         Returns:
             BuildPartsResult: 包含三层结构和元数据
         """
@@ -537,6 +541,8 @@ class ContextManager:
                 memory_snapshot=memory_snapshot,
                 context_files=context_files,
                 context_sources=context_sources,
+                system_meta=system_meta,
+                session_info=session_info,
             )
             
             self.logger.info(
@@ -566,14 +572,16 @@ class ContextManager:
         tools: Optional[Dict[str, Any]] = None,
         include_tools: bool = None,
         model: str = None,
-        skip_compression: bool = False
+        skip_compression: bool = False,
+        system_meta: dict = None,
+        session_info: dict = None,
     ) -> BuildMessagesResult:
         """
         构建标准消息列表格式的上下文（统一入口）
-        
+
         集成 ContextBuilder 的 build_messages() 方法，支持上下文压缩。
         压缩后的历史以消息列表格式返回，摘要作为消息列表的一部分。
-        
+
         Args:
             user_message: 用户消息
             conversation_history: 对话历史
@@ -582,7 +590,9 @@ class ContextManager:
             include_tools: 是否包含工具列表（默认根据 purpose 自动判断）
             model: 模型名称（用于模型特定指导）
             skip_compression: 是否跳过自动压缩（避免重复压缩）
-            
+            system_meta: Agent 启动元信息（version/provider/tools_count 等，Base 层）
+            session_info: 当前会话元信息（rounds/used_tools 等，Session 层）
+
         Returns:
             BuildMessagesResult: 包含消息列表和元数据
         """
@@ -629,6 +639,8 @@ class ContextManager:
                 memory_snapshot=memory_snapshot,
                 context_files=context_files,
                 context_sources=context_sources,
+                system_meta=system_meta,
+                session_info=session_info,
             )
             
             self.logger.info(
@@ -648,3 +660,50 @@ class ContextManager:
             compressed_count=compressed_count,
             purpose=purpose
         )
+
+    # ── I1: 缓存管理（顶层 API，供外部调用）──────────────────────────
+    def invalidate_stable_cache(self) -> None:
+        """使 stable 层缓存失效（调用方在系统参数变化后主动调用）。
+
+        触发场景：
+        - Agent 切换了 LLM Provider/Model（影响 stable 层中的模型特定指导）
+        - 配置文件中的 coding_instructions 发生了变化
+        - 技能索引（skills_index）发生了变化
+
+        注意：context 层缓存按内容 hash 自动失效，不需要手动调用。
+        """
+        if hasattr(self._context_builder, "_stable_cache"):
+            count = len(self._context_builder._stable_cache)
+            self._context_builder._stable_cache.clear()
+            self.logger.info(f"Stable cache invalidated ({count} entries cleared)")
+        if hasattr(self._context_builder, "_context_cache"):
+            count = len(self._context_builder._context_cache)
+            self._context_builder._context_cache.clear()
+            self.logger.info(f"Context cache invalidated ({count} entries cleared)")
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """获取缓存统计信息（用于监控和调试）。
+
+        Returns:
+            包含 hits/misses/entries 等统计数据的字典
+        """
+        stats = {
+            "stable_entries": 0,
+            "context_entries": 0,
+            "hits": 0,
+            "misses": 0,
+            "hit_rate": "0.0%",
+        }
+        if hasattr(self._context_builder, "_stable_cache"):
+            stats["stable_entries"] = len(self._context_builder._stable_cache)
+        if hasattr(self._context_builder, "_context_cache"):
+            stats["context_entries"] = len(self._context_builder._context_cache)
+        if hasattr(self._context_builder, "_cache_hits"):
+            hits = self._context_builder._cache_hits
+            misses = self._context_builder._cache_misses
+            total = hits + misses
+            stats["hits"] = hits
+            stats["misses"] = misses
+            if total > 0:
+                stats["hit_rate"] = f"{hits / total * 100:.1f}%"
+        return stats

@@ -606,6 +606,15 @@ class AgentLoop:
         # ToolExecutor 只负责执行，Rails 拦截已在 _execute_step 中处理
         result = await executor.execute(tool_name, parameters, extra_context=extra_context)
 
+        # H2: 记录工具调用（用于 session_info 的 used_tools）
+        if self._agent is not None:
+            llm_client = getattr(self._agent, "_llm_client", None)
+            if llm_client is not None:
+                try:
+                    llm_client.track_tool_call(tool_name)
+                except Exception:
+                    pass
+
         return result.get_output()
 
     async def _trigger_before_tool(

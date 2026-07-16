@@ -176,6 +176,15 @@ class Agent:
                 self._session = session_manager.create_session(session_id)
                 self._decision_logger.info(f"Resumed session: {session_id}")
 
+        # H2: 将会话元信息注入 LLMClient（session_info 注入到 volatile 层）
+        if self._session and self._llm_client:
+            import datetime
+            self._llm_client.set_session_meta(
+                session_id=self._session.session_id,
+                start_time=datetime.datetime.now(),
+                user_lang="zh",
+            )
+
         self._stream_callback = None
         self._stream_emitter = None
 

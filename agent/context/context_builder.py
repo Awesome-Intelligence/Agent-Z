@@ -41,6 +41,7 @@ from agent.context.prompt_templates import (
     OPENAI_MODEL_EXECUTION_GUIDANCE,
     THINK_TAG_INSTRUCTION,
     DEFAULT_USER_PROFILE,
+    build_agent_self_intro,
 )
 
 
@@ -103,13 +104,15 @@ class ContextBuilder:
         memory_snapshot: str = "",
         context_files: str = "",
         context_sources: list = None,
+        system_meta: dict = None,
+        session_info: dict = None,
     ) -> List[Dict[str, Any]]:
         """
         构建消息列表格式的上下文（Hermes 风格）
 
         返回标准消息列表格式，用于需要消息列表的场景（如 OpenAI API）。
 
-        使用三层架构构建系统消息：stable + context + volatile。
+        使用三层架构构建系统消息：stable(Base) + context(Role) + volatile(Session)。
 
         格式示例：
         [
@@ -128,18 +131,22 @@ class ContextBuilder:
             memory_snapshot: 记忆快照（USER.md + MEMORY.md，由 ContextManager 提供）
             context_files: 上下文文件内容（AGENTS.md、项目规则等）
             context_sources: 上下文文件来源列表（用于日志显示）
+            system_meta: Agent 启动元信息（version/provider/tools_count 等，Base 层）
+            session_info: 当前会话元信息（rounds/used_tools 等，Session 层）
 
         Returns:
             标准消息列表
         """
 
-        # 1. 使用 build_parts() 获取三层结构（传入记忆快照和上下文文件）
+        # 1. 使用 build_parts() 获取三层结构（传入记忆快照、上下文文件、元信息）
         parts = self.build_parts(
             user_message=user_message,
             model=model,
             memory_snapshot=memory_snapshot,
             context_files=context_files,
             context_sources=context_sources,
+            system_meta=system_meta,
+            session_info=session_info,
         )
 
         # 2. 合并为 system 消息（与 Hermes 一致）
@@ -338,19 +345,26 @@ class ContextBuilder:
         memory_snapshot: str = "",
         context_files: str = "",
         context_sources: list = None,
+        system_meta: dict = None,
+        session_info: dict = None,
     ) -> Dict[str, str]:
         """
         构建系统提示词的三层结构（Hermes 风格）
 
-        三层架构（参照 Hermes system_prompt.py）：
-        - stable:   Agent 身份 + 能力 + 工具指导 + 技能索引 + 模型特定指导（会话级缓存）
-        - context:  上下文文件（AGENTS.md、项目规则等）+ 调用方系统消息（工作目录级缓存）
-        - volatile: 记忆快照（USER.md + MEMORY.md）+ 时间戳（每次变化，永不缓存）
+        三层架构（语义对齐：Base/Role/Session）：
+        - stable   (Base    Layer)：Agent 身份 + 能力 + 自我认知 + 工具指导 + 模型特定指导
+                                    整个会话不变，可缓存。
+        - context  (Role    Layer)：项目级上下文文件（AGENTS.md、项目规则等）
+                                    工作目录固定时可缓存（Role 级）。
+        - volatile (Session Layer)：记忆快照（USER.md + MEMORY.md）+ 时间戳 + 会话元信息
+                                    每次都可能变化，永不缓存。
 
         注意：
         - 记忆快照由 ContextManager（协调层）提供，构建层只负责组装
         - 用户画像（USER.md）属于 volatile 层，与 MEMORY.md 一起作为记忆快照传入
         - 上下文文件属于 context 层，由调用方通过 context_files 参数传入
+        - system_meta 属于 Base(stable) 层（启动时固定，影响缓存 key）
+        - session_info 属于 Session(volatile) 层（每次可能变化，不参与缓存）
 
         Args:
             user_message: 用户消息
@@ -358,6 +372,8 @@ class ContextBuilder:
             memory_snapshot: 记忆快照（USER.md + MEMORY.md，由 ContextManager 提供）
             context_files: 上下文文件内容（AGENTS.md、项目规则等）
             context_sources: 上下文文件来源列表（用于日志显示）
+            system_meta: Agent 启动元信息（version/provider/tools_count/skills_count 等），放在 Base 层
+            session_info: 当前会话元信息（rounds/turns/used_tools/start_time 等），放在 Session 层
 
         Returns:
             Dict[str, str]: 包含 stable/context/volatile 三层内容的字典
@@ -366,93 +382,124 @@ class ContextBuilder:
         # 🧠 Decision - 💾 Context - 开始构建三层架构
         self.logger.debug("Context Assembly: Building three-layer architecture")
 
-        # ─────────────────────────────────────────────────────────
-        # Stable Layer - 会话级缓存
-        # ─────────────────────────────────────────────────────────
-        cache_key = f"stable_v1_guidance_{self.enable_guidance}"
-
-        # 尝试从缓存获取 stable 层
-        if hasattr(self, "_stable_cache") and cache_key in self._stable_cache:
-            stable_parts = [self._stable_cache[cache_key]]
-        else:
-            stable_parts = []
-
-        # 构建 stable 层内容
-        # 工具 Schema 通过 API 的 tools 参数传递
-        stable_parts = [
-            AGENT_IDENTITY,  # Agent 身份
-            CAPABILITIES,  # 能力摘要
-        ]
-
-        # 记录 stable 层使用的模板变量名（用于日志）
-        stable_keys = ["AGENT_IDENTITY", "CAPABILITIES"]
-
-        # 添加渐进式披露技能索引（Tier 1）
-        try:
-            skills_index = get_skills_system_prompt()
-            if skills_index:
-                stable_parts.append(skills_index)
-                stable_keys.append("SKILLS_INDEX")
-        except Exception as e:
-            self.logger.warning(f"Failed to load skills index: {e}")
-
-        # 仅当启用指导时添加指导性文本
-        if self.enable_guidance:
-            stable_parts.extend(
-                [
-                    TOOL_USE_ENFORCEMENT,  # 工具使用强制规范
-                    MANDATORY_TOOL_USE,  # 必须使用工具的场景
-                    ACT_DONT_ASK,  # 行动而非询问
-                    MEMORY_GUIDANCE,  # 记忆使用指导
-                    SESSION_SEARCH_GUIDANCE,  # 跨会话搜索指导
-                    SKILLS_GUIDANCE,  # 技能保存指导
-                ]
-            )
-            stable_keys.extend(
-                [
-                    "TOOL_USE_ENFORCEMENT",
-                    "MANDATORY_TOOL_USE",
-                    "ACT_DONT_ASK",
-                    "MEMORY_GUIDANCE",
-                    "SESSION_SEARCH_GUIDANCE",
-                    "SKILLS_GUIDANCE",
-                ]
-            )
-
-            # 模型特定指导
-            if model:
-                model_lower = model.lower()
-                if any(
-                    p in model_lower for p in ["deepseek", "gpt", "grok", "glm", "qwen"]
-                ):
-                    stable_parts.append(OPENAI_MODEL_EXECUTION_GUIDANCE)
-                    stable_keys.append("OPENAI_MODEL_EXECUTION_GUIDANCE")
-
-        # Standing operator instructions (coding_instructions)
-        coding_instr = load_config().get("agent", {}).get("coding_instructions", "")
-        if coding_instr:
-            stable_parts.append(coding_instr)
-            stable_keys.append("CODING_INSTRUCTIONS")
-
-        stable_content = "\n\n".join(stable_parts)
-
-        # 缓存 stable 层
+        # 初始化缓存结构（G1a：统一初始化 + 统计计数器）
         if not hasattr(self, "_stable_cache"):
-            self._stable_cache = {}
-        self._stable_cache[cache_key] = stable_content
+            self._stable_cache: dict[str, str] = {}
+            self._context_cache: dict[str, str] = {}
+            self._cache_hits: int = 0
+            self._cache_misses: int = 0
 
         # ─────────────────────────────────────────────────────────
-        # Context Layer - 工作目录级缓存
+        # Stable Layer (Base Layer) - 会话级缓存
+        # 变化条件：enable_guidance / model / coding_instructions /
+        #          skills_index / system_meta(version/provider/tool_count)
+        # ─────────────────────────────────────────────────────────
+        model_tag = (model or "").lower()[:3]
+        skills_digest = "1" if bool(getattr(self, "_skills_index_digest", None) or True) else "0"
+        try:
+            coding_digest = str(hash(load_config().get("agent", {}).get("coding_instructions", "") or ""))[:8]
+        except Exception:
+            coding_digest = "0"
+        # system_meta 参与缓存键计算（G4：系统信息注入 Base 层）
+        try:
+            meta_digest = str(hash(tuple(sorted((system_meta or {}).items()))))[:10]
+        except Exception:
+            meta_digest = "0"
+        cache_key = (
+            f"stable_v2_g{self.enable_guidance}_m{model_tag}_"
+            f"s{skills_digest}_c{coding_digest}_meta{meta_digest}"
+        )
+
+        stable_content: str | None = self._stable_cache.get(cache_key)
+        stable_keys: list[str] = [
+            "AGENT_IDENTITY", "CAPABILITIES", "SELF_INTRO",
+            "TOOL_USE_ENFORCEMENT", "MANDATORY_TOOL_USE",
+            "ACT_DONT_ASK", "MEMORY_GUIDANCE",
+            "SESSION_SEARCH_GUIDANCE", "SKILLS_GUIDANCE",
+        ]
+        cache_hit = stable_content is not None
+
+        if not cache_hit:
+            self._cache_misses += 1
+            # 构造自我认知段落（G4 + G5：Agent 知道自己是谁、什么版本、什么系统）
+            meta = dict(system_meta or {})
+            meta.setdefault("model", model or "Handsome Agent")
+            if not meta.get("cwd"):
+                import os
+                meta["cwd"] = os.getcwd()
+            self_intro_block = build_agent_self_intro(**meta)
+
+            stable_parts = [
+                AGENT_IDENTITY,  # Agent 身份（Prompt 模板）
+                CAPABILITIES,    # 能力摘要（Prompt 模板）
+                self_intro_block,  # 🆕 自我认知（G4/G5：运行时真相信息块）
+            ]
+
+            # 渐进式披露技能索引（Tier 1）
+            try:
+                skills_index = get_skills_system_prompt()
+                if skills_index:
+                    stable_parts.append(skills_index)
+                    stable_keys.append("SKILLS_INDEX")
+            except Exception as e:
+                self.logger.warning(f"Failed to load skills index: {e}")
+
+            if self.enable_guidance:
+                stable_parts.extend([
+                    TOOL_USE_ENFORCEMENT,
+                    MANDATORY_TOOL_USE,
+                    ACT_DONT_ASK,
+                    MEMORY_GUIDANCE,
+                    SESSION_SEARCH_GUIDANCE,
+                    SKILLS_GUIDANCE,
+                ])
+                if model:
+                    model_lower = model.lower()
+                    if any(p in model_lower for p in ["deepseek", "gpt", "grok", "glm", "qwen"]):
+                        stable_parts.append(OPENAI_MODEL_EXECUTION_GUIDANCE)
+                        stable_keys.append("OPENAI_MODEL_EXECUTION_GUIDANCE")
+            else:
+                # 未启用 guidance 时只保留最关键的 2 条强制规范
+                stable_parts.extend([TOOL_USE_ENFORCEMENT, THINK_TAG_INSTRUCTION])
+                stable_keys = ["AGENT_IDENTITY", "CAPABILITIES",
+                               "TOOL_USE_ENFORCEMENT", "THINK_TAG_INSTRUCTION"]
+
+            try:
+                coding_instr = load_config().get("agent", {}).get("coding_instructions", "")
+            except Exception:
+                coding_instr = ""
+            if coding_instr:
+                stable_parts.append(coding_instr)
+                stable_keys.append("CODING_INSTRUCTIONS")
+
+            # 思考标签指令（强制，所有模型都要）
+            if "THINK_TAG_INSTRUCTION" not in stable_keys:
+                stable_parts.append(THINK_TAG_INSTRUCTION)
+                stable_keys.append("THINK_TAG_INSTRUCTION")
+
+            stable_content = "\n\n".join(p for p in stable_parts if p)
+            self._stable_cache[cache_key] = stable_content
+        else:
+            self._cache_hits += 1
+
+        # ─────────────────────────────────────────────────────────
+        # Context Layer - 工作目录级缓存（按内容 hash）
         # 包含：AGENTS.md、项目规则、上下文文件等
         # ─────────────────────────────────────────────────────────
-        context_parts = []
         if context_files and context_files.strip():
-            context_parts.append(context_files)
-
-        context_content = "\n\n".join(p for p in context_parts if p and p.strip())
+            ctx_key = "ctx_" + str(hash(context_files))[:12]
+            context_content = self._context_cache.get(ctx_key)
+            if context_content is None:
+                context_content = context_files
+                self._context_cache[ctx_key] = context_content
+                self._cache_misses += 1
+            else:
+                self._cache_hits += 1
+        else:
+            context_content = ""
 
         # ─────────────────────────────────────────────────────────
-        # Volatile Layer - 每次变化，永不缓存
+        # Volatile Layer (Session Layer) - 每次变化，永不缓存
         # 包含：记忆快照（USER.md + MEMORY.md）+ 时间戳
         # 参照 Hermes：volatile 层放记忆和时间戳
         # ─────────────────────────────────────────────────────────
@@ -466,14 +513,45 @@ class ContextBuilder:
         timestamp = time.strftime("%Y-%m-%d")
         volatile_parts.append(f"Conversation started: {timestamp}")
 
+        # 🆕 G3: Session 层注入当前对话元信息（轮数/已调用工具/启动时间等）
+        if session_info:
+            si = session_info
+            rounds = si.get("rounds", si.get("turns", 0))
+            used_tools = si.get("used_tools") or si.get("tools_called") or []
+            start_time = si.get("start_time") or si.get("session_start") or ""
+            session_id = si.get("session_id", "")
+            user_lang = si.get("user_lang") or si.get("language", "zh")
+
+            session_lines = ["## Current Session - 当前对话状态"]
+            if session_id:
+                session_lines.append(f"- Session ID: `{session_id}`")
+            if rounds:
+                session_lines.append(f"- 对话轮次: `{rounds}`")
+            if start_time:
+                session_lines.append(f"- 会话启动时间: `{start_time}`")
+            session_lines.append(f"- 用户偏好语言: `{user_lang}`")
+            if used_tools:
+                # 取不重复且最新的 20 个工具名
+                seen, uniq = [], []
+                for t in reversed(list(used_tools)):
+                    if t and t not in seen:
+                        seen.append(t)
+                        uniq.append(t)
+                uniq = uniq[:20]
+                session_lines.append(f"- 本会话已使用工具({len(uniq)}): `{', '.join(uniq)}`")
+            volatile_parts.append("\n".join(session_lines))
+
         volatile_content = "\n\n".join(p for p in volatile_parts if p and p.strip())
 
         # 🧠 Decision - 💾 Context - 三层架构构建完成
+        total = self._cache_hits + self._cache_misses
+        hit_rate = (self._cache_hits / total * 100) if total else 0.0
         self.logger.debug(
             f"Context Assembly: three-layer complete - "
             f"stable={len(stable_content)} chars, "
             f"context={len(context_content)} chars, "
-            f"volatile={len(volatile_content)} chars"
+            f"volatile={len(volatile_content)} chars | "
+            f"cache h/m={self._cache_hits}/{self._cache_misses} ({hit_rate:.0f}%)"
         )
 
         return {
