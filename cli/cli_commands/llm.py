@@ -10,7 +10,7 @@ import argparse
 import os
 from typing import Optional
 from agent.agent import Agent, AgentResponse
-from llm_integration import LLMConfig, setup_llm_integration
+from common.llm_integration import LLMConfig, setup_llm_integration
 
 
 def add_llm_arguments(parser: argparse.ArgumentParser):

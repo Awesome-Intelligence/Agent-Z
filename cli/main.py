@@ -71,7 +71,7 @@ from common.config import load_config, get_config_path
 # LLM 可用性检测
 LLM_AVAILABLE = False
 try:
-    from llm_integration import LLMConfig, setup_llm_integration
+    from common.llm_integration import LLMConfig, setup_llm_integration
 
     LLM_AVAILABLE = True
 except ImportError:
