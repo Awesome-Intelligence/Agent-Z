@@ -54,6 +54,8 @@ class LoadingMixin:
     _use_native_loading: bool = False
     _loading_indicator: object = None
     _widget_cache: dict = {}
+    _breathing_timer: object = None
+    _breathing_bright: bool = True
 
     # ------------------------------------------------------------------
     # 公开 API
@@ -79,15 +81,15 @@ class LoadingMixin:
         self._busy_frame_index = 0
 
         # 开启呼吸效果
-        status_bar = self.query_one("#status-bar")
-        status_bar.set_class(True, "breathing")
+        self._breathing_bright = True
+        self._breathing_timer = self.set_timer(0.75, self._breathing_pulse)
 
         if self._use_native_loading and LoadingIndicator is not None:
             # 使用 Textual 原生 LoadingIndicator
             try:
                 if self._loading_indicator is None:
                     self._loading_indicator = LoadingIndicator()
-                    status_bar.mount(self._loading_indicator)
+                    self.query_one("#status-bar").mount(self._loading_indicator)
             except Exception:
                 pass
         else:
@@ -103,8 +105,9 @@ class LoadingMixin:
         self._busy_frame_index = 0
 
         # 停止呼吸效果
-        status_bar = self.query_one("#status-bar")
-        status_bar.set_class(False, "breathing")
+        if self._breathing_timer is not None:
+            self._breathing_timer.stop()
+            self._breathing_timer = None
 
         if self._use_native_loading and self._loading_indicator is not None:
             # 移除 Textual 原生 LoadingIndicator
@@ -116,6 +119,15 @@ class LoadingMixin:
         else:
             # 更新状态图标
             self._update_status_icon()
+
+    def _breathing_pulse(self) -> None:
+        """呼吸效果：切换状态栏亮度."""
+        if not self._is_loading:
+            return
+        self._breathing_bright = not self._breathing_bright
+        status_bar = self.query_one("#status-bar")
+        status_bar.styles.opacity = 1.0 if self._breathing_bright else 0.5
+        self._breathing_timer = self.set_timer(0.75, self._breathing_pulse)
 
     def _update_busy_animation(self) -> None:
         """更新 busy 状态的动画图标."""
