@@ -45,7 +45,6 @@ class AgentRunnerMixin:
     _agent_future = None
     _agent_start_time: float = 0.0
     _agent_busy: bool = False
-    _pending_queue: deque = deque()
     _input_history: list = []
     _history_index: int = -1
     _current_input: str = ""

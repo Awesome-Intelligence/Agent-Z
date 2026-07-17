@@ -56,6 +56,7 @@ from .imports import (
     ApprovalConfirmed,
     ApprovalRejected,
     create_approval_dialog,
+    InputQueuePanel,
     SessionStore,
     HelpScreen,
     FilePreviewScreen,
@@ -180,6 +181,8 @@ class AgentApp(
         self.provider = provider
         self.cwd = cwd or os.getcwd()
         self.session_id = session_id
+        self._pending_queue: deque = deque()
+        self._widget_cache: dict = {}
         if context_length is None:
             try:
                 from common.config import get_model_config
@@ -235,10 +238,13 @@ class AgentApp(
             yield SubmitTextArea(id='user-input', classes='input-field', placeholder=t('tui.input.placeholder', '输入消息...Enter 发送'))
             yield Footer()
             yield SlashCompletionList(id='slash-completion')
+        if InputQueuePanel is not None:
+            yield InputQueuePanel()
 
     def on_mount(self) -> None:
         self._logger.info('Textual UI mounted')
         self._cache_widgets()
+        self._init_input_queue_panel()
         self._render_welcome_banner()
         self._update_status_bar()
         self._update_theme_toggle_label()
@@ -278,6 +284,50 @@ class AgentApp(
         self._bind_slash_completion()
         self.set_focus(self.query_one('#user-input', TextArea))
         self.call_later(self._update_token_count)
+
+    def _init_input_queue_panel(self) -> None:
+        """初始化输入队列悬浮面板：绑定队列引用 + 删除/清空回调."""
+        if InputQueuePanel is None:
+            return
+        panel = self._widget_cache.get('input_queue_panel')
+        if panel is None:
+            try:
+                panel = self.query_one('#input-queue-panel', InputQueuePanel)
+                self._widget_cache['input_queue_panel'] = panel
+            except Exception as e:
+                self._logger.debug(f'InputQueuePanel not found on mount: {e}')
+                return
+        try:
+            panel.bind_queue(self._pending_queue)
+            panel.set_callbacks(
+                on_delete=self._on_queue_item_delete,
+                on_clear_all=self._on_queue_clear_all,
+            )
+            self._logger.info('InputQueuePanel initialized with queue binding and callbacks')
+        except Exception as e:
+            self._logger.warning(f'Failed to initialize InputQueuePanel: {e}')
+
+    def _on_queue_item_delete(self, index: int) -> None:
+        """删除队列中指定索引的项（由悬浮面板删除按钮触发）."""
+        try:
+            if 0 <= index < len(self._pending_queue):
+                removed = self._pending_queue[index]
+                del self._pending_queue[index]
+                self._logger.info(f'Queue item deleted at index {index}: {removed[:40]}...')
+                self._update_queue_display()
+        except Exception as e:
+            self._logger.debug(f'Failed to delete queue item at {index}: {e}')
+
+    def _on_queue_clear_all(self) -> None:
+        """清空整个队列（由悬浮面板清空按钮触发）."""
+        try:
+            cleared_count = len(self._pending_queue)
+            if cleared_count > 0:
+                self._pending_queue.clear()
+                self._logger.info(f'Queue cleared ({cleared_count} items)')
+                self._update_queue_display()
+        except Exception as e:
+            self._logger.debug(f'Failed to clear queue: {e}')
 
     async def _load_stylesheets(self) -> None:
         if get_stylesheets is None:
@@ -493,6 +543,11 @@ class AgentApp(
             self._widget_cache['skills_info'] = self.query_one('#skills-info', Static)
             self._widget_cache['tools_info'] = self.query_one('#tools-info', Static)
             self._widget_cache['theme_toggle'] = self.query_one('#theme-toggle', Static)
+            if InputQueuePanel is not None:
+                try:
+                    self._widget_cache['input_queue_panel'] = self.query_one('#input-queue-panel', InputQueuePanel)
+                except Exception:
+                    pass
             try:
                 self._widget_cache['sidebar_container'] = self.query_one('#sidebar-container', Container)
             except Exception:

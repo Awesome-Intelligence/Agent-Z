@@ -55,6 +55,12 @@ except ImportError:
     ApprovalRejected = None
     create_approval_dialog = None
 
+# 输入队列悬浮面板
+try:
+    from .input_queue_panel import InputQueuePanel
+except ImportError:
+    InputQueuePanel = None
+
 __all__ = [
     # 消息组件（oterm 风格）
     "ChatItem",
@@ -70,4 +76,6 @@ __all__ = [
     "ApprovalConfirmed",
     "ApprovalRejected",
     "create_approval_dialog",
+    # 输入队列悬浮面板
+    "InputQueuePanel",
 ]

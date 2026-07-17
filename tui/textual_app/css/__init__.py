@@ -28,6 +28,7 @@ from .chat import CHAT_CSS
 from .header import HEADER_CSS
 from .status_bar import STATUS_BAR_CSS
 from .input_area import INPUT_AREA_CSS
+from .input_queue import INPUT_QUEUE_CSS
 from .slash_completion import SLASH_COMPLETION_CSS
 from .sidebar_layout import SIDEBAR_LAYOUT_CSS
 from .screens import CUSTOM_MODEL_SCREEN_CSS
@@ -57,6 +58,8 @@ APP_CSS = f"""
 
 {INPUT_AREA_CSS}
 
+{INPUT_QUEUE_CSS}
+
 {SLASH_COMPLETION_CSS}
 
 {SIDEBAR_LAYOUT_CSS}
@@ -70,6 +73,7 @@ __all__ = [
     "HEADER_CSS",
     "STATUS_BAR_CSS",
     "INPUT_AREA_CSS",
+    "INPUT_QUEUE_CSS",
     "SLASH_COMPLETION_CSS",
     "SIDEBAR_LAYOUT_CSS",
     "CUSTOM_MODEL_SCREEN_CSS",

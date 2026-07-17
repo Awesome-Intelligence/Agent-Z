@@ -35,7 +35,6 @@ class StatusBarMixin:
     _logger = logging.getLogger(__name__)
     _widget_cache: dict = {}
     _used_tools: set = set()
-    _pending_queue: list = []
     _current_token_count: int = 0
     _current_status: str = "online"
     _STATUS_ICONS: dict = {"online": "🟢", "busy": ["⏳"], "offline": "⚫"}
@@ -94,7 +93,7 @@ class StatusBarMixin:
             self._logger.debug(f"Failed to update tools display: {e}")
 
     def _update_queue_display(self, queue_len_override=None) -> None:
-        """更新队列状态显示（状态栏 + 输入框内容）.
+        """更新队列状态显示（状态栏 + 输入框内容 + 悬浮列表面板）.
 
         Args:
             queue_len_override: 可选，强制使用指定队列长度（用于 pop 后准确反映剩余数量）
@@ -127,8 +126,32 @@ class StatusBarMixin:
                     text_area.placeholder = t(
                         "tui.input.placeholder", "输入消息...Enter 发送"
                     )
+            # 悬浮列表面板刷新（必须 call_next，避免布局计算期 height=0）
+            self._refresh_queue_panel_async(queue_len)
         except Exception as e:
             self._logger.debug(f"Failed to update queue display: {e}")
+
+    def _refresh_queue_panel_async(self, queue_len: int) -> None:
+        """异步调度悬浮面板刷新（使用 call_next 延迟到下一帧）."""
+        try:
+            panel = self._widget_cache.get("input_queue_panel")
+            if panel is None:
+                # 尝试从 imports 中判断 InputQueuePanel 是否可用，可用则尝试 query
+                try:
+                    from .imports import InputQueuePanel
+                    if InputQueuePanel is not None:
+                        panel = self.query_one("#input-queue-panel", InputQueuePanel)
+                        self._widget_cache["input_queue_panel"] = panel
+                except Exception:
+                    pass
+            if panel is not None and hasattr(panel, "refresh_from_queue"):
+                # 必须使用 call_next，避免在当前布局计算周期内 mount widget 导致 height=0
+                if hasattr(self, "call_next"):
+                    self.call_next(panel.refresh_from_queue, queue_len)
+                elif hasattr(self, "app") and self.app is not None and hasattr(self.app, "call_next"):
+                    self.app.call_next(panel.refresh_from_queue, queue_len)
+        except Exception as e:
+            self._logger.debug(f"Failed to schedule queue panel refresh: {e}")
 
     # ------------------------------------------------------------------
     # 模式切换

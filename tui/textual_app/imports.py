@@ -220,6 +220,12 @@ except ImportError:
 
 
 try:
+    from tui.widgets.input_queue_panel import InputQueuePanel
+except ImportError:
+    InputQueuePanel = None  # type: ignore
+
+
+try:
     from tui.services.session_store import SessionStore
 except ImportError:
     SessionStore = None  # type: ignore
@@ -306,6 +312,7 @@ __all__ = [
     "ApprovalConfirmed",
     "ApprovalRejected",
     "create_approval_dialog",
+    "InputQueuePanel",
     "SessionStore",
     "HelpScreen",
     "FilePreviewScreen",
