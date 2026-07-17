@@ -776,6 +776,26 @@ def build_top_level_parser():
     )
 
     # =========================================================================
+    # plugins command
+    # =========================================================================
+    # Plugin sub-commands are owned by ``cli.cli_commands.plugins``. We
+    # register the ``plugins`` parser at the top level but accept a free-form
+    # list of arguments; the dispatcher (``cmd_plugins`` in ``cli/main.py``)
+    # will parse them with plugins.main() which is the single source of truth.
+    plugins_parser = subparsers.add_parser(
+        "plugins",
+        help="Plugin management",
+        description="List, inspect, enable, disable and reload plugins",
+        add_help=True,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    plugins_parser.add_argument(
+        "plugins_args",
+        nargs=argparse.REMAINDER,
+        help="Plugin sub-command and its arguments (list|info|enable|disable|validate|reload|providers)",
+    )
+
+    # =========================================================================
     # bundle command
     # =========================================================================
     bundle_parser = subparsers.add_parser(

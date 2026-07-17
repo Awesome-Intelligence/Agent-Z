@@ -1,0 +1,9 @@
+name: example
+version: 1.0.0
+description: "Example Memory Provider Plugin - in-memory storage with keyword search"
+author: "Agent-Z Contributors"
+kind: exclusive
+requires_env: []
+provides_tools: []
+provides_hooks:
+  - on_session_end

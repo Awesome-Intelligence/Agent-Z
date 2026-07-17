@@ -18,10 +18,12 @@ Usage:
     provider.sync_turn("Hello", "Hi there!")
 """
 
-from typing import Dict, List, Optional, Any
-from pathlib import Path
+from typing import Dict, List, Optional, Any, TYPE_CHECKING
 
-from agent.memory.memory_provider import MemoryProvider, MemoryItem
+from agent.memory.memory_provider import MemoryProvider
+
+if TYPE_CHECKING:
+    from plugins import PluginContext
 
 
 class ExampleMemoryProvider(MemoryProvider):

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # 🚪 Access - 💬 CLI - 主入口
 
@@ -688,6 +688,24 @@ def cmd_bundle(args: argparse.Namespace):
     return run_bundle_command(args)
 
 
+def cmd_plugins(args: argparse.Namespace):
+    """Handle 'plugins' command.
+
+    Delegates to :func:`cli.cli_commands.plugins.main` which is the single
+    source of truth for plugins sub-commands. Unknown / empty arguments fall
+    back to ``list`` for back-compat.
+    """
+    from cli.cli_commands.plugins import main as plugins_main
+
+    sub_args = list(getattr(args, "plugins_args", []) or [])
+    if not sub_args:
+        sub_args = ["list"]
+
+    exit_code = plugins_main(sub_args)
+    if exit_code:
+        sys.exit(exit_code)
+
+
 def should_use_textual(args: argparse.Namespace) -> bool:
     """Determine if Textual UI should be used.
 
@@ -905,6 +923,9 @@ def main():
         return
     elif args.command == "bundle":
         cmd_bundle(args)
+        return
+    elif args.command == "plugins":
+        cmd_plugins(args)
         return
 
     # Handle legacy setup mode
