@@ -106,4 +106,27 @@ FILE_TOOLS = [
         safety_level="low",
         category="file",
     ),
+    UnifiedToolSchema(
+        name="file_delete",
+        description="删除文件或目录。删除目录时需要设置 recursive=True。注意：此操作不可恢复！",
+        source=ToolSource.HERMES,
+        source_name="delete_file",
+        parameters={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "要删除的文件或目录路径"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "是否递归删除目录及内容（删除目录时需设为 True）",
+                    "default": False
+                }
+            },
+            "required": ["path"]
+        },
+        safety_level="high",
+        category="file",
+    ),
 ]

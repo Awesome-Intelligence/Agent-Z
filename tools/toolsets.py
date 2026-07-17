@@ -50,7 +50,7 @@ class ToolsetManager:
         self.register_toolset(Toolset(
             name="files",
             description="File system operations",
-            tools=["file_write", "file_read", "file_delete", "file_list", "file_rename"],
+            tools=["write_file", "read_file", "delete_file", "list_directory", "patch_file"],
             platforms=["linux", "windows", "macos"]
         ))
         

@@ -6,8 +6,34 @@ File operation tools for the agent.
 
 import os
 import json
+import shutil
+from pathlib import Path
 from typing import Optional, List
 from . import ToolResult, register_tool, tool_registry
+
+_PROTECTED_PATH_PATTERNS = [
+    "/.ssh/",
+    "/.aws/",
+    "/.gcp/",
+    "/.azure/",
+    "/credentials",
+    "/secrets",
+    "/.env",
+    "/private_keys",
+    "id_rsa",
+    "id_ed25519",
+    ".pem",
+    ".key",
+    ".pfx",
+]
+
+
+def _is_protected_path(path: str) -> bool:
+    path_lower = path.lower().replace("\\", "/")
+    for pattern in _PROTECTED_PATH_PATTERNS:
+        if pattern.lower() in path_lower:
+            return True
+    return False
 
 
 @register_tool(
@@ -187,3 +213,46 @@ def patch_file(path: str, old_string: str, new_string: str, replace_all: bool = 
         return ToolResult(success=True, output=f"成功替换 {count} 处: {path}")
     except Exception as e:
         return ToolResult(success=False, output="", error=str(e))
+
+
+@register_tool(
+    name="delete_file",
+    description="删除文件或目录。删除目录时需要设置 recursive=True。注意：此操作不可恢复！",
+    parameters=[
+        {"name": "path", "type": "string", "required": True, "description": "要删除的文件或目录路径"},
+        {"name": "recursive", "type": "boolean", "required": False, "description": "是否递归删除目录及内容（删除目录时需设为 True）"}
+    ]
+)
+def delete_file(path: str, recursive: bool = False) -> ToolResult:
+    """删除文件或目录"""
+    try:
+        p = Path(path)
+
+        if not p.exists():
+            return ToolResult(success=False, output="", error=f"文件/目录不存在: {path}")
+
+        if _is_protected_path(str(p.resolve())):
+            return ToolResult(
+                success=False,
+                output="",
+                error=f"删除被拒绝: {path} 是受保护的系统/凭证文件路径"
+            )
+
+        if p.is_dir():
+            if not recursive:
+                return ToolResult(
+                    success=False,
+                    output="",
+                    error=f"{path} 是一个目录，删除目录请设置 recursive=True"
+                )
+            shutil.rmtree(str(p))
+            action = "删除目录（递归）"
+        else:
+            p.unlink()
+            action = "删除文件"
+
+        return ToolResult(success=True, output=f"成功{action}: {path}")
+    except PermissionError as e:
+        return ToolResult(success=False, output="", error=f"权限不足，无法删除: {str(e)}")
+    except Exception as e:
+        return ToolResult(success=False, output="", error=f"删除失败: {str(e)}")

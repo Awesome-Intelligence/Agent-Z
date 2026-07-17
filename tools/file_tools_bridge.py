@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """File Tools Bridge - Registered to Agent-Z Decision Engine"""
 
 import glob as glob_module
@@ -127,6 +127,69 @@ def _search_files(
         return {"success": False, "output": "", "error": str(e)}
 
 
+_PROTECTED_PATH_PATTERNS = [
+    "/.ssh/",
+    "/.aws/",
+    "/.gcp/",
+    "/.azure/",
+    "/credentials",
+    "/secrets",
+    "/.env",
+    "/private_keys",
+    "id_rsa",
+    "id_ed25519",
+    ".pem",
+    ".key",
+    ".pfx",
+]
+
+
+def _is_protected_path(path: str) -> bool:
+    path_lower = path.lower().replace("\\", "/")
+    for pattern in _PROTECTED_PATH_PATTERNS:
+        if pattern.lower() in path_lower:
+            logger.warning(f"检测到受保护路径，阻止删除: {path}")
+            return True
+    return False
+
+
+def _delete_file(path: str, recursive: bool = False) -> dict:
+    import shutil
+
+    try:
+        resolved_path = _resolve_workspace_path(path)
+        resolved_p = Path(resolved_path)
+
+        if not resolved_p.exists():
+            return {"success": False, "output": "", "error": f"文件/目录不存在: {resolved_path}"}
+
+        if _is_protected_path(resolved_path):
+            return {
+                "success": False,
+                "output": "",
+                "error": f"删除被拒绝: {resolved_path} 是受保护的系统/凭证文件路径"
+            }
+
+        if resolved_p.is_dir():
+            if not recursive:
+                return {
+                    "success": False,
+                    "output": "",
+                    "error": f"{resolved_path} 是一个目录，删除目录请设置 recursive=True"
+                }
+            shutil.rmtree(resolved_path)
+            action = "删除目录（递归）"
+        else:
+            resolved_p.unlink()
+            action = "删除文件"
+
+        return {"success": True, "output": f"成功{action}: {resolved_path}", "error": None}
+    except PermissionError as e:
+        return {"success": False, "output": "", "error": f"权限不足，无法删除: {str(e)}"}
+    except Exception as e:
+        return {"success": False, "output": "", "error": f"删除失败: {str(e)}"}
+
+
 READ_FILE_SCHEMA = {
     "name": "read_file",
     "description": "读取文件内容。适合查看文本文件、代码文件、配置文件、Markdown文档等。",
@@ -190,6 +253,26 @@ SEARCH_FILES_SCHEMA = {
     },
 }
 
+DELETE_FILE_SCHEMA = {
+    "name": "delete_file",
+    "description": "删除文件或目录。删除目录时需要设置 recursive=True。注意：此操作不可恢复！",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "要删除的文件或目录路径",
+            },
+            "recursive": {
+                "type": "boolean",
+                "description": "是否递归删除目录及其内容（删除目录时必须设置为 True）",
+                "default": False,
+            },
+        },
+        "required": ["path"],
+    },
+}
+
 
 def _read_file_handler(args, **kw):
     return json.dumps(
@@ -231,6 +314,16 @@ def _search_files_handler(args, **kw):
     )
 
 
+def _delete_file_handler(args, **kw):
+    return json.dumps(
+        _delete_file(
+            path=args.get("path", ""),
+            recursive=args.get("recursive", False),
+        ),
+        ensure_ascii=False,
+    )
+
+
 registry.register(
     name="read_file",
     toolset="file_operations",
@@ -261,4 +354,12 @@ registry.register(
     schema=SEARCH_FILES_SCHEMA,
     handler=_search_files_handler,
     emoji="🔍",
+)
+
+registry.register(
+    name="delete_file",
+    toolset="file_operations",
+    schema=DELETE_FILE_SCHEMA,
+    handler=_delete_file_handler,
+    emoji="🗑️",
 )
