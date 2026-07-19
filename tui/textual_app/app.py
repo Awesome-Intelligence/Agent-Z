@@ -282,8 +282,18 @@ class AgentApp(
             except Exception as e:
                 self._logger.warning(f'Failed to wire up history navigation: {e}')
         self._bind_slash_completion()
-        self.set_focus(self.query_one('#user-input', TextArea))
         self.call_later(self._update_token_count)
+        # 延迟聚焦确保所有异步初始化完成后再聚焦
+        self.set_timer(0.5, self._focus_input)
+
+    def _focus_input(self) -> None:
+        """聚焦到用户输入框."""
+        try:
+            text_area = self.query_one('#user-input', TextArea)
+            text_area.focus()
+            self._logger.debug(f'Focus set to user-input, current focused: {self.focused}')
+        except Exception as e:
+            self._logger.warning(f'Failed to focus input: {e}')
 
     def _init_input_queue_panel(self) -> None:
         """初始化输入队列悬浮面板：绑定队列引用 + 删除/清空回调."""
