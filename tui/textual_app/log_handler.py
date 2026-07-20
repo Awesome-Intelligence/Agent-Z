@@ -52,7 +52,8 @@ class TuiLogHandler(logging.Handler):
         self._replay_lines = 200  # ponytail: hard cap, full history = render bomb
         self._flush_interval_ms = flush_interval_ms  # 刷新间隔（毫秒）
         self._flush_timer = None  # 刷新定时器引用
-        self._all_logs: list[str] = []  # 完整日志历史
+        self._all_logs: list[str] = []  # 完整日志历史（最多 _max_all_logs 条）
+        self._max_all_logs = 2000  # ponytail: unbounded = memory leak
         self._logs_at_last_mount: int = 0  # 上次挂载时的历史长度
         self._widget_active = False  # ponytail: gate writes while Modal is closed
 
@@ -129,8 +130,8 @@ class TuiLogHandler(logging.Handler):
         try:
             # ponytail: swap list — emit() 在 flush 期间继续 append 不会丢
             batch, self._pending_logs = self._pending_logs, []
-            for msg in batch:
-                self._widget.write_line(msg)
+            # 一次 join + 一次 write_line，分割和 refresh 只走一遍
+            self._widget.write_line("\n".join(batch))
         except Exception:
             pass
 
@@ -155,6 +156,10 @@ class TuiLogHandler(logging.Handler):
             msg = self.format(record)
             self._pending_logs.append(msg)
             self._all_logs.append(msg)
+            # ponytail: trim to _max_all_logs, drop oldest 20% to amortize list moves
+            if len(self._all_logs) > self._max_all_logs:
+                trim = int(self._max_all_logs * 0.2)
+                del self._all_logs[:trim]
 
             # ponytail: 不再按 batch_size 立即触发 flush，set_interval 统一节流
         except Exception:

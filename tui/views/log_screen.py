@@ -12,9 +12,9 @@ LogScreen - 全局日志窗口
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.containers import Vertical
+from textual.containers import Vertical, Horizontal
 from textual.screen import ModalScreen
-from textual.widgets import Static
+from textual.widgets import Static, Button
 from textual.binding import Binding
 
 # 日志支持
@@ -62,9 +62,30 @@ class LogScreen(ModalScreen):
         width: 100%;
         height: 3;
         background: $accent;
-        content-align: center middle;
+        layout: horizontal;
         color: $foreground;
+    }
+
+    #log-header-title {
+        width: 1fr;
+        height: 100%;
+        content-align: left middle;
+        padding: 0 2;
         text-style: bold;
+    }
+
+    #btn-open-log {
+        width: auto;
+        height: 3;
+        padding: 0 2;
+        margin-right: 1;
+        background: $primary;
+        color: white;
+        content-align: center middle;
+    }
+
+    #btn-open-log:hover {
+        background: $accent;
     }
 
     #log-scroll {
@@ -103,7 +124,9 @@ class LogScreen(ModalScreen):
         from textual.containers import ScrollableContainer
 
         with Vertical(id="log-window"):
-            yield Static("📜 日志查看器  (Esc/F3 关闭)", id="log-header")
+            with Horizontal(id="log-header"):
+                yield Static("📜 日志查看器  (Esc/F3 关闭)", id="log-header-title")
+                yield Button("📄 打开日志文件", id="btn-open-log")
             with ScrollableContainer(id="log-scroll"):
                 yield WrappedLog(id="log-content")
             yield Static("↑↓ 滚动  |  鼠标可选中文本  |  Esc/F3 关闭", id="log-footer")
@@ -163,6 +186,48 @@ class LogScreen(ModalScreen):
         except Exception as e:
             self._logger.debug(f"detach_widget failed (ignored): {e}")
         self.dismiss()
+
+    def _get_log_file_path(self) -> str:
+        """获取最新的日志文件路径（按日期轮转后不再是固定名字）"""
+        try:
+            from common.config import get_logs_dir
+            logs_dir = get_logs_dir()
+            if not logs_dir.exists():
+                return ""
+            # 找最新的 .log 文件（按日期轮转后是 agent-z-YYYY-MM-DD.log）
+            files = sorted(logs_dir.glob("agent-z-*.log"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if files:
+                return str(files[0])
+            # 兼容未开启轮转时的旧文件名
+            fallback = logs_dir / "agent-z.log"
+            if fallback.exists():
+                return str(fallback)
+            return ""
+        except Exception:
+            return ""
+
+    def _open_log_file(self) -> None:
+        """用系统默认程序打开日志文件"""
+        import os
+        import sys
+        path = self._get_log_file_path()
+        if not path or not os.path.exists(path):
+            self.notify("日志文件未开启，请到设置中启用文件日志", severity="warning")
+            return
+        try:
+            if sys.platform == "win32":
+                os.startfile(path)  # type: ignore
+            elif sys.platform == "darwin":
+                os.system(f"open {path!r}")
+            else:
+                os.system(f"xdg-open {path!r}")
+        except Exception as e:
+            self._logger.debug(f"Failed to open log file: {e}")
+
+    def on_button_pressed(self, event: "Button.Pressed") -> None:  # type: ignore[override]
+        """处理按钮点击"""
+        if event.button.id == "btn-open-log":
+            self._open_log_file()
 
 
 # ============================================================================

@@ -337,9 +337,18 @@ class ChatContainer(Widget, can_focus=False):
         self._schedule_follow_scroll()
 
     def _schedule_follow_scroll(self) -> None:
-        self._get_message_container().call_after_refresh(
-            lambda: self._get_message_container().scroll_end()
+        # ponytail: throttle — 每 100ms 最多一次 scroll_end，避免流式输出时
+        # 每个 token 都触发一次 layout pass（200 条消息 × N tokens = 卡顿）。
+        container = self._get_message_container()
+        if hasattr(container, "_scroll_timer") and container._scroll_timer is not None:
+            return
+        container._scroll_timer = container.set_timer(
+            0.1, lambda: self._do_scroll_end(container)
         )
+
+    def _do_scroll_end(self, container: VerticalScroll) -> None:
+        container._scroll_timer = None
+        container.scroll_end()
 
     # ------------------------------------------------------------------
     # 内部
@@ -356,13 +365,20 @@ class ChatContainer(Widget, can_focus=False):
             to_remove.append(item)
             if len(self._items) - len(to_remove) <= _MAX_MESSAGES:
                 break
-        for item in to_remove:
-            try:
-                item.remove()
-            except Exception:
-                pass
-            if item in self._items:
-                self._items.remove(item)
+        # ponytail: batch_update 把 N 次 remove 合并为 1 次 layout pass，
+        # 同时在 list 层面用一次性切片删除避免逐个 list.remove() 的 O(n²)。
+        if not to_remove:
+            return
+        container = self._get_message_container()
+        app = self.app or container.app
+        with app.batch_update():
+            for item in to_remove:
+                try:
+                    item.remove()
+                except Exception:
+                    pass
+        # list 清理在 batch 外，避免多次 list.remove() 的 O(n²) 复制。
+        self._items = [i for i in self._items if i not in set(to_remove)]
 
     async def action_clear_chat(self) -> None:
         """绑快捷键时使用。"""
