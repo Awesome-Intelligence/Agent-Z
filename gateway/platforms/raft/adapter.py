@@ -13,7 +13,6 @@ from collections import deque
 from datetime import datetime, timezone
 import hmac
 import json
-import logging
 import os
 import re
 import secrets
@@ -43,8 +42,9 @@ from gateway.platforms.base import (
     merge_pending_message_event,
 )
 from gateway.session import build_session_key
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("raft_adapter")
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 0

@@ -9,10 +9,11 @@ Callbacks - Callback system for async operations.
 """
 
 import asyncio
-import logging
 from typing import Any, Callable, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_system_logger
+
+logger = get_system_logger("callbacks")
 
 # Callback registry
 _CALLBACKS: Dict[str, List[Callable]] = {

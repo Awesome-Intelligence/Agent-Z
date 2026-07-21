@@ -28,14 +28,15 @@ Or via environment variables (overrides config.yaml):
 """
 
 import asyncio
-import logging
 import os
 import re
 import ssl
 import time
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("irc_adapter")
 
 # ---------------------------------------------------------------------------
 # Lazy import: BasePlatformAdapter and friends live in the main repo.

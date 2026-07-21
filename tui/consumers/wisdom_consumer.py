@@ -16,15 +16,15 @@ v8.x 从 ``tui/textual_app/app.py::_generate_wisdom_async`` 抽出。
 from __future__ import annotations
 
 import asyncio
-import logging
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import TYPE_CHECKING, Callable, Optional
 
 if TYPE_CHECKING:
     pass  # 仅用于类型提示
 
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("wisdom_consumer")
 
 
 # ============================================================================

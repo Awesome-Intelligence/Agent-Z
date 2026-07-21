@@ -13,6 +13,8 @@ import asyncio
 import logging
 import random
 
+from common.logging_manager import get_access_logger
+
 
 _DEFAULT_GREETINGS = {
     "zh": [
@@ -41,7 +43,7 @@ _DEFAULT_GREETINGS = {
 class GreetingMixin:
     """个性化问候语 Mixin."""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("greeting")
 
     # ------------------------------------------------------------------
     # 欢迎消息

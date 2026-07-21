@@ -16,15 +16,15 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from common.config import get_settings
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("skill_lock")
 
 # Lock 文件版本
 LOCK_VERSION = 1

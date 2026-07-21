@@ -11,7 +11,6 @@ Input Queue Floating Panel
 
 from __future__ import annotations
 
-import logging
 from collections import deque
 from typing import TYPE_CHECKING, Callable, Optional
 
@@ -28,8 +27,9 @@ try:
 except ImportError:
     Text = None
 
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("input_queue_panel")
 
 
 class QueueDeleteClicked:

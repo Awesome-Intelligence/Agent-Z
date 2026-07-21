@@ -31,9 +31,10 @@ from __future__ import annotations
 import logging
 from collections import deque
 
+from common.logging_manager import get_access_logger
 from .imports import Click, Static, Horizontal, Vertical, on, t  # noqa: F401
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("input_queue")
 
 
 class InputQueueMixin:
@@ -42,7 +43,7 @@ class InputQueueMixin:
     不持有数据，只持有行为。所有真实数据放在 AgentApp 的 self._pending_queue。
     """
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("input_queue")
     _queue_rendering: bool = False
     _pending_queue: deque = None  # 仅作类型注解，真实初始化在 AgentApp.__init__
 

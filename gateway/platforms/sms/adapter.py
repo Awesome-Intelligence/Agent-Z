@@ -32,6 +32,7 @@ import urllib.parse
 from typing import Any, Dict, Optional
 
 import gateway.platforms._hermes_stubs as _stub
+from common.logging_manager import get_access_logger
 from gateway.config import PlatformConfig
 from gateway.session import Platform
 from gateway.platforms.base import (
@@ -44,7 +45,7 @@ from gateway.platforms.base import (
 )
 from gateway.platforms.helpers import redact_phone, strip_markdown
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("sms_adapter")
 
 TWILIO_API_BASE = "https://api.twilio.com/2010-04-01/Accounts"
 MAX_SMS_LENGTH = 1600  # ~10 SMS segments

@@ -14,17 +14,17 @@ Skill Scheduler - 定时任务调度器
 from __future__ import annotations
 
 import asyncio
-import logging
+import json
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
-import json
 
 from common.config import get_settings
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("skill_scheduler")
 
 # 默认配置
 DEFAULT_CURATOR_INTERVAL_HOURS = 24  # Curator 运行间隔（小时）

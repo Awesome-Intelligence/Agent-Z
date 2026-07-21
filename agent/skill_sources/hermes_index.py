@@ -8,7 +8,6 @@
 """
 
 import json
-import logging
 import time
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -16,8 +15,9 @@ from dataclasses import dataclass, field
 
 from .base import SkillSource, SourceResult, SourceSkillInfo
 from .github_auth import GitHubAuth, get_github_auth
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("hermes_index")
 
 # 集中索引 URL
 HERMES_INDEX_URL = "https://hermes-agent.nousresearch.com/docs/api/skills-index.json"

@@ -17,15 +17,16 @@ from __future__ import annotations
 
 import logging
 
+from common.logging_manager import get_access_logger
 from .imports import Select, on  # type: ignore[attr-defined]
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("model_selector")
 
 
 class ModelSelectorMixin:
     """模型下拉选择 Mixin."""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("model_selector")
     _builtin_models: list = []
 
     # ------------------------------------------------------------------

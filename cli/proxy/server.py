@@ -9,10 +9,11 @@ Proxy Server - HTTP proxy implementation.
 """
 
 import json
-import logging
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_system_logger
+
+logger = get_system_logger("proxy_server")
 
 
 class ProxyServer:

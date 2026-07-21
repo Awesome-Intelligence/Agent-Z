@@ -18,11 +18,12 @@ yuanbao_proto.py - Yuanbao WebSocket 协议编解码（纯 Python 实现）
 
 from __future__ import annotations
 
-import logging
 import threading
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("yuanbao_proto")
 
 # ============================================================
 # Debug 开关

@@ -23,9 +23,10 @@ from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 import json
 
+from common.logging_manager import get_execution_logger
 from .registry import registry, ToolEntry
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("model_tools")
 
 
 # =============================================================================

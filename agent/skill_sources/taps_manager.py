@@ -15,13 +15,14 @@ Taps 允许用户添加额外的 GitHub 仓库作为技能来源。
 """
 
 import json
-import logging
 import os
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_decision_logger
+
+logger = get_decision_logger("taps_manager")
 
 # 默认 Taps
 DEFAULT_TAPS: List[Dict[str, str]] = [

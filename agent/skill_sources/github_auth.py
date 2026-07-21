@@ -10,13 +10,14 @@ GitHub 认证模块
 4. 无认证（60 req/hr 限制）
 """
 
-import logging
 import os
 import subprocess
 import time
 from typing import Dict, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_decision_logger
+
+logger = get_decision_logger("github_auth")
 
 
 class GitHubAuth:

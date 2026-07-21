@@ -5,12 +5,12 @@ import zipfile
 import io
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-import logging
 
 from .base import SkillSource, SourceResult, SourceSkillInfo
 from .github_auth import GitHubAuth, get_github_auth
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("github")
 
 
 class GitHubSource(SkillSource):

@@ -22,7 +22,6 @@ Skill Usage Tracker - 技能使用追踪系统
 from __future__ import annotations
 
 import json
-import logging
 import os
 import tempfile
 from contextlib import contextmanager
@@ -31,8 +30,9 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Set, Tuple
 
 from common.config import get_config_dir, get_settings
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("skill_usage_tracker")
 
 # 生命周期状态常量
 STATE_ACTIVE = "active"

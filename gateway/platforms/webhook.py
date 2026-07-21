@@ -40,6 +40,8 @@ import logging
 import re
 import subprocess
 import time
+
+from common.logging_manager import get_access_logger
 from collections import deque
 from typing import Any, Deque, Dict, Optional
 
@@ -61,7 +63,7 @@ from gateway.platforms.base import (
     _get_agent_z_home,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("webhook")
 
 # Sentinel returned by _resolve_request_profile when a /p/<profile>/ prefix
 # names a profile this gateway does not serve (→ 404). Distinct from None

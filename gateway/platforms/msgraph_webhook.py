@@ -6,7 +6,6 @@ import asyncio
 import hmac
 import ipaddress
 import json
-import logging
 from collections import deque
 from hashlib import sha1
 from typing import Any, Awaitable, Callable, Dict, Optional
@@ -29,7 +28,9 @@ from gateway.platforms.base import (
     is_network_accessible,
 )
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("msgraph_webhook")
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8646

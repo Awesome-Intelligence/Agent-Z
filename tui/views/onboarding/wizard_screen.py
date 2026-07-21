@@ -47,8 +47,8 @@ except ImportError:
 
     logging.basicConfig(level=logging.INFO)
 
-    def get_access_logger(*args, **kwargs):
-        return logging.getLogger("WizardScreen")
+    def get_access_logger(name, sublayer=None):
+        return logging.getLogger(name)
 
 
 try:

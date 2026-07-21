@@ -29,12 +29,13 @@ keyboard types). Authorship preserved via Co-authored-by.
 
 from __future__ import annotations
 
-import logging
 import re
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("qqbot_keyboards")
 
 # ── button_data prefixes + patterns ──────────────────────────────────
 

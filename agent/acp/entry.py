@@ -19,6 +19,8 @@ import logging
 import sys
 from pathlib import Path
 
+from common.logging_manager import get_decision_logger
+
 
 def _setup_logging() -> None:
     """Route all logging to stderr so stdout stays clean for ACP stdio."""
@@ -49,9 +51,9 @@ def _load_env() -> None:
         if env_file.exists():
             from dotenv import load_dotenv
             load_dotenv(env_file)
-            logging.getLogger(__name__).info(f"Loaded env from {env_file}")
+            get_decision_logger("entry").info(f"Loaded env from {env_file}")
     except Exception as e:
-        logging.getLogger(__name__).debug(f"Could not load .env: {e}")
+        get_decision_logger("entry").debug(f"Could not load .env: {e}")
 
 
 def _parse_args(argv: list = None) -> argparse.Namespace:
@@ -131,14 +133,14 @@ async def _run_stdio_server() -> None:
         from agent.agent import create_agent_from_config
         agent = create_agent_from_config()
     except Exception as e:
-        logging.getLogger(__name__).warning("Could not create agent: %s", e)
+        get_decision_logger("entry").warning("Could not create agent: %s", e)
 
     try:
         await acp.run_agent(AgentZACPAgent(agent), use_unstable_protocol=True)
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        logging.getLogger(__name__).error(f"Stdio server error: {e}")
+        get_decision_logger("entry").error(f"Stdio server error: {e}")
         sys.exit(1)
 
 

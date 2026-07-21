@@ -16,7 +16,9 @@ from pathlib import Path
 from datetime import datetime
 import hashlib
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("lock_file")
 
 
 @dataclass

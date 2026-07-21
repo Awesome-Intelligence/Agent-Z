@@ -12,13 +12,14 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from common.logging_manager import get_access_logger
 from .imports import RichText
 
 
 class WisdomMixin:
     """哲学语录 Mixin."""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("wisdom")
 
     # ------------------------------------------------------------------
     # Wisdom（异步生成）

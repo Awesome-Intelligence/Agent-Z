@@ -13,7 +13,6 @@ import asyncio
 import base64
 import hashlib
 import json
-import logging
 import secrets
 import struct
 import time
@@ -42,8 +41,9 @@ except ImportError:
 
 from ..gateway import BaseAdapter, BaseGateway, GatewayConfig
 from ..message import StandardMessage, MessageChannel, MessageContent
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("weixin_adapter")
 
 ILINK_BASE_URL = "https://ilinkai.weixin.qq.com"
 ILINK_APP_ID = "bot"

@@ -52,7 +52,6 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import logging
 import mimetypes
 import os
 import re
@@ -132,8 +131,9 @@ from gateway.platforms.base import (
     _ssrf_redirect_guard,
 )
 from gateway.platforms.helpers import ThreadParticipationTracker
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("matrix_adapter")
 
 _MATRIX_BANG_COMMAND_RE = re.compile(
     r"^!([A-Za-z][A-Za-z0-9_-]*)(?=$|\s)(.*)$",

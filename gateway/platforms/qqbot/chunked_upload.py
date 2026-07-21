@@ -36,14 +36,14 @@ from __future__ import annotations
 import asyncio
 import functools
 import hashlib
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from gateway.platforms.qqbot.constants import FILE_UPLOAD_TIMEOUT
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("qqbot_chunked_upload")
 
 
 # ── Error codes ──────────────────────────────────────────────────────

@@ -30,15 +30,16 @@ import logging
 import time
 from collections import deque
 
+from common.logging_manager import get_access_logger
 from .imports import ChatContainer, Markdown, TextArea
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("agent_runner")
 
 
 class AgentRunnerMixin:
     """Agent 执行与流式回调 Mixin."""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("agent_runner")
     _widget_cache: dict = {}
     _agent = None
     _agent_executor = None

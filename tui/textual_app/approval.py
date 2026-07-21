@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 
+from common.logging_manager import get_access_logger
 from .imports import (
     ApprovalConfirmed,
     ApprovalDialog,
@@ -31,13 +32,13 @@ from .imports import (
     create_approval_dialog,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("approval")
 
 
 class ApprovalMixin:
     """Tool 审批流程 Mixin."""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("approval")
     _approval_manager = None
     _pending_tool_call: dict | None = None
     _approval_callback = None

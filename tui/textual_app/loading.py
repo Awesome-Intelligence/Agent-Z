@@ -20,13 +20,14 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from common.logging_manager import get_access_logger
 from .imports import LoadingIndicator
 
 if TYPE_CHECKING:
     pass
 
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("loading")
 
 
 # ============================================================================

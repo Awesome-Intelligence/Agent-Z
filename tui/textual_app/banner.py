@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 
+from common.logging_manager import get_access_logger
 from tui.services.project_info import (
     get_project_path,
     get_skills_count,
@@ -21,7 +22,7 @@ from tui.services.project_info import (
 
 from .imports import RichText
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("banner")
 
 # 从 common.terminal.banner 导入统一的 Logo
 from common.terminal.banner import AGENT_Z_LOGO
@@ -42,7 +43,7 @@ _BANNER_LINES = _parse_logo_lines()
 class BannerMixin:
     """欢迎横幅 Mixin."""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("banner")
     _widget_cache: dict = {}
     _banner_cache: dict = {}
     _banner_cache_initialized: bool = False

@@ -14,7 +14,6 @@ Requires:
 import asyncio
 import base64
 import json
-import logging
 import os
 import random
 import shutil
@@ -57,7 +56,9 @@ from gateway.platforms.signal.signal_rate_limit import (
     get_scheduler,
 )
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("signal_adapter")
 
 # ---------------------------------------------------------------------------
 # Constants

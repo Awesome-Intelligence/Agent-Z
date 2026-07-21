@@ -14,11 +14,12 @@ from __future__ import annotations
 
 import enum
 import json
-import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_decision_logger
+
+logger = get_decision_logger("error_classifier")
 
 
 # ── Error taxonomy ──────────────────────────────────────────────────────

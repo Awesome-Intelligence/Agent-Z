@@ -12,11 +12,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_decision_logger
+
+logger = get_decision_logger("tool_guardrails")
 
 
 # ── 幂等工具（只读工具，不会产生副作用）─────────────────────────────

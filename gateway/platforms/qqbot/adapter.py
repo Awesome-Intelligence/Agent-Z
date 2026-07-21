@@ -34,7 +34,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-import logging
 import mimetypes
 import os
 import time
@@ -71,8 +70,9 @@ from gateway.platforms.base import (
     cache_image_from_bytes,
 )
 from gateway.platforms.helpers import strip_markdown
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("qqbot_adapter")
 
 
 class QQCloseError(Exception):

@@ -32,12 +32,13 @@ defined on the mixin and may be overridden per-adapter if needed.
 from __future__ import annotations
 
 import json
-import logging
 import os
 import re
 from typing import Any, Dict, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("whatsapp_common")
 
 
 class WhatsAppBehaviorMixin:

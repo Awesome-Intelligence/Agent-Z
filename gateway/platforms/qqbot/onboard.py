@@ -15,7 +15,6 @@ Reference: https://bot.q.qq.com/wiki/develop/api-v2/
 
 from __future__ import annotations
 
-import logging
 import time
 from enum import IntEnum
 from typing import Optional, Tuple
@@ -31,8 +30,9 @@ from .constants import (
 )
 from .crypto import decrypt_secret, generate_bind_key
 from .utils import get_api_headers
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("qqbot_onboard")
 
 
 # ---------------------------------------------------------------------------

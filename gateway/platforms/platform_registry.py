@@ -9,15 +9,15 @@ Ported from Hermes agent - https://github.com/NousResearch/hermes-agent
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
 
 # Re-export the Platform enum for platform adapters that import it via
 # ``from gateway.platforms.platform_registry import Platform`` (hermes compat).
 from gateway.session import Platform  # noqa: F401 - re-export
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("platform_registry")
 
 
 @dataclass

@@ -28,7 +28,6 @@ Configuration in config.yaml:
 
 import asyncio
 import json
-import logging
 import os
 import re
 import traceback
@@ -106,7 +105,9 @@ from gateway.platforms.base import (
     SendResult,
 )
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("dingtalk_adapter")
 
 MAX_MESSAGE_LENGTH = 20000
 RECONNECT_BACKOFF = [2, 5, 10, 30, 60]

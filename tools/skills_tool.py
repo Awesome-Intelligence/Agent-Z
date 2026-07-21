@@ -21,11 +21,12 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from common.logging_manager import get_execution_logger
 from .path_security import has_traversal_component, validate_within_dir
 from .skill_env_collector import extract_required_env_vars, get_missing_env_vars
 from .skills_guard import detect_prompt_injection
 
-logger = logging.getLogger(__name__)
+logger = get_execution_logger("skills_tool")
 
 # Default skills directory
 SKILLS_DIR = Path(__file__).parent.parent / "skills"

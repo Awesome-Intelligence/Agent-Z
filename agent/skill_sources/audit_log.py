@@ -5,12 +5,13 @@
 记录所有技能操作到审计日志文件。
 """
 
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_decision_logger
+
+logger = get_decision_logger("audit_log")
 
 # 审计日志路径（相对于配置目录）
 AUDIT_LOG_FILENAME = Path(".hub") / "audit.log"

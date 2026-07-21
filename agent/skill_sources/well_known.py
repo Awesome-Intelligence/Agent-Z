@@ -8,7 +8,6 @@ Well-Known 技能来源 - WellKnownSkillSource
 
 import hashlib
 import json
-import logging
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from urllib.parse import urlparse, urlunparse
@@ -16,8 +15,9 @@ from urllib.parse import urlparse, urlunparse
 import httpx
 
 from .base import SkillSource, SourceResult, SourceSkillInfo
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("well_known")
 
 # Well-Known 路径
 WELL_KNOWN_PATH = "/.well-known/skills"

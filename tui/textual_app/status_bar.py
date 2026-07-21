@@ -20,19 +20,16 @@ v8.x 从 ``tui/textual_app/app.py`` L664–781 抽出：
 
 from __future__ import annotations
 
-import logging
-
 from tui.core.formatters import format_token_count
 
 from .imports import t  # type: ignore[attr-defined]
-
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
 
 
 class StatusBarMixin:
     """状态栏更新 Mixin."""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("status_bar")
     _widget_cache: dict = {}
     _used_tools: set = set()
     _current_token_count: int = 0

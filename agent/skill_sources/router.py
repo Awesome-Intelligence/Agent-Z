@@ -17,9 +17,11 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-import logging
 
 from .base import SkillSource, SourceResult, SourceSkillInfo, SourceUpdateInfo
+from common.logging_manager import get_decision_logger
+
+logger = get_decision_logger("router")
 from .github import GitHubSource
 from .url import UrlSource
 from .hermes_index import HermesIndexSource
@@ -29,8 +31,6 @@ from .claude_market import ClaudeMarketSource
 from .optional_skill import OptionalSkillSource
 from .well_known import WellKnownSkillSource
 from .taps_manager import get_taps_manager
-
-logger = logging.getLogger(__name__)
 
 # 搜索超时配置（秒）
 SEARCH_TIMEOUT = 15

@@ -13,13 +13,14 @@ Skill Utils - Skill utility functions.
 - 插件技能命名空间支持
 """
 
-import logging
 import os
 import re
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_decision_logger
+
+logger = get_decision_logger("skill_utils")
 
 # 命名空间正则：字母、数字、下划线，长度 1-32
 NAMESPACE_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,31}$")

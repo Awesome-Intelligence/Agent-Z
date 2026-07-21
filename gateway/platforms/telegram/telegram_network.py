@@ -17,7 +17,9 @@ from typing import Iterable, Optional
 
 import httpx
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("telegram_network")
 
 _TELEGRAM_API_HOST = "api.telegram.org"
 

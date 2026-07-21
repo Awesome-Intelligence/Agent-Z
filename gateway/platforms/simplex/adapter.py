@@ -47,7 +47,6 @@ is present, so the gateway will not attempt to instantiate the adapter.
 import asyncio
 import base64
 import json
-import logging
 import os
 import random
 import re
@@ -67,7 +66,9 @@ from gateway.platforms.base import (
     SendResult,
 )
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("simplex_adapter")
 
 # ---------------------------------------------------------------------------
 # Constants

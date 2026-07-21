@@ -19,7 +19,9 @@ import threading
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Set, Any
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("telegram_adapter")
 
 
 def _redact_telegram_error_text(error: object) -> str:

@@ -12,12 +12,13 @@
 """
 
 import json
-import logging
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_decision_logger
+
+logger = get_decision_logger("skill_cache")
 
 # ============================================================================
 # 缓存配置

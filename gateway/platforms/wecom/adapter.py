@@ -60,6 +60,7 @@ except ImportError:
     HTTPX_AVAILABLE = False
     httpx = None  # type: ignore[assignment]
 
+from common.logging_manager import get_access_logger
 from gateway.config import PlatformConfig
 from gateway.session import Platform
 from gateway.platforms.helpers import MessageDeduplicator
@@ -73,7 +74,7 @@ from gateway.platforms.base import (
 )
 from gateway.platforms.base import env_float
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("wecom_adapter")
 
 DEFAULT_WS_URL = "wss://openws.work.weixin.qq.com"
 

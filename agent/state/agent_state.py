@@ -64,9 +64,10 @@ state.complete("任务完成")
 
 import time
 import threading
-import logging
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List, Callable, TYPE_CHECKING
+
+from common.logging_manager import get_decision_logger
 
 # 统一状态枚举 - 从 enums 导入
 from agent.state.enums import AgentStatus, BudgetMode, ExitReason, ExitDecision
@@ -74,7 +75,7 @@ from agent.state.enums import AgentStatus, BudgetMode, ExitReason, ExitDecision
 if TYPE_CHECKING:
     from agent.execution.loop import LoopStepResult
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("agent_state")
 
 
 # 状态监听器类型

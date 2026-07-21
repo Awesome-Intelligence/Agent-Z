@@ -16,7 +16,9 @@ import logging
 import os
 import threading
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_execution_logger
+
+logger = get_execution_logger("interrupt")
 
 _DEBUG_INTERRUPT = bool(os.getenv("AGENTZ_DEBUG_INTERRUPT"))
 

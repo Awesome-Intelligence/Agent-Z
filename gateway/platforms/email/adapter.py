@@ -19,7 +19,6 @@ Environment variables:
 import asyncio
 import email as email_lib
 import imaplib
-import logging
 import os
 import re
 import smtplib
@@ -46,8 +45,9 @@ from gateway.platforms.base import (
 )
 from gateway.config import PlatformConfig
 from gateway.session import Platform
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("email_adapter")
 # Automated sender patterns — emails from these are silently ignored
 _NOREPLY_PATTERNS = (
     "noreply",

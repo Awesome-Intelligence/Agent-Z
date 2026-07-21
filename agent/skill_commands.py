@@ -14,13 +14,14 @@ Skill Commands - Shared slash command helpers for skills.
 """
 
 import json
-import logging
 import os
 import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_decision_logger
+
+logger = get_decision_logger("skill_commands")
 
 from agent.skill_preprocessing import substitute_template_vars
 

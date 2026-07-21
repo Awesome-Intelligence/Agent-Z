@@ -25,7 +25,6 @@ import dataclasses
 import hashlib
 import hmac
 import json
-import logging
 import os
 import re
 import secrets
@@ -41,6 +40,8 @@ from typing import Any, Callable, ClassVar, Dict, Iterator, List, Optional, Tupl
 import sys
 
 import httpx
+
+from common.logging_manager import get_access_logger
 
 try:
     import websockets
@@ -97,7 +98,7 @@ from gateway.platforms.yuanbao_proto import (
 )
 from gateway.session import build_session_key
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("yuanbao")
 
 # ---------------------------------------------------------------------------
 # Version / platform constants (used in AUTH_BIND and sign-token headers)

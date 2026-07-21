@@ -66,7 +66,6 @@ import enum
 import hashlib
 import hmac
 import json
-import logging
 import mimetypes
 import os
 import re
@@ -79,7 +78,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import quote as _urlquote
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("line_adapter")
 
 # ---------------------------------------------------------------------------
 # Lazy / function-level imports for gateway internals are NOT used here —

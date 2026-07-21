@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -41,8 +40,9 @@ from acp.schema import (
 from agent.acp.session import SessionManager, SessionStatus
 from agent.rails.edit_approval import EditApprovalRail, set_edit_approval_requester
 from agent.rails import get_rail_registry
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("adapter")
 
 
 def _build_slash_commands() -> dict[str, str]:

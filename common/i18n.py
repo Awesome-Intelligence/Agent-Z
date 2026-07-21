@@ -21,14 +21,15 @@ Supported languages: en, zh, ja, ko.
 
 from __future__ import annotations
 
-import logging
 import os
 import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_system_logger
+
+logger = get_system_logger("i18n")
 
 SUPPORTED_LANGUAGES: tuple[str, ...] = (
     "en", "zh", "ja", "ko",

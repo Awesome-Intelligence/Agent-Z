@@ -13,7 +13,9 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_execution_logger
+
+logger = get_execution_logger("skill_env_collector")
 
 
 @dataclass

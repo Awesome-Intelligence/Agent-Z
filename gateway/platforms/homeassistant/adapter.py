@@ -15,12 +15,13 @@ Requires:
 
 import asyncio
 import json
-import logging
 import os
 import time
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional, Set
+
+from common.logging_manager import get_access_logger
 
 try:
     import aiohttp
@@ -41,7 +42,7 @@ from gateway.platforms.base import (
     SendResult,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("homeassistant_adapter")
 
 
 def check_ha_requirements() -> bool:

@@ -7,11 +7,11 @@ import io
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from urllib.parse import urlparse, unquote
-import logging
 
 from .base import SkillSource, SourceResult, SourceSkillInfo
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("url")
 
 
 class UrlSource(SkillSource):

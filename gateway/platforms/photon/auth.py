@@ -38,7 +38,6 @@ https://photon.codes/docs/api-reference/device-login/request-device-+-user-code
 from __future__ import annotations
 
 import json
-import logging
 import os
 import re
 import time
@@ -52,7 +51,9 @@ try:
 except ImportError:  # pragma: no cover - httpx is a hermes dependency
     httpx = None  # type: ignore[assignment]
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("photon_auth")
 
 
 class PhotonDashboardAuthError(RuntimeError):

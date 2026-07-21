@@ -54,7 +54,6 @@ import hashlib
 import hmac
 import itertools
 import json
-import logging
 import mimetypes
 import os
 import re
@@ -158,8 +157,9 @@ from gateway.platforms._hermes_stubs import (
 )
 from gateway.platforms.helpers import atomic_json_write
 from gateway.platforms.base import env_float, env_int
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("feishu_adapter")
 
 # ---------------------------------------------------------------------------
 # Regex patterns

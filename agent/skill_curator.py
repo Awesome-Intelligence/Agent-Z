@@ -14,13 +14,15 @@ Skill Curator - 技能生命周期管理
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from common.config import get_settings
+from common.logging_manager import get_decision_logger
+
+logger = get_decision_logger("skill_curator")
 from agent.skill_usage_tracker import (
     STATE_ACTIVE,
     STATE_STALE,
@@ -34,8 +36,6 @@ from agent.skill_usage_tracker import (
     activity_count,
     agent_created_report,
 )
-
-logger = logging.getLogger(__name__)
 
 # 默认配置
 DEFAULT_STALE_DAYS = 30

@@ -12,15 +12,15 @@ Claude Market 来源适配器
 📋 Logging Layer: ClaudeMarketSource
 """
 
-import logging
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .base import SkillSource, SourceResult, SourceSkillInfo
 from .github_auth import GitHubAuth
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("claude_market")
 
 # Claude Market API
 CLAUDE_MARKET_URL = "https://api.claudemarket.ai/v1/skills"

@@ -8,10 +8,11 @@ Hooks - Lifecycle hook system.
 提供在特定事件发生时执行回调的机制。
 """
 
-import logging
 from typing import Callable, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_system_logger
+
+logger = get_system_logger("hooks")
 
 # Hook registry
 _HOOKS: Dict[str, List[Callable]] = {

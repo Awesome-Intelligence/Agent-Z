@@ -10,14 +10,14 @@ this module does not instantiate an agent directly.
 from __future__ import annotations
 
 import json
-import logging
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, Dict, Optional
 
 from gateway.platforms.base import MessageEvent, MessageType
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("feishu_meeting_invite")
 
 
 @dataclass(frozen=True)

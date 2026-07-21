@@ -7,7 +7,6 @@
 这些技能是官方维护的，但不是默认激活的。
 """
 
-import logging
 import re
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -15,8 +14,9 @@ from typing import List, Optional, Dict, Any
 import yaml
 
 from .base import SkillSource, SourceResult, SourceSkillInfo
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("optional_skill")
 
 
 class OptionalSkillSource(SkillSource):

@@ -10,7 +10,6 @@ downloading from PR #4588 (YuhangLin).
 
 import asyncio
 import json
-import logging
 import os
 import re
 import uuid
@@ -33,8 +32,9 @@ from gateway.platforms.base import (
     cache_document_from_bytes,
 )
 from gateway.platforms.helpers import strip_markdown
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("bluebubbles")
 
 # ---------------------------------------------------------------------------
 # Constants

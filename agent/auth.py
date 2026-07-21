@@ -22,9 +22,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-import logging
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_decision_logger
+
+logger = get_decision_logger("auth")
 
 # 文件锁（跨进程同步）
 _AUTH_LOCK = threading.RLock()

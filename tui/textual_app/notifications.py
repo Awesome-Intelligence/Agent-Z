@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import logging
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("notifications")
 
 
 # ============================================================================
@@ -74,7 +76,7 @@ class NotificationAnimationManager:
 class NotifyMixin:
     """通知与 Toast Mixin。"""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("notifications")
     _theme_manager = None
 
     # ------------------------------------------------------------------

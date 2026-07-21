@@ -50,9 +50,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from common.logging_manager import get_decision_logger
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("run")
 # The gateway daemon can run for weeks; gate transient platform-load warnings
 # at DEBUG so the first human-readable line is "Starting Agent-Z Gateway".
 logging.getLogger("gateway.platforms").setLevel(logging.INFO)

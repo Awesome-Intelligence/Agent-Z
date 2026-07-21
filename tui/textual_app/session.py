@@ -19,15 +19,16 @@ from __future__ import annotations
 
 import logging
 
+from common.logging_manager import get_access_logger
 from .imports import SessionStore
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("session")
 
 
 class SessionMixin:
     """会话存储 Mixin."""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("session")
     _session_store = None
     session_id: str | None = None
     model_name: str = ""

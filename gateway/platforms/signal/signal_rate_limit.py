@@ -17,12 +17,13 @@ daemon.
 from __future__ import annotations
 
 import asyncio
-import logging
 import re
 import time
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("signal_rate_limit")
 
 
 # ---------------------------------------------------------------------------

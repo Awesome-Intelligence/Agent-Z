@@ -93,6 +93,7 @@ except ImportError:
     ExecuteAction = None  # type: ignore[assignment,misc]
     TextBlock = None  # type: ignore[assignment,misc]
 
+from common.logging_manager import get_access_logger
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.helpers import MessageDeduplicator
 from gateway.platforms.base import (
@@ -104,7 +105,7 @@ from gateway.platforms.base import (
     cache_media_bytes,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("teams_adapter")
 
 _DEFAULT_PORT = 3978
 # Bot Framework activities are JSON payloads well under 1 MiB; an explicit

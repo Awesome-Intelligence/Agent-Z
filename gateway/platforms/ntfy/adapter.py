@@ -47,7 +47,6 @@ by a read token for any real trust boundary.
 
 import asyncio
 import json
-import logging
 import os
 import time
 import uuid
@@ -72,7 +71,9 @@ from gateway.platforms.base import (
     SendResult,
 )
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("ntfy_adapter")
 
 
 class _FatalStreamError(Exception):

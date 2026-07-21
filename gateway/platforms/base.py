@@ -33,7 +33,12 @@ def normalize_proxy_url(proxy_url: str | None) -> str | None:
     return candidate
 
 
-logger = logging.getLogger(__name__)
+try:
+    from common.logging_manager import get_access_logger as _get_access_logger
+except ImportError:
+    _get_access_logger = None
+
+logger = _get_access_logger("platform_base") if _get_access_logger else logging.getLogger(__name__)
 
 # Audio file extensions Hermes recognizes for native audio delivery.
 # Kept in sync with tools/send_message_tool.py and cron/scheduler.py via
@@ -930,7 +935,7 @@ async def cache_image_from_url(url: str, ext: str = ".jpg", retries: int = 2) ->
 
     import httpx
 
-    _log = logging.getLogger(__name__)
+    _log = _get_access_logger("platform_base") if _get_access_logger else logging
 
     async with httpx.AsyncClient(
         timeout=30.0,
@@ -1058,7 +1063,7 @@ async def cache_audio_from_url(url: str, ext: str = ".ogg", retries: int = 2) ->
 
     import httpx
 
-    _log = logging.getLogger(__name__)
+    _log = _get_access_logger("platform_base") if _get_access_logger else logging
 
     async with httpx.AsyncClient(
         timeout=30.0,

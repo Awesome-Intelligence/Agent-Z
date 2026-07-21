@@ -45,7 +45,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
-import logging
 import mimetypes
 import os
 import re
@@ -81,8 +80,9 @@ from gateway.platforms.base import (
 )
 from gateway.platforms.whatsapp_common import WhatsAppBehaviorMixin
 from gateway import rich_sent_store
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("whatsapp_cloud_adapter")
 
 
 DEFAULT_API_VERSION = "v20.0"

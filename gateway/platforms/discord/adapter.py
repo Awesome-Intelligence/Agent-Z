@@ -12,7 +12,6 @@ Uses discord.py library for:
 import asyncio
 import hashlib
 import json
-import logging
 import os
 import re
 import struct
@@ -24,7 +23,9 @@ from collections import defaultdict
 from contextlib import suppress
 from typing import Callable, Dict, List, Optional, Any, Tuple
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("discord_adapter")
 
 
 class _Snowflake:

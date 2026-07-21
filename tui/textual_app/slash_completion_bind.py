@@ -14,19 +14,16 @@ v8.x 从 ``tui/textual_app/app.py`` L1024–1090 抽出：
 
 from __future__ import annotations
 
-import logging
-
 from tui.widgets.slash_completion import SlashCompletionList
 
 from .text_area import SubmitTextArea
-
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
 
 
 class SlashCompletionMixin:
     """斜杠命令补全浮层 Mixin."""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("slash_completion_bind")
 
     # ------------------------------------------------------------------
     # 浮层关闭

@@ -7,11 +7,12 @@ Ported from Hermes agent - https://github.com/NousResearch/hermes-agent
 from __future__ import annotations
 
 import json
-import logging
 import re
 from typing import Set
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("whatsapp_identity")
 
 # WhatsApp JIDs are numeric (or plus-prefixed numeric) with optional
 # ``@``, ``.`` and ``:`` separators. ``\w`` is pinned to ASCII so

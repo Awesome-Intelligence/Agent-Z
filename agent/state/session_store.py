@@ -24,8 +24,9 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
 from common.config import get_sessions_dir
+from common.logging_manager import get_decision_logger
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("session_store")
 
 T = TypeVar("T")
 

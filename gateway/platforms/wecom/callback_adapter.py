@@ -13,10 +13,11 @@ Supports multiple self-built apps under one gateway instance, scoped by
 from __future__ import annotations
 
 import asyncio
-import logging
 import socket as _socket
 import time
 from typing import Any, Dict, List, Optional
+
+from common.logging_manager import get_access_logger
 
 # Security: parse untrusted, pre-auth request bodies (WeCom callbacks) with
 # defusedxml to block billion-laughs / entity-expansion (and XXE) DoS. The
@@ -56,7 +57,7 @@ from gateway.platforms.base import (
 )
 from gateway.platforms.wecom.wecom_crypto import WXBizMsgCrypt, WeComCryptoError
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("callback_adapter")
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8645

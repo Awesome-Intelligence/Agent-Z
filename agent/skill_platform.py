@@ -13,15 +13,15 @@ Skill Platform Filter - 技能平台过滤模块
 📋 Logging Layer: SkillPlatform
 """
 
-import logging
 import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
-logger = logging.getLogger(__name__)
-
+from common.logging_manager import get_decision_logger
 from common.skill_utils import SKILL_EXCLUDED_DIRS
+
+logger = get_decision_logger("skill_platform")
 
 # 平台映射：用户友好的名称 -> sys.platform 前缀
 PLATFORM_MAP = {

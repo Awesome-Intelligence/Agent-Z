@@ -16,13 +16,10 @@ v8.x 从 ``tui/textual_app/app.py`` L2000–2081 抽出：
 
 from __future__ import annotations
 
-import logging
-
 from tui.sidebar import SidebarContainer
 
 from .imports import Container
-
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
 
 
 # 面板循环顺序
@@ -32,7 +29,7 @@ PANEL_ORDER = ("goal", "file_tree", "skills", "cron")
 class SidebarPanelMixin:
     """侧边栏面板切换 Mixin."""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("sidebar_panels")
 
     # ------------------------------------------------------------------
     # 面板切换

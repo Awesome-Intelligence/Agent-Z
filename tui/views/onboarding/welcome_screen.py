@@ -34,8 +34,8 @@ except ImportError:
 
     logging.basicConfig(level=logging.INFO)
 
-    def get_access_logger(*args, **kwargs):
-        return logging.getLogger("WelcomeScreen")
+    def get_access_logger(name, sublayer=None):
+        return logging.getLogger(name)
 
 
 WELCOME_CSS = """

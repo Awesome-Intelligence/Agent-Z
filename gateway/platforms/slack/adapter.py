@@ -11,7 +11,6 @@ Uses slack-bolt (Python) with Socket Mode for:
 import asyncio
 import contextvars
 import json
-import logging
 import os
 import re
 import time
@@ -60,7 +59,9 @@ except ImportError:  # pragma: no cover - plugin loaded outside package context
     from block_kit import render_blocks  # type: ignore
 
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("slack_adapter")
 
 # ContextVar carrying the user_id of the slash-command invoker.
 # Set in _handle_slash_command, read in send() to match the correct

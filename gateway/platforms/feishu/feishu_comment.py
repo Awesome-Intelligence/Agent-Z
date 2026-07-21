@@ -24,10 +24,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("feishu_comment")
 
 # ---------------------------------------------------------------------------
 # Lark SDK helpers (lazy-imported)

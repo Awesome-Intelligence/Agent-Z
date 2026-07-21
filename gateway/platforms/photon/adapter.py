@@ -27,7 +27,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-import logging
 import os
 import re
 import secrets
@@ -68,8 +67,9 @@ from gateway.platforms.base import (
 from gateway.platforms.helpers import strip_markdown
 
 from .auth import load_project_credentials
+from common.logging_manager import get_access_logger
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("photon_adapter")
 
 # ---------------------------------------------------------------------------
 # Constants

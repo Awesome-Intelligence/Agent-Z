@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import os
 import re
 from pathlib import Path
@@ -34,7 +33,9 @@ from gateway.platforms.base import (
     SendResult,
 )
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("mattermost_adapter")
 
 # Mattermost post size limit (server default is 16383, but 4000 is the
 # practical limit for readable messages — matching OpenClaw's choice).

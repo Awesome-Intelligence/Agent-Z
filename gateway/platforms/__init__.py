@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
+from common.logging_manager import get_access_logger
 from gateway.platforms.platform_registry import (
     PlatformEntry,
     PlatformRegistry,
@@ -38,7 +39,7 @@ __all__ = [
     "ensure_discovered",
 ]
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("platforms")
 
 # Single-file platform modules shipped at the package root (gateway/platforms/*.py)
 # instead of inside their own sub-directory.  These also expose a ``register``

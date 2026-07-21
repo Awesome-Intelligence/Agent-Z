@@ -16,7 +16,6 @@ import asyncio
 import base64
 import hashlib
 import json
-import logging
 import mimetypes
 import os
 import re
@@ -32,7 +31,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote, urlparse
 
-logger = logging.getLogger(__name__)
+from common.logging_manager import get_access_logger
+
+logger = get_access_logger("weixin")
 
 WEIXIN_COPY_LINE_WIDTH = 120
 

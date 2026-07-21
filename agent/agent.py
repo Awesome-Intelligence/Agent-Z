@@ -12,6 +12,8 @@ import os
 import json
 import logging
 import time
+
+from common.logging_manager import get_decision_logger
 from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -44,7 +46,7 @@ class ActionType(Enum):
     CLARIFICATION = "clarification"
 
 
-logger = logging.getLogger(__name__)
+logger = get_decision_logger("agent")
 
 
 @dataclass

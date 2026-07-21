@@ -16,15 +16,16 @@ from __future__ import annotations
 
 import logging
 
+from common.logging_manager import get_access_logger
 from .imports import HelpScreen, LogScreen, SettingsScreen
 
-logger = logging.getLogger(__name__)
+logger = get_access_logger("actions")
 
 
 class ActionsMixin:
     """快捷键 action 方法 Mixin."""
 
-    _logger = logging.getLogger(__name__)
+    _logger = get_access_logger("actions")
 
     # ------------------------------------------------------------------
     # Screen 切换

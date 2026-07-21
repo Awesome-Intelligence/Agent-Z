@@ -55,8 +55,8 @@ try:
 except ImportError:
     import logging
     logging.basicConfig(level=logging.INFO)
-    def get_access_logger(*args, **kwargs):
-        return logging.getLogger("Agent")
+    def get_access_logger(name, sublayer=None):
+        return logging.getLogger(name)
 
 
 # ============================================================================
