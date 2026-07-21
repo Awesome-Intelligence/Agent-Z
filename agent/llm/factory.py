@@ -3,6 +3,9 @@ LLM Factory - LLM Provider 工厂
 🧠 Decision - 🤖 LLM - Provider 工厂类
 """
 
+import importlib
+import pkgutil
+from pathlib import Path
 from typing import Optional, Dict, List, Type
 from .providers.base import BaseProvider, ProviderConfig
 
@@ -137,35 +140,34 @@ class LLMFactory:
         return result
 
 
-# 自动注册所有 Provider
 def _register_providers():
-    """自动注册所有 Provider"""
-    from .providers.openai import OpenAIProvider
-    from .providers.claude import ClaudeProvider
-    from .providers.deepseek import DeepSeekProvider
-    from .providers.gemini import GeminiProvider
-    from .providers.kimi import KimiProvider
-    from .providers.azure import AzureProvider
-    from .providers.groq import GroqProvider
-    from .providers.minimax import MiniMaxProvider
-    from .providers.zhipu import ZhipuProvider
-    from .providers.dashscope import DashscopeProvider
-    from .providers.siliconflow import SiliconFlowProvider
-    from .providers.openrouter import OpenRouterProvider
+    """Discover and register all Provider classes via directory scan.
 
-    LLMFactory.register("openai", OpenAIProvider)
-    LLMFactory.register("claude", ClaudeProvider)
-    LLMFactory.register("deepseek", DeepSeekProvider)
-    LLMFactory.register("gemini", GeminiProvider)
-    LLMFactory.register("kimi", KimiProvider)
-    LLMFactory.register("azure", AzureProvider)
-    LLMFactory.register("groq", GroqProvider)
-    LLMFactory.register("minimax", MiniMaxProvider)
-    LLMFactory.register("zhipu", ZhipuProvider)
-    LLMFactory.register("dashscope", DashscopeProvider)
-    LLMFactory.register("siliconflow", SiliconFlowProvider)
-    LLMFactory.register("openrouter", OpenRouterProvider)
+    Each module in agent/llm/providers/ must contain exactly one class that:
+      - inherits from BaseProvider (but is not BaseProvider itself)
+      - has provider_name matching the module filename
+    """
+    providers_dir = Path(__file__).parent / "providers"
+    for _importer, modname, _ispkg in pkgutil.iter_modules([str(providers_dir)]):
+        if modname.startswith("_") or modname == "base":
+            continue
+        try:
+            module = importlib.import_module(f"agent.llm.providers.{modname}")
+        except ImportError:
+            continue
+
+        # Find the provider class in this module by matching provider_name == modname
+        for attr_name in dir(module):
+            cls = getattr(module, attr_name, None)
+            if (
+                isinstance(cls, type)
+                and issubclass(cls, BaseProvider)
+                and cls is not BaseProvider
+                and getattr(cls, "provider_name", None) == modname
+            ):
+                LLMFactory.register(modname, cls)
+                break
 
 
-# 自动注册
+# 启动时扫描注册
 _register_providers()
