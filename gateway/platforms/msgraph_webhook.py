@@ -452,3 +452,60 @@ class MSGraphWebhookAdapter(BasePlatformAdapter):
         task = asyncio.create_task(self.handle_message(event))
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
+
+
+# ---------------------------------------------------------------------------
+# Gateway registry integration
+# ---------------------------------------------------------------------------
+
+
+def _build_msgraph_webhook_adapter(config):
+    """Construct an MSGraphWebhookAdapter from a PlatformConfig."""
+    return MSGraphWebhookAdapter(config)
+
+
+def _msgraph_webhook_apply_yaml_config(yaml_cfg: dict, env_overrides: dict):
+    """Extract MSGraph webhook-specific ``extra`` fields from config.yaml.
+
+    Looks up ``gateway.platforms.msgraph_webhook`` (or ``platforms.msgraph_webhook``)
+    and returns the extra dict.  Environment variables take precedence.
+    """
+    platforms_cfg = (yaml_cfg.get("gateway") or {}).get("platforms") or yaml_cfg.get(
+        "platforms"
+    ) or {}
+    cfg = platforms_cfg.get("msgraph_webhook") or {}
+    extra = dict(cfg.get("extra") or cfg)
+    import os
+
+    for k_env, k_cfg in (
+        ("MSGRAPH_WEBHOOK_CLIENT_STATE", "client_state"),
+        ("MSGRAPH_WEBHOOK_HOST", "host"),
+        ("MSGRAPH_WEBHOOK_PORT", "port"),
+        ("MSGRAPH_WEBHOOK_PATH", "webhook_path"),
+    ):
+        v_env = os.getenv(k_env)
+        if v_env and extra.get(k_cfg) in (None, ""):
+            extra[k_cfg] = v_env
+    return {"extra": extra} if extra else None
+
+
+def register() -> None:
+    """Register the MSGraph Webhook platform with the Agent-Z gateway registry."""
+    from gateway.platforms.platform_registry import PlatformEntry, platform_registry
+
+    platform_registry.register(
+        PlatformEntry(
+            name="msgraph_webhook",
+            label="MS Graph Webhook (Microsoft 365)",
+            adapter_factory=_build_msgraph_webhook_adapter,
+            check_fn=check_msgraph_webhook_requirements,
+            required_env=["MSGRAPH_WEBHOOK_CLIENT_STATE"],
+            install_hint="pip install aiohttp",
+            apply_yaml_config_fn=_msgraph_webhook_apply_yaml_config,
+            allowed_users_env="",
+            allow_all_env="",
+            max_message_length=0,
+            emoji="📊",
+            allow_update_command=False,
+        )
+    )

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from pathlib import Path
@@ -69,19 +70,88 @@ class MessageDeduplicator:
 
 
 class TextBatchAggregator:
-    """Aggregates rapid-fire text events into single messages."""
+    """Aggregates rapid-fire text events into single messages.
 
-    def __init__(self, handler, batch_delay: float = 0.6, split_threshold: int = 1900):
+    Replaces the ``_enqueue_text_event`` / ``_flush_text_batch`` pattern
+    previously duplicated in telegram, discord, matrix, wecom, and feishu.
+
+    Usage::
+
+        self._text_batcher = TextBatchAggregator(
+            handler=self._message_handler,
+            batch_delay=0.6,
+            split_threshold=4000,
+        )
+
+        # In message dispatch:
+        if msg_type == MessageType.TEXT and self._text_batcher.is_enabled():
+            self._text_batcher.enqueue(event, session_key)
+            return
+    """
+
+    def __init__(
+        self,
+        handler,
+        *,
+        batch_delay: float = 0.6,
+        split_delay: float = 2.0,
+        split_threshold: int = 4000,
+    ):
         self._handler = handler
         self._batch_delay = batch_delay
+        self._split_delay = split_delay
         self._split_threshold = split_threshold
-        self._pending: Dict[str, tuple] = {}
+        self._pending: Dict[str, Any] = {}
+        self._pending_tasks: Dict[str, asyncio.Task] = {}
 
     def is_enabled(self) -> bool:
-        return True
+        """Return True if batching is active (delay > 0)."""
+        return self._batch_delay > 0
 
-    def enqueue(self, event, session_key: str) -> None:
-        pass
+    def enqueue(self, event, key: str) -> None:
+        """Add *event* to the pending batch for *key*."""
+        chunk_len = len(getattr(event, "text", "") or "")
+        existing = self._pending.get(key)
+        if not existing:
+            event._last_chunk_len = chunk_len  # type: ignore[attr-defined]
+            self._pending[key] = event
+        else:
+            existing.text = f"{getattr(existing, 'text', '') or ''}\n{getattr(event, 'text', '') or ''}"
+            existing._last_chunk_len = chunk_len  # type: ignore[attr-defined]
+
+        # Cancel prior flush timer, start a new one
+        prior = self._pending_tasks.get(key)
+        if prior and not prior.done():
+            prior.cancel()
+        self._pending_tasks[key] = asyncio.create_task(self._flush(key))
+
+    async def _flush(self, key: str) -> None:
+        """Wait then dispatch the batched event for *key*."""
+        current_task = self._pending_tasks.get(key)
+        pending = self._pending.get(key)
+        last_len = getattr(pending, "_last_chunk_len", 0) if pending else 0
+
+        # Use longer delay when the last chunk looks like a split message
+        delay = self._split_delay if last_len >= self._split_threshold else self._batch_delay
+        await asyncio.sleep(delay)
+
+        event = self._pending.pop(key, None)
+        if event:
+            try:
+                await self._handler(event)
+            except Exception:
+                logger.exception("[TextBatchAggregator] Error dispatching batched event for %s", key)
+
+        if self._pending_tasks.get(key) is current_task:
+            self._pending_tasks.pop(key, None)
+
+    def cancel_all(self) -> None:
+        """Cancel all pending flush tasks."""
+        for task in self._pending_tasks.values():
+            if not task.done():
+                task.cancel()
+        self._pending_tasks.clear()
+        self._pending.clear()
 
 
 import re as _re
@@ -245,3 +315,60 @@ def convert_table_to_bullets(text: str) -> str:
         out.append(line)
         i += 1
     return "\n".join(out)
+
+
+# ─── HTTP Client Limits ────────────────────────────────────────────────────────
+# Prevents file descriptor exhaustion in long-running platform adapters.
+
+try:
+    import httpx
+except ImportError:
+    httpx = None  # type: ignore[assignment]
+
+
+def platform_httpx_limits() -> "httpx.Limits | None":
+    """Return ``httpx.Limits`` tuned for persistent platform-adapter clients.
+
+    Returns ``None`` when httpx isn't importable, so callers can fall
+    back to httpx's built-in default without a hard dependency on this
+    helper being reachable.
+
+    Override via ``AGENTZ_GATEWAY_HTTPX_KEEPALIVE_EXPIRY`` /
+    ``AGENTZ_GATEWAY_HTTPX_MAX_KEEPALIVE`` env vars when tuning under load.
+    """
+    if httpx is None:
+        return None
+
+    import os
+
+    def _env_float(name: str, default: float) -> float:
+        raw = os.environ.get(name, "").strip()
+        if not raw:
+            return default
+        try:
+            val = float(raw)
+        except (TypeError, ValueError):
+            return default
+        return val if val > 0 else default
+
+    def _env_int(name: str, default: int) -> int:
+        raw = os.environ.get(name, "").strip()
+        if not raw:
+            return default
+        try:
+            val = int(raw)
+        except (TypeError, ValueError):
+            return default
+        return val if val > 0 else default
+
+    keepalive_expiry = _env_float(
+        "AGENTZ_GATEWAY_HTTPX_KEEPALIVE_EXPIRY", 2.0
+    )
+    max_keepalive = _env_int(
+        "AGENTZ_GATEWAY_HTTPX_MAX_KEEPALIVE", 10
+    )
+
+    return httpx.Limits(
+        max_keepalive_connections=max_keepalive,
+        keepalive_expiry=keepalive_expiry,
+    )

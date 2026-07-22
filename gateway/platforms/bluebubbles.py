@@ -1070,3 +1070,64 @@ class BlueBubblesAdapter(BasePlatformAdapter):
             asyncio.create_task(self.mark_read(session_chat_id))
 
         return web.Response(text="ok")
+
+
+# ---------------------------------------------------------------------------
+# Gateway registry integration
+# ---------------------------------------------------------------------------
+
+
+def _build_bluebubbles_adapter(config):
+    """Construct a BlueBubblesAdapter from a PlatformConfig."""
+    return BlueBubblesAdapter(config)
+
+
+def _bluebubbles_apply_yaml_config(yaml_cfg: dict, env_overrides: dict):
+    """Extract BlueBubbles-specific ``extra`` fields from config.yaml.
+
+    Looks up ``gateway.platforms.bluebubbles`` (or ``platforms.bluebubbles``)
+    and returns the extra dict.  Environment variables take precedence.
+    """
+    platforms_cfg = (yaml_cfg.get("gateway") or {}).get("platforms") or yaml_cfg.get(
+        "platforms"
+    ) or {}
+    cfg = platforms_cfg.get("bluebubbles") or {}
+    extra = dict(cfg.get("extra") or cfg)
+    import os
+
+    for k_env, k_cfg in (
+        ("BLUEBUBBLES_SERVER_URL", "server_url"),
+        ("BLUEBUBBLES_PASSWORD", "password"),
+        ("BLUEBUBBLES_WEBHOOK_HOST", "webhook_host"),
+        ("BLUEBUBBLES_WEBHOOK_PORT", "webhook_port"),
+        ("BLUEBUBBLES_WEBHOOK_PATH", "webhook_path"),
+        ("BLUEBUBBLES_REQUIRE_MENTION", "require_mention"),
+        ("BLUEBUBBLES_MENTION_PATTERNS", "mention_patterns"),
+    ):
+        v_env = os.getenv(k_env)
+        if v_env is not None and extra.get(k_cfg) in (None, ""):
+            extra[k_cfg] = v_env
+    return {"extra": extra} if extra else None
+
+
+def register() -> None:
+    """Register the BlueBubbles platform with the Agent-Z gateway registry."""
+    from gateway.platforms.platform_registry import PlatformEntry, platform_registry
+
+    platform_registry.register(
+        PlatformEntry(
+            name="bluebubbles",
+            label="BlueBubbles (macOS iMessage)",
+            adapter_factory=_build_bluebubbles_adapter,
+            check_fn=check_bluebubbles_requirements,
+            required_env=["BLUEBUBBLES_SERVER_URL", "BLUEBUBBLES_PASSWORD"],
+            install_hint="pip install httpx aiohttp  "
+            "(requires a local BlueBubbles macOS server)",
+            apply_yaml_config_fn=_bluebubbles_apply_yaml_config,
+            allowed_users_env="BLUEBUBBLES_ALLOWED_USERS",
+            allow_all_env="BLUEBUBBLES_ALLOW_ALL_USERS",
+            max_message_length=4000,
+            emoji="💬",
+            allow_update_command=True,
+        )
+    )

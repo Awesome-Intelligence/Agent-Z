@@ -112,6 +112,9 @@ def _resolve_platform_enum(name: str) -> Any:
 # GatewayRunner
 # ─────────────────────────────────────────────────────────────────────
 
+from gateway.slash_commands import GatewaySlashCommandsMixin
+
+
 @dataclass
 class _AgentCacheSlot:
     agent: Any
@@ -124,7 +127,8 @@ class _AgentCacheSlot:
 _PAIRING_STORE_UNSET: Any = object()
 
 
-class GatewayRunner:
+@dataclass(init=False)
+class GatewayRunner(GatewaySlashCommandsMixin):
     """Minimal gateway lifecycle controller.
 
     Public surface:
@@ -212,6 +216,18 @@ class GatewayRunner:
         else:
             self.pairing_store = pairing_store  # can be None to intentionally disable
         self.session_store: Optional[Any] = None  # P1 SQLite-backed gateway session store
+        try:
+            from gateway.session import GatewaySessionStore
+            self.session_store = GatewaySessionStore(
+                sessions_dir=self._sessions_dir,
+                config=self.config,
+            )
+            logger.info(
+                "GatewaySessionStore initialized (SQLite: %s)",
+                getattr(self.session_store._db, "db_path", "memory-only"),
+            )
+        except Exception as exc:
+            logger.warning("GatewaySessionStore init failed: %s", exc)
         self.hooks: Optional[Any] = None  # Reserved for plugin-style inbound/outbound hooks
 
     # ── Config resolution --------------------------------------------------
@@ -449,6 +465,24 @@ class GatewayRunner:
         self._enforce_agent_cache_cap()
         return agent
 
+    # ── Slash commands support ────────────────────────────────────────────
+
+    def _invalidate_session_run_generation(self, session_key: str, reason: str = "") -> None:
+        """Invalidate any in-flight run generation for this session.
+
+        Called by /new, /reset to prevent a stale generation from producing
+        output after the session has been reset.  No-op in the minimal runner.
+        """
+        logger.debug("invalidate_session_run_generation(%s, reason=%r)", session_key, reason)
+
+    def _release_running_agent_state(self, session_key: str) -> None:
+        """Release per-session agent state after reset.
+
+        Called by /new, /reset to clean up agent state before cache eviction.
+        No-op in the minimal runner (cache eviction is handled separately).
+        """
+        logger.debug("release_running_agent_state(%s)", session_key)
+
     # ── Message handling ---------------------------------------------------
 
     @staticmethod
@@ -616,7 +650,7 @@ class GatewayRunner:
             except Exception:
                 sender_name = ""
             prompt = self._build_pairing_prompt(source, sender_name=sender_name)
-            await self._safe_send(
+            await self._deliver_reply(
                 adapter,
                 chat_id,
                 prompt,
@@ -627,7 +661,7 @@ class GatewayRunner:
         # ── Resolve agent ──────────────────────────────────────────────
         agent = self._get_or_create_agent_for_session(session_key)
         if agent is None:
-            await self._safe_send(
+            await self._deliver_reply(
                 adapter,
                 chat_id,
                 "⚠️ Agent not configured — LLM provider credentials are missing. "
@@ -694,9 +728,21 @@ class GatewayRunner:
                     except Exception:
                         pass
 
-                asyncio.run_coroutine_threadsafe(
+                def _on_edit_done(fut: Any) -> None:
+                    """Log any exception from the scheduled edit coroutine."""
+                    try:
+                        fut.result()  # raises if the coroutine raised
+                    except Exception as exc:
+                        logger.debug(
+                            "stream edit coroutine raised for session %s: %s",
+                            session_key,
+                            exc,
+                        )
+
+                fut = asyncio.run_coroutine_threadsafe(
                     _do_edit(full_so_far, msg_id_ref), self._loop
                 )
+                fut.add_done_callback(_on_edit_done)
 
         try:
             response = await agent.chat(
@@ -711,6 +757,11 @@ class GatewayRunner:
             ) or "".join(chunks)
             if not reply_text.strip():
                 reply_text = "(no response)"
+            # ── P2-2: Apply response filters (credential redaction + error sanitization) ──
+            reply_text, _suppress = self._filter_and_suppress(reply_text)
+            if _suppress:
+                # Intentional silence — don't send anything
+                return
         except Exception as exc:
             logger.error(
                 "Agent.chat failed for session %s: %s",
@@ -740,7 +791,7 @@ class GatewayRunner:
                     session_key,
                     exc,
                 )
-        await self._safe_send(
+        await self._deliver_reply(
             adapter,
             chat_id,
             reply_text,
@@ -798,6 +849,63 @@ class GatewayRunner:
                 last_exc,
                 exc_info=True,
             )
+
+    async def _deliver_reply(
+        self,
+        adapter: Any,
+        chat_id: str,
+        content: str,
+        reply_to: Optional[str] = None,
+    ) -> None:
+        """Send a reply, routing through DeliveryRouter for rich media.
+
+        Parses ``content`` for [IMAGE:...], [AUDIO:...], [FILE:...], [VIDEO:...]
+        tags.  When media is present, uses the DeliveryRouter to send each piece
+        through the adapter's native send_image/send_audio/send_file methods
+        (with fallback to text).  Plain text goes through the existing
+        ``_safe_send`` path.
+
+        This is the P2-1 delivery router integration point.
+        """
+        if not content:
+            return
+
+        # Check if content contains media tags — if so, use DeliveryRouter
+        has_media_tags = any(
+            ch in content
+            for ch in ("[IMAGE", "[AUDIO", "[FILE", "[VIDEO", "[MEDIA", "![IMAGE")
+        )
+
+        if has_media_tags:
+            try:
+                from gateway.delivery import parse_content, send_with_delivery
+
+                parsed = parse_content(content)
+                if parsed.has_media:
+                    await send_with_delivery(adapter, chat_id, content, reply_to=reply_to)
+                    return
+            except Exception as exc:
+                logger.warning("DeliveryRouter failed, falling back to plain send: %s", exc)
+
+        # Fallback: plain text send via _safe_send
+        await self._safe_send(adapter, chat_id, content, reply_to=reply_to)
+
+    # ── P2-2: Response filters ────────────────────────────────────────────
+
+    @staticmethod
+    def _filter_and_suppress(text: str) -> tuple[str, bool]:
+        """Apply credential redaction, error sanitization, and silence suppression.
+
+        Returns (filtered_text, should_suppress).  ``should_suppress`` is True when
+        the response is an intentional silence marker — the caller should not send.
+        """
+        try:
+            from gateway.response_filters import filter_and_maybe_suppress
+
+            return filter_and_maybe_suppress(text)
+        except Exception as exc:
+            logger.warning("Response filter failed: %s; delivering raw text", exc)
+            return text, False
 
     # ── Lifecycle: start / stop -------------------------------------------
 
@@ -970,6 +1078,13 @@ class GatewayRunner:
             except Exception:
                 pass
         self._background_tasks.clear()
+
+        # Close session store
+        if self.session_store:
+            try:
+                self.session_store.close()
+            except Exception:
+                pass
 
 
 # ── Module-level helpers ------------------------------------------------

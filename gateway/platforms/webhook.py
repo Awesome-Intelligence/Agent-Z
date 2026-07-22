@@ -1189,3 +1189,60 @@ class WebhookAdapter(BasePlatformAdapter):
             metadata = {"thread_id": thread_id}
 
         return await adapter.send(chat_id, content, metadata=metadata)
+
+
+# ---------------------------------------------------------------------------
+# Gateway registry integration
+# ---------------------------------------------------------------------------
+
+
+def _build_webhook_adapter(config):
+    """Construct a WebhookAdapter from a PlatformConfig."""
+    return WebhookAdapter(config)
+
+
+def _webhook_apply_yaml_config(yaml_cfg: dict, env_overrides: dict):
+    """Extract webhook-specific ``extra`` fields from config.yaml.
+
+    Looks up ``gateway.platforms.webhook`` (or ``platforms.webhook``) and
+    returns the extra dict.  Environment variables take precedence over
+    config.yaml values.
+    """
+    platforms_cfg = (yaml_cfg.get("gateway") or {}).get("platforms") or yaml_cfg.get(
+        "platforms"
+    ) or {}
+    wh_cfg = platforms_cfg.get("webhook") or {}
+    extra = dict(wh_cfg.get("extra") or wh_cfg)
+    import os
+
+    for k_env, k_cfg in (
+        ("WEBHOOK_HOST", "host"),
+        ("WEBHOOK_PORT", "port"),
+        ("WEBHOOK_SECRET", "secret"),
+    ):
+        v_env = os.getenv(k_env)
+        if v_env and extra.get(k_cfg) in (None, ""):
+            extra[k_cfg] = v_env
+    return {"extra": extra} if extra else None
+
+
+def register() -> None:
+    """Register the Webhook platform with the Agent-Z gateway registry."""
+    from gateway.platforms.platform_registry import PlatformEntry, platform_registry
+
+    platform_registry.register(
+        PlatformEntry(
+            name="webhook",
+            label="Webhook (generic HTTP receiver)",
+            adapter_factory=_build_webhook_adapter,
+            check_fn=check_webhook_requirements,
+            required_env=[],
+            install_hint="pip install aiohttp",
+            apply_yaml_config_fn=_webhook_apply_yaml_config,
+            allowed_users_env="",
+            allow_all_env="",
+            max_message_length=0,
+            emoji="🪝",
+            allow_update_command=False,
+        )
+    )
