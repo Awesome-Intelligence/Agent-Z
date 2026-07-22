@@ -471,6 +471,12 @@ class AgentLoop:
             return None
 
     async def _llm_decide(self, context) -> Decision:
+        if not self.llm:
+            self.logger.warning("LLM not configured, returning setup prompt")
+            return Decision(
+                action="direct_response",
+                content="⚠️ LLM 未配置，请先在设置中配置 LLM Provider",
+            )
         try:
             from tools.schema_registry import generate_openai_tools_schema
 
