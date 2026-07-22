@@ -1223,6 +1223,55 @@ class WrappedLog(Log):
         self.refresh_lines(start_line, len(new_lines))
         self.refresh()
 
+    def _render_line_strip(self, y: int, rich_style: "Style") -> "Strip":  # type: ignore[override]
+        """Override to fix selection foreground being invisible."""
+        from rich.style import Style
+        from rich.segment import Segment
+        from textual.strip import Strip
+        from textual.widgets._log import Log
+
+        strip = Log._render_line_strip(self, y, rich_style)  # pylint: disable=protected-access
+
+        selection = self.text_selection
+        if selection is None:
+            return strip
+
+        select_span = selection.get_span(y - self._clear_y)
+        if select_span is None:
+            return strip
+
+        start, end = select_span
+        if end == -1:
+            end = len(strip.text)
+        if start >= end:
+            return strip
+
+        # Rebuild segments, forcing white foreground on the selected character range
+        new_segs: list[Segment] = []
+        text_len = len(strip.text)
+        pos = 0
+        for seg in strip._segments:
+            seg_len = len(seg.text)
+            seg_end = pos + seg_len
+            if seg_end <= start or pos >= end:
+                new_segs.append(seg)
+            else:
+                # left of selection
+                if pos < start:
+                    new_segs.append(Segment(seg.text[: start - pos], seg.style))
+                # selected part: force white foreground
+                ov_s = max(0, start - pos)
+                ov_e = min(seg_len, end - pos)
+                new_segs.append(
+                    Segment(seg.text[ov_s:ov_e], seg.style + Style(color="white"))
+                )
+                # right of selection
+                if seg_end > end:
+                    new_segs.append(Segment(seg.text[ov_e:], seg.style))
+            pos = seg_end
+
+        return Strip(new_segs, strip._cell_length)
+
 
 # ============================================================================
 # 日志面板

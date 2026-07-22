@@ -39,11 +39,7 @@ class LogScreen(ModalScreen):
        ponytail: $boost 在内置主题下是固定 rgba (255,255,255,0.04)，
        切主题不变；$text / $text-muted 不是 Textual 官方变量，
        改用 $foreground 才是真正跟主题的。*/
-    LogScreen .screen--selection {
-        background: $surface;
-        color: $foreground;
-    }
-
+    /* ponytail: 覆盖紫色主题下的选中色 */
     #log-window {
         width: 90%;
         height: 80%;
@@ -87,7 +83,8 @@ class LogScreen(ModalScreen):
 
     #log-content {
         width: 100%;
-        height: auto;
+        height: 100%;
+        color: #e0e0e0;
     }
     """
 
