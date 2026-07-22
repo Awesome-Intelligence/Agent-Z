@@ -787,6 +787,17 @@ tui:
     enable_memory: "启用记忆系统"
     enable_semantic: "启用语义检索"
     enable_compression: "启用 Context 压缩"
+    reset_mode: "会话重置模式"
+    reset_both: "每天 + 空闲时"
+    reset_daily: "每天"
+    reset_idle: "仅空闲时"
+    reset_never: "从不"
+    # Intent
+    intent: "意图识别"
+    intent_mode: "识别模式"
+    intent_llm: "LLM 模式"
+    intent_hybrid: "混合模式"
+    intent_keyword: "关键词模式"
     # Preferences
     explanation_depth: "详细程度"
     depth_brief: "简洁"

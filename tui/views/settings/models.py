@@ -698,20 +698,12 @@ class CategoryMeta:
     """分类元数据"""
 
     CATEGORIES = [
-        ("language", "🌐", "language", "display"),
         ("llm", "🤖", "llm", "llm"),
-        ("model", "🔧", "model", "model_settings"),
-        ("providers", "🔗", "llm", "providers"),
-        ("fallback", "🔄", "fallback", "fallback_providers"),
         ("terminal", "💻", "terminal", "terminal"),
         ("agent", "⚙️", "agent", "agent"),
-        ("tool_loop", "🔁", "agent", "tool_loop_guardrails"),
-        ("session", "🔄", "session", "session"),
-        ("memory", "💾", "session", "memory"),
-        ("compression", "📦", "session", "compression"),
-        ("session_reset", "🕐", "session", "session_reset"),
-        ("intent", "🧠", "agent", "intent_mode"),
-        ("preferences", "📝", "preferences", "preferences"),
+        ("session", "💾", "session", "session"),
+        ("intent", "🧠", "intent", "intent_mode"),
+        ("preferences", "💬", "preferences", "preferences"),
         ("tools", "🛠️", "tools", "tools"),
         ("logging", "📄", "logging", "logging"),
         ("about", "ℹ️", "about", "about"),

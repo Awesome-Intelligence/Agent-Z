@@ -807,6 +807,17 @@ tui:
     enable_memory: "Enable Memory"
     enable_semantic: "Enable Semantic Retrieval"
     enable_compression: "Enable Context Compression"
+    reset_mode: "Session Reset Mode"
+    reset_both: "Daily + Idle"
+    reset_daily: "Daily Only"
+    reset_idle: "Idle Only"
+    reset_never: "Never"
+    # Intent
+    intent: "Intent Recognition"
+    intent_mode: "Recognition Mode"
+    intent_llm: "LLM Mode"
+    intent_hybrid: "Hybrid Mode"
+    intent_keyword: "Keyword Mode"
     # Preferences
     explanation_depth: "Explanation Depth"
     depth_brief: "Brief"
