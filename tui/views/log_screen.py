@@ -16,8 +16,6 @@ from textual.containers import Vertical, Horizontal
 from textual.screen import ModalScreen
 from textual.widgets import Static, Button
 from textual.binding import Binding
-from textual.events import Click
-from textual import on
 
 from common.logging_manager import get_access_logger
 
@@ -90,29 +88,6 @@ class LogScreen(ModalScreen):
     #log-content {
         width: 100%;
         height: auto;
-    }
-
-    #log-footer {
-        width: 100%;
-        height: 1;
-        layout: horizontal;
-        content-align: center middle;
-    }
-
-    .log-footer-item {
-        width: auto;
-        color: $text-muted;
-        padding: 0 1;
-    }
-
-    .log-footer-item:hover {
-        color: $accent;
-        background: $surface;
-    }
-
-    .log-footer-separator {
-        width: auto;
-        color: $text-disabled;
     }
     """
 
@@ -199,12 +174,6 @@ class LogScreen(ModalScreen):
         """点击背景时关闭"""
         if event.widget is self:
             self.action_close()
-
-    @on(Click, "#log-footer-close")
-    def _handle_footer_close_click(self, event: Static.Click) -> None:
-        """点击 footer 关闭按钮"""
-        event.stop()
-        self.action_close()
 
     def _get_log_file_path(self) -> str:
         """获取最新的日志文件路径（按日期轮转后不再是固定名字）"""

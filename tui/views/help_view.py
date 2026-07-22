@@ -26,11 +26,9 @@ try:
     from textual.app import ComposeResult
     from textual.screen import ModalScreen
     from textual.widgets import Static
-    from textual.containers import Container, VerticalScroll, Horizontal
+    from textual.containers import Container, VerticalScroll
     from textual.message import Message
     from textual.binding import Binding
-    from textual.events import Click
-    from textual import on
 except ImportError:
     TEXTUAL_AVAILABLE = False
     ModalScreen = object  # type: ignore
@@ -86,29 +84,6 @@ HelpScreen {
 #help-content {
     padding: 1 2;
     height: 100%;
-}
-
-#help-footer {
-    width: 100%;
-    height: 1;
-    layout: horizontal;
-    content-align: center middle;
-}
-
-.help-footer-item {
-    width: auto;
-    color: $text-muted;
-    padding: 0 1;
-}
-
-.help-footer-item:hover {
-    color: $accent;
-    background: $surface;
-}
-
-.help-footer-separator {
-    width: auto;
-    color: $text-disabled;
 }
 """
 
@@ -167,11 +142,6 @@ class HelpScreen(ModalScreen):
             with VerticalScroll(id="help-body"):
                 yield Static(self._build_help_content(), id="help-content")
 
-            with Horizontal(id="help-footer"):
-                yield Static("↑↓ 滚动", classes="help-footer-item")
-                yield Static("|", classes="help-footer-separator")
-                yield Static("Esc/Q 关闭", id="help-footer-close", classes="help-footer-item")
-    
     def _build_help_content(self) -> str:
         """构建帮助内容
         
@@ -261,13 +231,6 @@ class HelpScreen(ModalScreen):
         """点击背景时关闭"""
         if event.widget is self:
             self.action_close()
-
-    @on(Click, "#help-footer-close")
-    def _handle_footer_close_click(self, event: Static.Click) -> None:
-        """点击 footer 关闭按钮"""
-        event.stop()
-        self.action_close()
-
 
 # ============================================================================
 # 模块导出

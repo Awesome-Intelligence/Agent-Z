@@ -10,11 +10,9 @@ try:
     from textual.app import ComposeResult
     from textual.screen import ModalScreen
     from textual.binding import Binding
-    from textual.containers import Vertical, Horizontal, Container
+    from textual.containers import Vertical, Container
     from textual.widgets import Static, Button
     from textual.widgets import TextArea
-    from textual.events import Click
-    from textual import on
     TEXTUAL_AVAILABLE = True
 except ImportError:
     TEXTUAL_AVAILABLE = False
@@ -64,29 +62,6 @@ SkillDetailScreen {
     height: 1fr;
     padding: 1;
     overflow-y: auto;
-}
-
-#detail-footer {
-    width: 100%;
-    height: 1;
-    layout: horizontal;
-    content-align: center middle;
-}
-
-.detail-footer-item {
-    width: auto;
-    color: $text-muted;
-    padding: 0 1;
-}
-
-.detail-footer-item:hover {
-    color: $accent;
-    background: $surface;
-}
-
-.detail-footer-separator {
-    width: auto;
-    color: $text-disabled;
 }
 
 #detail-description {
@@ -178,10 +153,6 @@ class SkillDetailScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
                 yield Static("[bold]描述[/bold]", classes="detail-section-title")
                 yield Static(description if description else "无描述", id="detail-description")
 
-            # 底部提示
-            with Horizontal(id="detail-footer"):
-                yield Static("Esc 关闭", id="detail-footer-close", classes="detail-footer-item")
-
     def on_mount(self) -> None:
         """组件挂载时设置焦点."""
         pass
@@ -199,9 +170,3 @@ class SkillDetailScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
         """点击背景时关闭"""
         if event.widget is self:
             self.action_close()
-
-    @on(Click, "#detail-footer-close")
-    def _handle_footer_close_click(self, event: Static.Click) -> None:
-        """点击 footer 关闭按钮"""
-        event.stop()
-        self.action_close()
