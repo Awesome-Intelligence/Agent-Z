@@ -259,6 +259,15 @@ class AgentApp(
         self._update_status_bar()
         self._update_theme_toggle_label()
         self._update_theme_toggle_tooltip()
+        # 从配置恢复上次主题
+        try:
+            from common.config import get_config_value
+            saved_theme = get_config_value("terminal.theme", default="textual-dark")
+            if saved_theme and saved_theme in THEME_CYCLE:
+                self.theme = saved_theme
+                self.refresh_css(animate=False)
+        except Exception:
+            pass
         self._update_mode_toggle_label()
         self._update_mode_toggle_tooltip()
         self.call_later(self._generate_wisdom_async)
@@ -428,6 +437,12 @@ class AgentApp(
                 t('tui.theme.switched', '主题已切换: {theme}', theme=self.theme),
                 NotificationType.INFO,
             )
+            # 保存主题到配置文件
+            try:
+                from common.config import set_config_value
+                set_config_value("terminal.theme", self.theme)
+            except Exception as save_err:
+                self._logger.debug(f'Failed to persist theme: {save_err}')
         except Exception as e:
             self._logger.warning(f'Theme toggle failed: {e}')
 

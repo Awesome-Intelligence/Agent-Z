@@ -199,6 +199,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "backend": "local",
         "modal_mode": "auto",
         "cwd": ".",
+        "theme": "textual-dark",
         "timeout": 180,
         "lifetime_seconds": 300,
         "docker_image": "nikolaik/python-nodejs:python3.11-nodejs20",
