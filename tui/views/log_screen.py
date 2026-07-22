@@ -57,22 +57,22 @@ class LogScreen(ModalScreen):
         height: 3;
         background: $accent;
         layout: horizontal;
+        align: left middle;
         color: $foreground;
     }
 
     #log-header-title {
         width: 1fr;
         height: 100%;
-        content-align: left middle;
-        padding: 0 2;
+        content-align: center middle;
         text-style: bold;
     }
 
     #btn-open-log {
         width: auto;
-        height: 3;
+        height: 100%;
+        margin: 0;
         padding: 0 2;
-        margin-right: 1;
         background: $primary;
         color: white;
         content-align: center middle;
