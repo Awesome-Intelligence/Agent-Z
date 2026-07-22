@@ -26,6 +26,7 @@ from typing import Any, ClassVar, Literal
 from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches, WrongType
 from textual.message import Message
+from textual.selection import Selection
 from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Markdown, Static
@@ -206,7 +207,7 @@ class ChatItem(Widget):
             with Vertical(classes="response-column"):
                 yield Static("", classes="thinking-label")
                 yield Markdown(classes="thinking-body")
-                yield Markdown(classes="response")
+                yield Markdown(classes="response", id="response")
 
     # ------------------------------------------------------------------
     # 流式入口（agent 调用）
@@ -272,7 +273,10 @@ class ChatItem(Widget):
         if self._thinking_stream is not None:
             await self._thinking_stream.stop()
             self._thinking_stream = None
-        await self._freeze_markdown()
+        # 仅标记冻结，不替换 Markdown widget —— widget 树保留，
+        # Textual 内置 selection 提取走 Markdown 自有的 visual 逻辑，
+        # 不会被 `str(Markdown) → 源码` 这条路径干扰。
+        self._frozen = True
 
     async def _freeze_markdown(self) -> None:
         """把完成的 Markdown 子树折叠成单个 Static。
@@ -308,8 +312,10 @@ class ChatItem(Widget):
 
         frozen_resp = frozen_body = None
         if response is not None and self.text:
+            # 用 RichMarkdown 渲染，保留代码块/粗体等 markdown 格式。
             frozen_resp = Static(RichMarkdown(self.text), classes="response")
         if body is not None and self.thinking:
+            # thinking 保留 RichMarkdown 渲染；其选区在 thinking 展开后可正常复制。
             frozen_body = Static(RichMarkdown(self.thinking), classes="thinking-body")
             frozen_body.display = not self.thoughts_collapsed
 
@@ -411,6 +417,18 @@ class ChatItem(Widget):
             return
         label.update("thought")
         body.display = not self.thoughts_collapsed
+
+    def get_selection(self, selection: Selection) -> tuple[str, str] | None:  # type: ignore[override]
+        """返回选中文本供 Textual 剪贴板复制。
+
+        复写默认实现：Markdown widget 的 visual 是 Rich renderable，
+        ``str(visual)`` 返回 markdown 源码而非纯文本，导致
+        Textual selection 系统无法正确提取选中内容。
+        这里直接用 ``self.text``（已存储的纯文本）代替。
+        """
+        if self.author == "assistant" and self.text:
+            return selection.extract(self.text), "\n"
+        return None
 
     # ------------------------------------------------------------------
     # 工具调用（折叠式）

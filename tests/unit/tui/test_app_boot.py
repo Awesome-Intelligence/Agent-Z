@@ -177,7 +177,7 @@ class TestAppInitialization:
         assert app._loading_style == "dots"
 
     def test_app_builtin_models(self):
-        """Test app builtin models list."""
+        """Test app builtin models list format and content."""
         from tui.textual_app.app import TEXTUAL_AVAILABLE
         
         if not TEXTUAL_AVAILABLE:
@@ -187,13 +187,29 @@ class TestAppInitialization:
         
         app = AgentApp()
         
-        # Check builtin models are defined
+        # 1. 非空
         assert len(app._builtin_models) > 0
         
-        # First model should be Agent
-        model_values = [m[0] for m in app._builtin_models]
-        assert "Agent" in model_values
-        assert "custom" in model_values
+        # 2. 格式正确：tuple[label, value] 符合 Textual Select API
+        for item in app._builtin_models:
+            assert isinstance(item, tuple)
+            assert len(item) == 2
+            label, value = item
+            assert isinstance(label, str)
+            assert isinstance(value, str)
+            assert len(label) > 0
+            assert len(value) > 0
+        
+        # 3. 显示名 label 不含 provider 前缀（精简显示）
+        #    内部值 value 保持完整 provider/model 格式（或 "not_configured" 占位符）
+        labels = [m[0] for m in app._builtin_models]
+        values = [m[1] for m in app._builtin_models]
+        for label, value in app._builtin_models:
+            if "/" in value and value != "not_configured":
+                # value 含 provider/model 分隔时，label 应不含 "/" 前缀
+                assert "/" not in label, (
+                    f"label '{label}' 包含 provider 前缀，期望精简显示模型名"
+                )
 
 
 class TestAppMethods:
