@@ -733,6 +733,8 @@ tui:
     # Language
     lang_zh: "中文"
     lang_en: "English"
+    lang_ja: "日本語"
+    lang_ko: "한국어"
     # LLM
     configured_providers: "설정된 프로바이더"
     no_provider: "[dim]프로바이더가 설정되지 않았습니다[/dim]"

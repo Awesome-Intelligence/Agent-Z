@@ -738,7 +738,7 @@ tui:
     llm: "大模型配置"
     model: "模型参数"
     terminal: "终端"
-    behavior: "行为设置"
+    behavior: "偏好设置"
     session: "会话与记忆"
     preferences: "响应偏好"
     tools: "工具"
@@ -748,6 +748,8 @@ tui:
     # Language
     lang_zh: "中文"
     lang_en: "English"
+    lang_ja: "日本語"
+    lang_ko: "한국어"
     # LLM
     configured_providers: "已配置模型"
     no_provider: "[dim]尚未配置任何 Provider[/dim]"

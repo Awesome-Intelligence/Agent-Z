@@ -733,6 +733,8 @@ tui:
     # Language
     lang_zh: "中文"
     lang_en: "English"
+    lang_ja: "日本語"
+    lang_ko: "한국어"
     # LLM
     configured_providers: "設定済みプロバイダー"
     no_provider: "[dim]プロバイダーが設定されていません[/dim]"

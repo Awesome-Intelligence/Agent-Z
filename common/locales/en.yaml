@@ -758,7 +758,7 @@ tui:
     llm: "LLM Configuration"
     model: "Model Parameters"
     terminal: "Terminal"
-    behavior: "Behavior"
+    behavior: "Preferences"
     session: "Session & Memory"
     preferences: "Response Preferences"
     tools: "Tools"
@@ -768,6 +768,8 @@ tui:
     # Language
     lang_zh: "中文"
     lang_en: "English"
+    lang_ja: "日本語"
+    lang_ko: "한국어"
     # LLM
     configured_providers: "Configured Providers"
     no_provider: "[dim]No Provider configured yet[/dim]"

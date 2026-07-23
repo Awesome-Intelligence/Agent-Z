@@ -141,12 +141,12 @@ def _config_language_cached() -> str | None:
     """
     try:
         config_dir = Path.home() / ".agent_z"
-        config_file = config_dir / "config.json"
+        config_file = config_dir / "config.yaml"
         if config_file.exists():
-            import json
+            import yaml  # pylint: disable=import-outside-toplevel
             with open(config_file, 'r', encoding='utf-8') as f:
-                cfg = json.load(f)
-                lang = cfg.get("language")
+                cfg = yaml.safe_load(f) or {}
+                lang = cfg.get("display", {}).get("language")
                 if lang:
                     return _normalize_lang(lang)
     except Exception as exc:

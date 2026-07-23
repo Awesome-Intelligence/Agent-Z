@@ -19,6 +19,8 @@ from pydantic import BaseModel, Field
 class Language(str, Enum):
     ZH = "zh"
     EN = "en"
+    JA = "ja"
+    KO = "ko"
 
 
 class ExplanationDepth(str, Enum):
@@ -700,10 +702,10 @@ class CategoryMeta:
     CATEGORIES = [
         ("llm", "🤖", "llm", "llm"),
         ("terminal", "💻", "terminal", "terminal"),
-        ("behavior", "⚙️", "behavior", "agent"),
         ("session", "💾", "session", "session"),
         ("tools", "🛠️", "tools", "tools"),
         ("logging", "📄", "logging", "logging"),
+        ("behavior", "⚙️", "behavior", "agent"),
         ("about", "ℹ️", "about", "about"),
     ]
 

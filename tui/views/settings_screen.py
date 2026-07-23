@@ -348,17 +348,7 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
                     yield from self._compose_content()
 
             with Horizontal(id="settings-footer"):
-                yield Static("Tab 切换", classes="settings-footer-item")
-                yield Static("|", classes="settings-footer-separator")
-                yield Static("↑↓ 移动", classes="settings-footer-item")
-                yield Static("|", classes="settings-footer-separator")
-                yield Static("确认", classes="settings-footer-item")
-                yield Static("|", classes="settings-footer-separator")
-                yield Static("Ctrl+S 保存", id="settings-footer-save", classes="settings-footer-item")
-                yield Static("|", classes="settings-footer-separator")
-                yield Static("Ctrl+R 重置", id="settings-footer-reset", classes="settings-footer-item")
-                yield Static("|", classes="settings-footer-separator")
-                yield Static("Esc 关闭", id="settings-footer-close", classes="settings-footer-item")
+                yield Static(self._t("footer"), classes="settings-footer-item")
 
     def _compose_sidebar_buttons(self) -> ComposeResult:
         """生成侧边栏分类按钮列表（使用 Static 避免焦点底色）"""
@@ -784,6 +774,8 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
         language_options = [
             (self._t("lang_zh"), "zh"),
             (self._t("lang_en"), "en"),
+            (self._t("lang_ja"), "ja"),
+            (self._t("lang_ko"), "ko"),
         ]
         current = (
             settings.display.language.value
@@ -969,6 +961,13 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
 
         if self._settings_manager:
             if self._settings_manager.save():
+                # 语言变更后重置 i18n 缓存，下次渲染时生效
+                try:
+                    from common.i18n import reset_language_cache
+                    reset_language_cache()
+                except Exception:
+                    pass
+
                 # 显示变更列表
                 if changed_settings:
                     changes_msg = self._t("saved_changes") + ", ".join(changed_settings[:5])
@@ -999,7 +998,8 @@ class SettingsScreen(ModalScreen if TEXTUAL_AVAILABLE else object):
             old_lang = settings.display.language.value
             new_lang = lang_select.value
             if old_lang != new_lang:
-                settings.display.language.value = new_lang
+                from tui.views.settings.models import Language
+                settings.display.language = Language(new_lang)
                 old_label = self._t(f"lang_{old_lang}")
                 new_label = self._t(f"lang_{new_lang}")
                 changed_settings.append(self._t("category_changed", old=old_label, new=new_label))
